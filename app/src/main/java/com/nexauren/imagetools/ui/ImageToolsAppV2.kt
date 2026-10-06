@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import com.nexauren.imagetools.BuildConfig
 import com.nexauren.imagetools.auth.AuthRepository
 import com.nexauren.imagetools.data.FirestoreRepository
+import com.nexauren.imagetools.data.PaymentException
 import com.nexauren.imagetools.data.PaymentRepository
 import com.nexauren.imagetools.media.ImageFilter
 import com.nexauren.imagetools.media.ImageProcessor
@@ -342,7 +343,7 @@ private fun ModernHome(premium: Boolean, openTool: (String) -> Unit) {
                     Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("Unlock Premium", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                            Text("One-time US$9 as the premium toolbox grows.")
+                            Text("US$5/month as the premium toolbox grows.")
                         }
                     }
                 }
@@ -734,7 +735,7 @@ private fun ModernAccount(auth: AuthRepository, firestore: FirestoreRepository, 
             Card(shape = RoundedCornerShape(24.dp)) {
                 ListItem(
                     headlineContent = { Text(if (premium) "Premium active" else "Free plan", fontWeight = FontWeight.Bold) },
-                    supportingContent = { Text(if (premium) "Premium is active on this account." else "Upgrade once for US$9 as the premium library grows.") },
+                    supportingContent = { Text(if (premium) "Premium is active on this account." else "Upgrade for US$5/month as the premium library grows.") },
                     leadingContent = { Icon(if (premium) Icons.Default.WorkspacePremium else Icons.Default.LockOpen, null) },
                     trailingContent = { if (!premium) Button(onClick = openPremium) { Text("Upgrade") } }
                 )
@@ -800,7 +801,21 @@ private fun ModernPremium(
                                 } else {
                                     PaymentRepository.createSubscription(token)
                                         .onSuccess { (_, approveUrl) -> onStartPayment(approveUrl) }
-                                        .onFailure { error = "Subscription could not be started. Please try again." }
+                                        .onFailure { failure ->
+                                            error = when (failure) {
+                                                is PaymentException -> when (failure.code.uppercase()) {
+                                                    "PERMISSION_DENIED", "NOT_AUTHORIZED" ->
+                                                        "PayPal subscriptions are not enabled for this payment account yet."
+                                                    "INVALID_RESOURCE_ID", "RESOURCE_NOT_FOUND" ->
+                                                        "The premium subscription plan is not available yet. Please try again shortly."
+                                                    "INVALID_REQUEST" ->
+                                                        "PayPal rejected the subscription setup. Please try again."
+                                                    else ->
+                                                        "Subscription could not be started. Please try again."
+                                                }
+                                                else -> "Subscription could not be started. Please try again."
+                                            }
+                                        }
                                 }
                                 busy = false
                             }
