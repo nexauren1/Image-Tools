@@ -38,3 +38,6 @@ Never place PayPal client secrets or Firebase service-account private keys insid
 
 ## Privacy
 Current image editing workflows run locally on the device. The app UI intentionally avoids exposing internal identifiers, certificate fingerprints, backend URLs, stack traces, or development diagnostics to end users.
+
+## Build validation
+Release build validated through GitHub Actions.
