@@ -52,7 +52,7 @@ class AuthRepository(private val context: Context) {
 
     fun signOut() = auth.signOut()
 
-    suspend fun idToken(): String? = runCatching {
-        auth.currentUser?.getIdToken(false)?.await()?.token
+    suspend fun idToken(forceRefresh: Boolean = false): String? = runCatching {
+        auth.currentUser?.getIdToken(forceRefresh)?.await()?.token
     }.getOrNull()
 }
