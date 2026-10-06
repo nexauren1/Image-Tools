@@ -271,6 +271,25 @@ async function paypalJson(paypal, path, options = {}) {
   return { response, data };
 }
 
+
+function throwPaypalError(stage, data, fallback) {
+  const details = Array.isArray(data && data.details) ? data.details[0] : null;
+  const error = new Error(data && data.message ? data.message : fallback);
+  error.stage = stage;
+  error.code = (details && details.issue) || (data && data.name) || "PAYPAL_ERROR";
+  error.debugId = (data && data.debug_id) || "";
+  throw error;
+}
+
+function withPaypalHeaders(paypal, extra = {}) {
+  return {
+    "Authorization": "Bearer " + paypal.token,
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    ...extra
+  };
+}
+
 async function getPaypalProduct(paypal, productId) {
   const { response, data } = await paypalJson(
     paypal,
@@ -278,7 +297,7 @@ async function getPaypalProduct(paypal, productId) {
     { method: "GET" }
   );
   if (response.status === 404) return null;
-  if (!response.ok) throw new Error(data.message || "PayPal product lookup failed");
+  if (!response.ok) throwPaypalError("product-lookup", data, "PayPal product lookup failed");
   return data;
 }
 
@@ -288,7 +307,7 @@ async function listPaypalProducts(paypal) {
     "/v1/catalogs/products?page_size=20&page=1&total_required=true",
     { method: "GET" }
   );
-  if (!response.ok) throw new Error(data.message || "PayPal product list failed");
+  if (!response.ok) throwPaypalError("product-list", data, "PayPal product list failed");
   return data.products || [];
 }
 
@@ -319,7 +338,7 @@ async function createPaypalProduct(paypal, spec) {
   );
 
   if (!response.ok) {
-    throw new Error(data.message || "PayPal product creation failed");
+    throwPaypalError("product-create", data, "PayPal product creation failed");
   }
   return data;
 }
@@ -348,7 +367,7 @@ async function listPaypalPlans(paypal, productId) {
       "&page_size=20&page=1&total_required=true",
     { method: "GET" }
   );
-  if (!response.ok) throw new Error(data.message || "PayPal plan list failed");
+  if (!response.ok) throwPaypalError("plan-list", data, "PayPal plan list failed");
   return data.plans || [];
 }
 
@@ -377,7 +396,7 @@ async function activatePaypalPlan(paypal, planId) {
       body: JSON.stringify({})
     }
   );
-  if (!response.ok) throw new Error(data.message || "PayPal plan activation failed");
+  if (!response.ok) throwPaypalError("plan-activate", data, "PayPal plan activation failed");
   return data;
 }
 
@@ -418,7 +437,7 @@ async function createPaypalPlan(paypal, productId, spec) {
     }
   );
 
-  if (!response.ok) throw new Error(data.message || "PayPal plan creation failed");
+  if (!response.ok) throwPaypalError("plan-create", data, "PayPal plan creation failed");
   if (data.status !== "ACTIVE") {
     await activatePaypalPlan(paypal, data.id);
     data.status = "ACTIVE";
@@ -434,11 +453,17 @@ async function ensurePaypalPlan(paypal, productId, spec) {
       "/v1/billing/plans/" + encodeURIComponent(configuredId),
       { method: "GET" }
     );
-    if (response.ok && planMatches(data, spec)) return data;
+    if (response.ok && planMatches(data, spec) && data.status !== "INACTIVE") {
+      if (data.status === "CREATED") {
+        await activatePaypalPlan(paypal, data.id);
+        data.status = "ACTIVE";
+      }
+      return data;
+    }
   }
 
   const plans = await listPaypalPlans(paypal, productId);
-  const matching = plans.find((plan) => planMatches(plan, spec));
+  const matching = plans.find((plan) => planMatches(plan, spec) && plan.status !== "INACTIVE");
   if (matching) {
     if (matching.status === "CREATED") {
       await activatePaypalPlan(paypal, matching.id);
@@ -510,6 +535,9 @@ async function createSubscription(request, env) {
     "/v1/billing/subscriptions",
     {
       method: "POST",
+      headers: {
+        "PayPal-Request-Id": "image-tools-subscription-" + user.localId + "-" + Date.now()
+      },
       body: JSON.stringify({
         plan_id: plan.id,
         custom_id: user.localId,
@@ -517,6 +545,10 @@ async function createSubscription(request, env) {
           brand_name: "Image Tools",
           locale: "en-US",
           user_action: "SUBSCRIBE_NOW",
+          payment_method: {
+            payer_selected: "PAYPAL",
+            payee_preferred: "IMMEDIATE_PAYMENT_REQUIRED"
+          },
           return_url: publicUrl + "/paypal/return",
           cancel_url: publicUrl + "/paypal/return?cancel=1"
         }
@@ -525,7 +557,7 @@ async function createSubscription(request, env) {
   );
 
   if (!response.ok) {
-    throw new Error(data.message || "PayPal subscription creation failed");
+    throwPaypalError("subscription-create", data, "PayPal subscription creation failed");
   }
 
   const approve = (data.links || []).find((item) => item.rel === "approve");
@@ -586,7 +618,12 @@ async function subscriptionStatus(request, env, url) {
     return reply({ ok: true, premium: false, status: "NONE" });
   }
 
-  const data = await getPayPalSubscription(paypal, subscriptionId);
+  let data;
+  try {
+    data = await getPayPalSubscription(paypal, subscriptionId);
+  } catch (error) {
+    throw error;
+  }
   if (data.custom_id && data.custom_id !== user.localId) {
     return reply({ ok: false, error: "Subscription ownership mismatch" }, 403);
   }
@@ -798,10 +835,16 @@ export default {
 
       return reply({ ok: false, error: "Not found" }, 404);
     } catch (error) {
+      const code = error && error.code ? error.code : "UNEXPECTED_ERROR";
+      const stage = error && error.stage ? error.stage : "worker";
+      const status = code === "PERMISSION_DENIED" || code === "NOT_AUTHORIZED" ? 403 : 500;
       return reply({
         ok: false,
-        error: error && error.message ? error.message : "Unexpected error"
-      }, 500);
+        error: error && error.message ? error.message : "Unexpected error",
+        code,
+        stage,
+        debugId: error && error.debugId ? error.debugId : null
+      }, status);
     }
   }
 };
