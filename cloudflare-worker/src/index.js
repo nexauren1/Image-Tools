@@ -160,8 +160,8 @@ async function createOrder(request, env) {
         brand_name: "Image Tools",
         landing_page: "LOGIN",
         user_action: "PAY_NOW",
-        return_url: env.WORKER_PUBLIC_URL + "/paypal/return",
-        cancel_url: env.WORKER_PUBLIC_URL + "/paypal/return?cancel=1"
+        return_url: publicUrl + "/paypal/return",
+        cancel_url: publicUrl + "/paypal/return?cancel=1"
       }
     })
   });
