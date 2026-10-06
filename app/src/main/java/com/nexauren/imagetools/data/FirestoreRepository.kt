@@ -13,18 +13,32 @@ class FirestoreRepository {
 
     fun syncUser() {
         val user = auth.currentUser ?: return
-        db.collection("users").document(user.uid).set(
-            mapOf(
-                "displayName" to (user.displayName ?: ""),
-                "email" to (user.email ?: ""),
-                "photoUrl" to (user.photoUrl?.toString() ?: ""),
-                "plan" to "free",
-                "premium" to false,
-                "createdAt" to FieldValue.serverTimestamp(),
-                "updatedAt" to FieldValue.serverTimestamp()
-            ),
-            SetOptions.merge()
-        )
+        val ref = db.collection("users").document(user.uid)
+        ref.get().addOnSuccessListener { snapshot ->
+            if (snapshot.exists()) {
+                ref.set(
+                    mapOf(
+                        "displayName" to (user.displayName ?: ""),
+                        "email" to (user.email ?: ""),
+                        "photoUrl" to (user.photoUrl?.toString() ?: ""),
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    ),
+                    SetOptions.merge()
+                )
+            } else {
+                ref.set(
+                    mapOf(
+                        "displayName" to (user.displayName ?: ""),
+                        "email" to (user.email ?: ""),
+                        "photoUrl" to (user.photoUrl?.toString() ?: ""),
+                        "plan" to "free",
+                        "premium" to false,
+                        "createdAt" to FieldValue.serverTimestamp(),
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                )
+            }
+        }
     }
 
     fun observePremium(callback: (Boolean) -> Unit) {
