@@ -527,11 +527,28 @@ async function requireAdminCatalog(request, env) {
 async function createSubscription(request, env) {
   const user = await firebaseUser(request, env);
   const paypal = await paypalToken(env);
-  const catalog = await ensurePaypalCatalog(env, paypal);
-  const plan = catalog.plans[0];
 
-  if (!plan || plan.status !== "ACTIVE") {
-    throw new Error("Premium monthly plan is not active");
+  let plan;
+  let productId = "";
+  if (env.PAYPAL_PLAN_ID) {
+    const { response, data } = await paypalJson(
+      paypal,
+      "/v1/billing/plans/" + encodeURIComponent(env.PAYPAL_PLAN_ID),
+      { method: "GET" }
+    );
+    if (!response.ok) throwPaypalError("plan-lookup", data, "Configured PayPal plan could not be found");
+    if (data.status !== "ACTIVE") {
+      throw new Error("Configured PayPal plan is not active");
+    }
+    plan = data;
+    productId = data.product_id || "";
+  } else {
+    const catalog = await ensurePaypalCatalog(env, paypal);
+    plan = catalog.plans[0];
+    productId = catalog.product.id;
+    if (!plan || plan.status !== "ACTIVE") {
+      throw new Error("Premium monthly plan is not active");
+    }
   }
 
   const publicUrl = (env.WORKER_PUBLIC_URL || new URL(request.url).origin).replace(/\/$/, "");
@@ -572,7 +589,7 @@ async function createSubscription(request, env) {
     ok: true,
     subscriptionId: data.id,
     approveUrl: approve.href,
-    productId: catalog.product.id,
+    productId: productId,
     planId: plan.id,
     status: data.status || "APPROVAL_PENDING"
   });
