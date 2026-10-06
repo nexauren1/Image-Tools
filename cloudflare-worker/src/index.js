@@ -257,35 +257,280 @@ async function handleSubscriptionWebhook(env, event, paypal) {
   await setSubscriptionEntitlement(env, uid, subscriptionId, status, premium);
 }
 
-async function createSubscription(request, env) {
-  const user = await firebaseUser(request, env);
-  const paypal = await paypalToken(env);
-  const planId = env.PAYPAL_PLAN_ID;
-  if (!planId) throw new Error("PayPal monthly plan is not configured");
-
-  const publicUrl = (env.WORKER_PUBLIC_URL || new URL(request.url).origin).replace(/\/$/, "");
-  const r = await fetch(paypal.base + "/v1/billing/subscriptions", {
-    method: "POST",
+async function paypalJson(paypal, path, options = {}) {
+  const response = await fetch(paypal.base + path, {
+    ...options,
     headers: {
       "Authorization": "Bearer " + paypal.token,
       "Content-Type": "application/json",
-      "Accept": "application/json"
-    },
-    body: JSON.stringify({
-      plan_id: planId,
-      custom_id: user.localId,
-      application_context: {
-        brand_name: "Image Tools",
-        locale: "en-US",
-        user_action: "SUBSCRIBE_NOW",
-        return_url: publicUrl + "/paypal/return",
-        cancel_url: publicUrl + "/paypal/return?cancel=1"
-      }
-    })
+      "Accept": "application/json",
+      ...(options.headers || {})
+    }
+  });
+  const data = await response.json().catch(() => ({}));
+  return { response, data };
+}
+
+async function getPaypalProduct(paypal, productId) {
+  const { response, data } = await paypalJson(
+    paypal,
+    "/v1/catalogs/products/" + encodeURIComponent(productId),
+    { method: "GET" }
+  );
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(data.message || "PayPal product lookup failed");
+  return data;
+}
+
+async function listPaypalProducts(paypal) {
+  const { response, data } = await paypalJson(
+    paypal,
+    "/v1/catalogs/products?page_size=20&page=1&total_required=true",
+    { method: "GET" }
+  );
+  if (!response.ok) throw new Error(data.message || "PayPal product list failed");
+  return data.products || [];
+}
+
+async function createPaypalProduct(paypal, spec) {
+  const body = {
+    name: spec.name,
+    description: spec.description,
+    type: spec.type || "DIGITAL",
+    category: spec.category || "SOFTWARE",
+    home_url: spec.homeUrl || undefined
+  };
+
+  if (spec.id) body.id = spec.id;
+  if (spec.imageUrl) body.image_url = spec.imageUrl;
+
+  const { response, data } = await paypalJson(
+    paypal,
+    "/v1/catalogs/products",
+    {
+      method: "POST",
+      headers: {
+        "Prefer": "return=representation",
+        "PayPal-Request-Id": "image-tools-product-" + spec.id
+      },
+      body: JSON.stringify(body)
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(data.message || "PayPal product creation failed");
+  }
+  return data;
+}
+
+async function ensurePaypalProduct(env, paypal, spec) {
+  const configuredId = env.PAYPAL_PRODUCT_ID || spec.id || "";
+  if (configuredId) {
+    const existing = await getPaypalProduct(paypal, configuredId);
+    if (existing) return existing;
+  }
+
+  const products = await listPaypalProducts(paypal);
+  const byName = products.find((item) => item.name === spec.name);
+  if (byName) return byName;
+
+  const id = configuredId || "IMAGE-TOOLS-PREMIUM";
+  try {
+    return await createPaypalProduct(paypal, { ...spec, id });
+  } catch (error) {
+    const retry = await getPaypalProduct(paypal, id);
+    if (retry) return retry;
+    throw error;
+  }
+}
+
+async function listPaypalPlans(paypal, productId) {
+  const { response, data } = await paypalJson(
+    paypal,
+    "/v1/billing/plans?product_id=" + encodeURIComponent(productId) +
+      "&page_size=20&page=1&total_required=true",
+    { method: "GET" }
+  );
+  if (!response.ok) throw new Error(data.message || "PayPal plan list failed");
+  return data.plans || [];
+}
+
+function planMatches(plan, spec) {
+  const cycle = (plan.billing_cycles || []).find((item) => item.tenure_type === "REGULAR");
+  const price = cycle && cycle.pricing_scheme && cycle.pricing_scheme.fixed_price;
+  const frequency = cycle && cycle.frequency;
+  return Boolean(
+    plan.name === spec.name &&
+    price &&
+    price.currency_code === spec.currency &&
+    price.value === spec.price &&
+    frequency &&
+    frequency.interval_unit === spec.intervalUnit &&
+    Number(frequency.interval_count || 1) === Number(spec.intervalCount || 1) &&
+    Number(cycle.total_cycles || 0) === 0
+  );
+}
+
+async function activatePaypalPlan(paypal, planId) {
+  const { response, data } = await paypalJson(
+    paypal,
+    "/v1/billing/plans/" + encodeURIComponent(planId) + "/activate",
+    {
+      method: "POST",
+      body: JSON.stringify({})
+    }
+  );
+  if (!response.ok) throw new Error(data.message || "PayPal plan activation failed");
+  return data;
+}
+
+async function createPaypalPlan(paypal, productId, spec) {
+  const { response, data } = await paypalJson(
+    paypal,
+    "/v1/billing/plans",
+    {
+      method: "POST",
+      headers: {
+        "PayPal-Request-Id": "image-tools-plan-" +
+          String(spec.key || spec.name).toLowerCase().replace(/[^a-z0-9]+/g, "-")
+      },
+      body: JSON.stringify({
+        product_id: productId,
+        name: spec.name,
+        description: spec.description,
+        billing_cycles: [{
+          frequency: {
+            interval_unit: spec.intervalUnit,
+            interval_count: Number(spec.intervalCount || 1)
+          },
+          tenure_type: "REGULAR",
+          sequence: 1,
+          total_cycles: 0,
+          pricing_scheme: {
+            fixed_price: {
+              value: spec.price,
+              currency_code: spec.currency
+            }
+          }
+        }],
+        payment_preferences: {
+          auto_bill_outstanding: true,
+          payment_failure_threshold: 1
+        }
+      })
+    }
+  );
+
+  if (!response.ok) throw new Error(data.message || "PayPal plan creation failed");
+  if (data.status !== "ACTIVE") {
+    await activatePaypalPlan(paypal, data.id);
+    data.status = "ACTIVE";
+  }
+  return data;
+}
+
+async function ensurePaypalPlan(paypal, productId, spec) {
+  const configuredId = spec.planId || "";
+  if (configuredId) {
+    const { response, data } = await paypalJson(
+      paypal,
+      "/v1/billing/plans/" + encodeURIComponent(configuredId),
+      { method: "GET" }
+    );
+    if (response.ok && planMatches(data, spec)) return data;
+  }
+
+  const plans = await listPaypalPlans(paypal, productId);
+  const matching = plans.find((plan) => planMatches(plan, spec));
+  if (matching) {
+    if (matching.status === "CREATED") {
+      await activatePaypalPlan(paypal, matching.id);
+      matching.status = "ACTIVE";
+    }
+    return matching;
+  }
+
+  return createPaypalPlan(paypal, productId, spec);
+}
+
+async function ensurePaypalCatalog(env, paypal, plans = []) {
+  const product = await ensurePaypalProduct(env, paypal, {
+    id: env.PAYPAL_PRODUCT_ID || "IMAGE-TOOLS-PREMIUM",
+    name: env.PAYPAL_PRODUCT_NAME || "Image Tools Premium",
+    description: env.PAYPAL_PRODUCT_DESCRIPTION || "Premium image editing features for Image Tools.",
+    type: "DIGITAL",
+    category: "SOFTWARE",
+    homeUrl: env.PAYPAL_PRODUCT_HOME_URL || ""
   });
 
-  const data = await r.json();
-  if (!r.ok) throw new Error(data.message || "PayPal subscription creation failed");
+  const defaultPlan = {
+    key: "premium_monthly",
+    name: env.PAYPAL_PLAN_NAME || "Image Tools Premium Monthly",
+    description: env.PAYPAL_PLAN_DESCRIPTION || "Premium access billed monthly.",
+    price: env.PAYPAL_PLAN_PRICE || "5.00",
+    currency: env.PAYPAL_PLAN_CURRENCY || "USD",
+    intervalUnit: env.PAYPAL_PLAN_INTERVAL_UNIT || "MONTH",
+    intervalCount: Number(env.PAYPAL_PLAN_INTERVAL_COUNT || 1),
+    planId: env.PAYPAL_PLAN_ID || ""
+  };
+
+  const requested = [defaultPlan, ...plans].filter((plan, index, all) =>
+    all.findIndex((item) => (item.key || item.name) === (plan.key || plan.name)) === index
+  );
+
+  const results = [];
+  for (const plan of requested) {
+    results.push(await ensurePaypalPlan(paypal, product.id, plan));
+  }
+
+  return {
+    product,
+    plans: results
+  };
+}
+
+async function requireAdminCatalog(request, env) {
+  const expected = env.PAYPAL_CATALOG_ADMIN_KEY;
+  const provided = request.headers.get("X-Admin-Key") || "";
+  if (!expected || provided !== expected) {
+    throw new Error("Unauthorized catalog administration");
+  }
+}
+
+async function createSubscription(request, env) {
+  const user = await firebaseUser(request, env);
+  const paypal = await paypalToken(env);
+  const catalog = await ensurePaypalCatalog(env, paypal);
+  const plan = catalog.plans[0];
+
+  if (!plan || plan.status !== "ACTIVE") {
+    throw new Error("Premium monthly plan is not active");
+  }
+
+  const publicUrl = (env.WORKER_PUBLIC_URL || new URL(request.url).origin).replace(/\/$/, "");
+  const { response, data } = await paypalJson(
+    paypal,
+    "/v1/billing/subscriptions",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        plan_id: plan.id,
+        custom_id: user.localId,
+        application_context: {
+          brand_name: "Image Tools",
+          locale: "en-US",
+          user_action: "SUBSCRIBE_NOW",
+          return_url: publicUrl + "/paypal/return",
+          cancel_url: publicUrl + "/paypal/return?cancel=1"
+        }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(data.message || "PayPal subscription creation failed");
+  }
+
   const approve = (data.links || []).find((item) => item.rel === "approve");
   if (!approve) throw new Error("PayPal approval URL was not returned");
 
@@ -300,7 +545,33 @@ async function createSubscription(request, env) {
   return reply({
     ok: true,
     subscriptionId: data.id,
-    approveUrl: approve.href
+    approveUrl: approve.href,
+    productId: catalog.product.id,
+    planId: plan.id,
+    status: data.status || "APPROVAL_PENDING"
+  });
+}
+
+async function adminCatalog(request, env) {
+  await requireAdminCatalog(request, env);
+  const body = await request.json().catch(() => ({}));
+  const plans = Array.isArray(body.plans) ? body.plans : [];
+  const paypal = await paypalToken(env);
+  const catalog = await ensurePaypalCatalog(env, paypal, plans);
+
+  return reply({
+    ok: true,
+    product: {
+      id: catalog.product.id,
+      name: catalog.product.name,
+      status: catalog.product.status || "ACTIVE"
+    },
+    plans: catalog.plans.map((plan) => ({
+      id: plan.id,
+      name: plan.name,
+      status: plan.status,
+      productId: plan.product_id
+    }))
   });
 }
 
@@ -472,9 +743,15 @@ export default {
           paypalConfigured: Boolean(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET),
           paypalPlanConfigured: Boolean(env.PAYPAL_PLAN_ID),
           paypalWebhookConfigured: Boolean(env.PAYPAL_WEBHOOK_ID),
+          paypalCatalogAutoCreate: true,
+          paypalCatalogAdminConfigured: Boolean(env.PAYPAL_CATALOG_ADMIN_KEY),
           firebaseAuthConfigured: Boolean(env.FIREBASE_WEB_API_KEY),
           firestoreAdminConfigured: Boolean(env.FIREBASE_CLIENT_EMAIL && env.FIREBASE_PRIVATE_KEY)
         });
+      }
+
+      if (request.method === "POST" && url.pathname === "/admin/paypal/catalog/ensure") {
+        return adminCatalog(request, env);
       }
 
       if (request.method === "POST" && url.pathname === "/paypal/create-subscription") {
