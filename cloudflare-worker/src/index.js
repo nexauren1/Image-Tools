@@ -296,10 +296,11 @@ async function createPaypalProduct(paypal, spec) {
   const body = {
     name: spec.name,
     description: spec.description,
-    type: spec.type || "DIGITAL",
-    category: spec.category || "SOFTWARE",
-    home_url: spec.homeUrl || undefined
+    type: spec.type || "DIGITAL"
   };
+
+  if (spec.category) body.category = spec.category;
+  if (spec.homeUrl) body.home_url = spec.homeUrl;
 
   if (spec.id) body.id = spec.id;
   if (spec.imageUrl) body.image_url = spec.imageUrl;
@@ -459,7 +460,7 @@ async function ensurePaypalCatalog(env, paypal, plans = []) {
     name: env.PAYPAL_PRODUCT_NAME || "Image Tools Premium",
     description: env.PAYPAL_PRODUCT_DESCRIPTION || "Premium image editing features for Image Tools.",
     type: "DIGITAL",
-    category: "SOFTWARE",
+    category: "",
     homeUrl: env.PAYPAL_PRODUCT_HOME_URL || ""
   });
 
