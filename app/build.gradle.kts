@@ -8,11 +8,11 @@ plugins {
 
 android {
     namespace = "com.nexauren.imagetools"
-    compileSdk = 37
+    compileSdk = 36
     defaultConfig {
         applicationId = "com.nexauren.imagetools"
         minSdk = 29
-        targetSdk = 37
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
         vectorDrawables { useSupportLibrary = true }
