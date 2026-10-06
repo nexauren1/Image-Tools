@@ -38,6 +38,11 @@ async function signJwt(input, privateKey) {
 }
 
 async function googleAccessToken(env) {
+  if (!env.FIREBASE_CLIENT_EMAIL || !env.FIREBASE_PRIVATE_KEY) {
+    const error = new Error("Firebase server credentials are not configured");
+    error.code = "FIREBASE_SERVER_CONFIG_MISSING";
+    throw error;
+  }
   const now = Math.floor(Date.now() / 1000);
   const head = b64(JSON.stringify({ alg: "RS256", typ: "JWT" }));
   const claim = b64(JSON.stringify({
@@ -64,6 +69,11 @@ async function googleAccessToken(env) {
 }
 
 async function firebaseUser(request, env) {
+  if (!env.FIREBASE_WEB_API_KEY) {
+    const error = new Error("Firebase Web API key is not configured");
+    error.code = "FIREBASE_AUTH_CONFIG_MISSING";
+    throw error;
+  }
   const header = request.headers.get("Authorization") || "";
   if (!header.startsWith("Bearer ")) throw new Error("Missing Firebase ID token");
   const idToken = header.slice(7);
@@ -563,14 +573,6 @@ async function createSubscription(request, env) {
   const approve = (data.links || []).find((item) => item.rel === "approve");
   if (!approve) throw new Error("PayPal approval URL was not returned");
 
-  await setSubscriptionEntitlement(
-    env,
-    user.localId,
-    data.id,
-    data.status || "APPROVAL_PENDING",
-    false
-  );
-
   return reply({
     ok: true,
     subscriptionId: data.id,
@@ -780,7 +782,14 @@ export default {
           paypalCatalogAutoCreate: true,
           paypalCatalogAdminConfigured: Boolean(env.PAYPAL_CATALOG_ADMIN_KEY),
           firebaseAuthConfigured: Boolean(env.FIREBASE_WEB_API_KEY),
-          firestoreAdminConfigured: Boolean(env.FIREBASE_CLIENT_EMAIL && env.FIREBASE_PRIVATE_KEY)
+          firestoreAdminConfigured: Boolean(
+            env.FIREBASE_PROJECT_ID &&
+            env.FIREBASE_CLIENT_EMAIL &&
+            env.FIREBASE_PRIVATE_KEY &&
+            env.FIREBASE_WEB_API_KEY
+          ),
+          firebaseProjectConfigured: Boolean(env.FIREBASE_PROJECT_ID),
+          firebaseServiceAccountConfigured: Boolean(env.FIREBASE_CLIENT_EMAIL && env.FIREBASE_PRIVATE_KEY)
         });
       }
 
