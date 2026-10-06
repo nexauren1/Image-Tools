@@ -585,13 +585,30 @@ async function createSubscription(request, env) {
   const approve = (data.links || []).find((item) => item.rel === "approve");
   if (!approve) throw new Error("PayPal approval URL was not returned");
 
+  const subscriptionStatus = data.status || "APPROVAL_PENDING";
+
+  // Persist the PayPal subscription ID immediately so the app can recover
+  // the entitlement even when the browser return/deep-link is delayed.
+  try {
+    await setSubscriptionEntitlement(
+      env,
+      user.localId,
+      data.id,
+      subscriptionStatus,
+      subscriptionStatus === "ACTIVE"
+    );
+  } catch (_) {
+    // PayPal subscription creation must not fail because entitlement sync
+    // is temporarily unavailable. Webhook/status refresh will retry it.
+  }
+
   return reply({
     ok: true,
     subscriptionId: data.id,
     approveUrl: approve.href,
     productId: productId,
     planId: plan.id,
-    status: data.status || "APPROVAL_PENDING"
+    status: subscriptionStatus
   });
 }
 
