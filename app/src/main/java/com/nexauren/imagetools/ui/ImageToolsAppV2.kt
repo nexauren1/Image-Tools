@@ -875,7 +875,7 @@ private fun ModernAbout() {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Text("About", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold)
-            Text("Image Tools 1.1", fontWeight = FontWeight.Bold)
+            Text("Image Tools 1.2", fontWeight = FontWeight.Bold)
             Text("A focused image workspace built for fast, private editing.")
         }
         item {
