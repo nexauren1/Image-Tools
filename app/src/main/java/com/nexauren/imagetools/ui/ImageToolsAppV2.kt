@@ -795,6 +795,35 @@ private fun FilterPanel(filter: ImageFilter, onFilter: (ImageFilter) -> Unit) {
 }
 
 @Composable
+private fun WatermarkPanel(
+    text: String,
+    opacity: Float,
+    position: String,
+    onText: (String) -> Unit,
+    onOpacity: (Float) -> Unit,
+    onPosition: (String) -> Unit
+) {
+    ControlPanel("Smart Watermark", "Add a clean brand mark without uploading your photo.") {
+        OutlinedTextField(
+            value = text,
+            onValueChange = onText,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Watermark text") },
+            singleLine = true,
+            shape = RoundedCornerShape(16.dp)
+        )
+        Text("Opacity " + opacity.toInt() + "%", fontWeight = FontWeight.Bold)
+        Slider(opacity, onOpacity, valueRange = 15f..100f)
+        Text("Position", fontWeight = FontWeight.Bold)
+        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            listOf("Top left", "Center", "Bottom left", "Bottom right").forEach { item ->
+                FilterChip(position == item, { onPosition(item) }, label = { Text(item) })
+            }
+        }
+    }
+}
+
+@Composable
 private fun ControlPanel(title: String, subtitle: String, content: @Composable ColumnScope.() -> Unit) {
     Card(shape = RoundedCornerShape(24.dp)) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
