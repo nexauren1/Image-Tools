@@ -16,16 +16,8 @@ android {
         versionName = "1.0.0"
         vectorDrawables { useSupportLibrary = true }
 
-        val worker = providers.gradleProperty("WORKER_URL")
-            .orElse("https://steep-pine-34fe.nexaurenstore.workers.dev").get()
-        val googleClient = providers.gradleProperty("GOOGLE_WEB_CLIENT_ID")
-            .orElse("1062438516387-i2plli4d5mq9gkaauik6q2tf4nb1bqq7.apps.googleusercontent.com").get()
-
-        val workerEscaped = worker.replace("\\", "\\\\").replace("\"", "\\\"")
-        val googleClientEscaped = googleClient.replace("\\", "\\\\").replace("\"", "\\\"")
-
-        buildConfigField("String", "WORKER_URL", "\"" + workerEscaped + "\"")
-        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"" + googleClientEscaped + "\"")
+        buildConfigField("String", "WORKER_URL", "\"https://steep-pine-34fe.nexaurenstore.workers.dev\"")
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"1062438516387-i2plli4d5mq9gkaauik6q2tf4nb1bqq7.apps.googleusercontent.com\"")
     }
 
     buildTypes {
