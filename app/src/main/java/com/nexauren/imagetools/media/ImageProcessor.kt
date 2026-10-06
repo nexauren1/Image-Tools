@@ -43,7 +43,7 @@ object ImageProcessor {
         return out.toByteArray()
     }
 
-    fun save(context: Context, bytes: ByteArray, format: OutputFormat, prefix: String): ImageResult {
+    fun save(context: Context, bytes: ByteArray, format: OutputFormat, prefix: String, width: Int, height: Int): ImageResult {
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, prefix + "_" + System.currentTimeMillis() + "." + format.extension)
             put(MediaStore.Images.Media.MIME_TYPE, format.mime)
@@ -59,7 +59,7 @@ object ImageProcessor {
                 put(MediaStore.Images.Media.IS_PENDING, 0)
             }, null, null)
         }
-        return ImageResult(uri, bytes.size.toLong(), 0, 0, format)
+        return ImageResult(uri, bytes.size.toLong(), width, height, format)
     }
 
     fun humanBytes(bytes: Long): String {
