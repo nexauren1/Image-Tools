@@ -69,11 +69,6 @@ async function googleAccessToken(env) {
 }
 
 async function firebaseUser(request, env) {
-  if (!env.FIREBASE_WEB_API_KEY) {
-    const error = new Error("Firebase Web API key is not configured");
-    error.code = "FIREBASE_AUTH_CONFIG_MISSING";
-    throw error;
-  }
   const header = request.headers.get("Authorization") || "";
   if (!header.startsWith("Bearer ")) throw new Error("Missing Firebase ID token");
   const idToken = header.slice(7);
