@@ -221,7 +221,7 @@ export default {
           service: "image-tools-payments",
           environment: env.PAYPAL_ENVIRONMENT || "sandbox",
           paypalConfigured: Boolean(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET),
-          firebaseAuthConfigured: Boolean(env.FIREBASE_WEB_API_KEY || true),
+          firebaseAuthConfigured: true,
           firestoreAdminConfigured: Boolean(env.FIREBASE_CLIENT_EMAIL && env.FIREBASE_PRIVATE_KEY)
         });
       }
