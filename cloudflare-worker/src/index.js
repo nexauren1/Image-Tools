@@ -100,7 +100,26 @@ async function paypalToken(env) {
   return { base: base, token: data.access_token };
 }
 
-async function setPremium(env, uid, orderId) {
+async function firestoreUser(env, uid) {
+  const access = await googleAccessToken(env);
+  const url =
+    "https://firestore.googleapis.com/v1/projects/" +
+    encodeURIComponent(env.FIREBASE_PROJECT_ID || "nexauren-story") +
+    "/databases/(default)/documents/users/" +
+    encodeURIComponent(uid);
+
+  const r = await fetch(url, {
+    headers: { "Authorization": "Bearer " + access }
+  });
+  if (r.status === 404) return {};
+  const data = await r.json();
+  if (!r.ok) throw new Error("Firestore user lookup failed");
+  return data.fields || {};
+}
+
+const fieldString = (fields, name) => fields && fields[name] && fields[name].stringValue || "";
+
+async function setSubscriptionEntitlement(env, uid, subscriptionId, status, premium) {
   const access = await googleAccessToken(env);
   const url =
     "https://firestore.googleapis.com/v1/projects/" +
@@ -111,16 +130,18 @@ async function setPremium(env, uid, orderId) {
     "&updateMask.fieldPaths=premium" +
     "&updateMask.fieldPaths=paymentProvider" +
     "&updateMask.fieldPaths=paymentProduct" +
-    "&updateMask.fieldPaths=paypalOrderId" +
+    "&updateMask.fieldPaths=paypalSubscriptionId" +
+    "&updateMask.fieldPaths=subscriptionStatus" +
     "&updateMask.fieldPaths=updatedAt";
 
   const body = {
     fields: {
-      plan: { stringValue: "premium" },
-      premium: { booleanValue: true },
+      plan: { stringValue: premium ? "premium-monthly" : "free" },
+      premium: { booleanValue: premium },
       paymentProvider: { stringValue: "paypal" },
-      paymentProduct: { stringValue: "image-tools-premium" },
-      paypalOrderId: { stringValue: orderId },
+      paymentProduct: { stringValue: "image-tools-premium-monthly" },
+      paypalSubscriptionId: { stringValue: subscriptionId },
+      subscriptionStatus: { stringValue: status },
       updatedAt: { timestampValue: new Date().toISOString() }
     }
   };
@@ -134,7 +155,234 @@ async function setPremium(env, uid, orderId) {
     body: JSON.stringify(body)
   });
 
-  if (!r.ok) throw new Error("Firestore Premium update failed");
+  if (!r.ok) throw new Error("Firestore subscription update failed");
+}
+
+async function getPayPalSubscription(paypal, subscriptionId) {
+  const r = await fetch(
+    paypal.base + "/v1/billing/subscriptions/" + encodeURIComponent(subscriptionId),
+    {
+      headers: {
+        "Authorization": "Bearer " + paypal.token,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.message || "PayPal subscription lookup failed");
+  return data;
+}
+
+async function verifyWebhook(request, env, paypal, rawBody) {
+  const payload = JSON.parse(rawBody);
+  const verifyPayload = {
+    auth_algo: request.headers.get("paypal-auth-algo") || "",
+    cert_url: request.headers.get("paypal-cert-url") || "",
+    transmission_id: request.headers.get("paypal-transmission-id") || "",
+    transmission_sig: request.headers.get("paypal-transmission-sig") || "",
+    transmission_time: request.headers.get("paypal-transmission-time") || "",
+    webhook_id: env.PAYPAL_WEBHOOK_ID || "",
+    webhook_event: payload
+  };
+
+  if (!verifyPayload.webhook_id || !verifyPayload.transmission_id ||
+      !verifyPayload.transmission_time || !verifyPayload.transmission_sig ||
+      !verifyPayload.cert_url) {
+    return false;
+  }
+
+  const r = await fetch(paypal.base + "/v1/notifications/verify-webhook-signature", {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer " + paypal.token,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(verifyPayload)
+  });
+  const data = await r.json();
+  return r.ok && data.verification_status === "SUCCESS";
+}
+
+async function handleSubscriptionWebhook(env, event, paypal) {
+  const type = event.event_type || "";
+  const resource = event.resource || {};
+  let subscriptionId = "";
+  let uid = "";
+
+  if (type.startsWith("BILLING.SUBSCRIPTION.")) {
+    subscriptionId = resource.id || "";
+    uid = resource.custom_id || "";
+  } else if (type.startsWith("PAYMENT.SALE.")) {
+    subscriptionId = resource.billing_agreement_id || "";
+    uid = resource.custom_id || "";
+  }
+
+  if (!subscriptionId) return;
+
+  if (!uid) {
+    const subscription = await getPayPalSubscription(paypal, subscriptionId);
+    uid = subscription.custom_id || "";
+  }
+
+  if (!uid) return;
+
+  let premium = false;
+  let status = String(resource.status || "UNKNOWN");
+
+  if (type === "BILLING.SUBSCRIPTION.ACTIVATED") {
+    premium = true;
+    status = "ACTIVE";
+  } else if (type === "BILLING.SUBSCRIPTION.UPDATED") {
+    status = String(resource.status || "UNKNOWN");
+    premium = status === "ACTIVE";
+  } else if (type === "PAYMENT.SALE.COMPLETED") {
+    premium = true;
+    status = "ACTIVE";
+  } else if (
+    type === "BILLING.SUBSCRIPTION.CANCELLED" ||
+    type === "BILLING.SUBSCRIPTION.EXPIRED" ||
+    type === "BILLING.SUBSCRIPTION.SUSPENDED" ||
+    type === "BILLING.SUBSCRIPTION.PAYMENT.FAILED" ||
+    type === "PAYMENT.SALE.REFUNDED" ||
+    type === "PAYMENT.SALE.REVERSED"
+  ) {
+    premium = false;
+  } else if (type === "BILLING.SUBSCRIPTION.CREATED") {
+    premium = false;
+    status = "APPROVAL_PENDING";
+  } else {
+    return;
+  }
+
+  await setSubscriptionEntitlement(env, uid, subscriptionId, status, premium);
+}
+
+async function createSubscription(request, env) {
+  const user = await firebaseUser(request, env);
+  const paypal = await paypalToken(env);
+  const planId = env.PAYPAL_PLAN_ID;
+  if (!planId) throw new Error("PayPal monthly plan is not configured");
+
+  const publicUrl = (env.WORKER_PUBLIC_URL || new URL(request.url).origin).replace(/\/$/, "");
+  const r = await fetch(paypal.base + "/v1/billing/subscriptions", {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer " + paypal.token,
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    body: JSON.stringify({
+      plan_id: planId,
+      custom_id: user.localId,
+      application_context: {
+        brand_name: "Image Tools",
+        locale: "en-US",
+        user_action: "SUBSCRIBE_NOW",
+        return_url: publicUrl + "/paypal/return",
+        cancel_url: publicUrl + "/paypal/return?cancel=1"
+      }
+    })
+  });
+
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.message || "PayPal subscription creation failed");
+  const approve = (data.links || []).find((item) => item.rel === "approve");
+  if (!approve) throw new Error("PayPal approval URL was not returned");
+
+  await setSubscriptionEntitlement(
+    env,
+    user.localId,
+    data.id,
+    data.status || "APPROVAL_PENDING",
+    false
+  );
+
+  return reply({
+    ok: true,
+    subscriptionId: data.id,
+    approveUrl: approve.href
+  });
+}
+
+async function subscriptionStatus(request, env, url) {
+  const user = await firebaseUser(request, env);
+  const paypal = await paypalToken(env);
+  let subscriptionId = url.searchParams.get("subscriptionId") || "";
+
+  if (!subscriptionId) {
+    const fields = await firestoreUser(env, user.localId);
+    subscriptionId = fieldString(fields, "paypalSubscriptionId");
+  }
+
+  if (!subscriptionId) {
+    return reply({ ok: true, premium: false, status: "NONE" });
+  }
+
+  const data = await getPayPalSubscription(paypal, subscriptionId);
+  if (data.custom_id && data.custom_id !== user.localId) {
+    return reply({ ok: false, error: "Subscription ownership mismatch" }, 403);
+  }
+
+  const premium = data.status === "ACTIVE";
+  await setSubscriptionEntitlement(
+    env,
+    user.localId,
+    subscriptionId,
+    data.status || "UNKNOWN",
+    premium
+  );
+
+  return reply({
+    ok: true,
+    premium,
+    status: data.status || "UNKNOWN",
+    subscriptionId
+  });
+}
+
+async function cancelSubscription(request, env) {
+  const user = await firebaseUser(request, env);
+  const paypal = await paypalToken(env);
+  const fields = await firestoreUser(env, user.localId);
+  const subscriptionId = fieldString(fields, "paypalSubscriptionId");
+  if (!subscriptionId) return reply({ ok: false, error: "No active subscription found" }, 404);
+
+  const current = await getPayPalSubscription(paypal, subscriptionId);
+  if (current.custom_id && current.custom_id !== user.localId) {
+    return reply({ ok: false, error: "Subscription ownership mismatch" }, 403);
+  }
+
+  if (current.status === "CANCELLED" || current.status === "EXPIRED") {
+    await setSubscriptionEntitlement(env, user.localId, subscriptionId, current.status, false);
+    return reply({ ok: true, premium: false, status: current.status });
+  }
+
+  const r = await fetch(
+    paypal.base + "/v1/billing/subscriptions/" + encodeURIComponent(subscriptionId) + "/cancel",
+    {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + paypal.token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ reason: "User requested cancellation" })
+    }
+  );
+
+  if (!r.ok) {
+    const data = await r.json();
+    throw new Error(data.message || "PayPal subscription cancellation failed");
+  }
+
+  await setSubscriptionEntitlement(
+    env,
+    user.localId,
+    subscriptionId,
+    "CANCELLED",
+    false
+  );
+
+  return reply({ ok: true, premium: false, status: "CANCELLED" });
 }
 
 async function createOrder(request, env) {
@@ -222,37 +470,64 @@ export default {
           service: "image-tools-payments",
           environment: env.PAYPAL_ENVIRONMENT || "sandbox",
           paypalConfigured: Boolean(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET),
-          firebaseAuthConfigured: Boolean(env.FIREBASE_WEB_API_KEY || true),
+          paypalPlanConfigured: Boolean(env.PAYPAL_PLAN_ID),
+          paypalWebhookConfigured: Boolean(env.PAYPAL_WEBHOOK_ID),
+          firebaseAuthConfigured: Boolean(env.FIREBASE_WEB_API_KEY),
           firestoreAdminConfigured: Boolean(env.FIREBASE_CLIENT_EMAIL && env.FIREBASE_PRIVATE_KEY)
         });
       }
 
-      if (request.method === "POST" && url.pathname === "/paypal/create-order") {
-        return createOrder(request, env);
+      if (request.method === "POST" && url.pathname === "/paypal/create-subscription") {
+        return createSubscription(request, env);
       }
 
-      if (request.method === "POST" && url.pathname === "/paypal/capture-order") {
-        return captureOrder(request, env);
+      if (request.method === "GET" && url.pathname === "/paypal/subscription-status") {
+        return subscriptionStatus(request, env, url);
+      }
+
+      if (request.method === "POST" && url.pathname === "/paypal/cancel-subscription") {
+        return cancelSubscription(request, env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/paypal/webhook") {
+        const rawBody = await request.text();
+        const paypal = await paypalToken(env);
+        if (!(await verifyWebhook(request, env, paypal, rawBody))) {
+          return reply({ ok: false, error: "Invalid PayPal webhook signature" }, 400);
+        }
+        await handleSubscriptionWebhook(env, JSON.parse(rawBody), paypal);
+        return reply({ ok: true });
       }
 
       if (request.method === "GET" && url.pathname === "/paypal/return") {
         if (url.searchParams.get("cancel") === "1") {
-          return new Response("Payment cancelled. Return to Image Tools.", {
+          return new Response("Subscription cancelled. Return to Image Tools.", {
             status: 200,
             headers: { "Content-Type": "text/plain; charset=utf-8" }
           });
         }
-        const token = url.searchParams.get("token");
-        if (!token) return new Response("Missing payment token.", { status: 400 });
+
+        const subscriptionId =
+          url.searchParams.get("subscription_id") ||
+          url.searchParams.get("ba_token") ||
+          url.searchParams.get("token");
+
+        if (!subscriptionId) {
+          return new Response("Missing subscription token.", { status: 400 });
+        }
+
         return Response.redirect(
-          "imagetools://paypal/return?orderId=" + encodeURIComponent(token),
+          "imagetools://paypal/return?subscriptionId=" + encodeURIComponent(subscriptionId),
           302
         );
       }
 
       return reply({ ok: false, error: "Not found" }, 404);
     } catch (error) {
-      return reply({ ok: false, error: error && error.message ? error.message : "Unexpected error" }, 500);
+      return reply({
+        ok: false,
+        error: error && error.message ? error.message : "Unexpected error"
+      }, 500);
     }
   }
 };
