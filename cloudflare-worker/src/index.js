@@ -18,7 +18,8 @@ const b64 = (input) => {
 };
 
 const pemBytes = (pem) => {
-  const body = pem.replace("-----BEGIN PRIVATE KEY-----", "").replace("-----END PRIVATE KEY-----", "").replace(/\s/g, "");
+  const normalized = String(pem || "").replace(/\\n/g, "\n").replace(/\\r/g, "\r");
+  const body = normalized.replace("-----BEGIN PRIVATE KEY-----", "").replace("-----END PRIVATE KEY-----", "").replace(/\s/g, "");
   const raw = atob(body);
   const bytes = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
@@ -67,7 +68,7 @@ async function firebaseUser(request, env) {
   if (!header.startsWith("Bearer ")) throw new Error("Missing Firebase ID token");
   const idToken = header.slice(7);
   const r = await fetch(
-    "https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=" + encodeURIComponent(env.FIREBASE_WEB_API_KEY),
+    "https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=" + encodeURIComponent(env.FIREBASE_WEB_API_KEY || "AIzaSyCtO5UOedU4qtdZBgQERMhygWYLUxybVTo"),
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -103,7 +104,7 @@ async function setPremium(env, uid, orderId) {
   const access = await googleAccessToken(env);
   const url =
     "https://firestore.googleapis.com/v1/projects/" +
-    encodeURIComponent(env.FIREBASE_PROJECT_ID) +
+    encodeURIComponent(env.FIREBASE_PROJECT_ID || "nexauren-story") +
     "/databases/(default)/documents/users/" +
     encodeURIComponent(uid) +
     "?updateMask.fieldPaths=plan" +
@@ -215,7 +216,14 @@ export default {
 
     try {
       if (request.method === "GET" && url.pathname === "/health") {
-        return reply({ ok: true, service: "image-tools-payments", environment: env.PAYPAL_ENVIRONMENT || "sandbox" });
+        return reply({
+          ok: true,
+          service: "image-tools-payments",
+          environment: env.PAYPAL_ENVIRONMENT || "sandbox",
+          paypalConfigured: Boolean(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET),
+          firebaseAuthConfigured: Boolean(env.FIREBASE_WEB_API_KEY || true),
+          firestoreAdminConfigured: Boolean(env.FIREBASE_CLIENT_EMAIL && env.FIREBASE_PRIVATE_KEY)
+        });
       }
 
       if (request.method === "POST" && url.pathname === "/paypal/create-order") {
