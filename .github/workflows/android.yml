@@ -1,7 +1,7 @@
 name: Android Build
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "v*"]
   workflow_dispatch:
     inputs:
       release:
@@ -39,7 +39,7 @@ jobs:
           name: image-tools-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
       - name: Release
-        if: github.event_name == 'workflow_dispatch' && inputs.release == 'true'
+        if: startsWith(github.ref, 'refs/heads/v') || (github.event_name == 'workflow_dispatch' && inputs.release == 'true')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}-debug
