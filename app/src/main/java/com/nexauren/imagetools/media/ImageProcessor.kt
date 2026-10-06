@@ -9,6 +9,7 @@ import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.Matrix
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -115,6 +116,34 @@ object ImageProcessor {
         return output
     }
 
+    fun watermark(bitmap: Bitmap, text: String, opacity: Int, position: String): Bitmap {
+        val safeText = text.trim().ifBlank { "IMAGE TOOLS" }
+        val output = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+        val canvas = Canvas(output)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.WHITE
+            alpha = opacity.coerceIn(10, 100) * 255 / 100
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textSize = (min(bitmap.width, bitmap.height) * 0.065f).coerceIn(28f, 120f)
+            setShadowLayer(textSize * 0.14f, 0f, textSize * 0.08f, android.graphics.Color.BLACK)
+        }
+        val margin = textSize.toInt()
+        val width = paint.measureText(safeText)
+        val x = when (position) {
+            "Bottom left" -> margin.toFloat()
+            "Center" -> (bitmap.width - width) / 2f
+            else -> bitmap.width - width - margin
+        }
+        val y = when (position) {
+            "Top left" -> margin + textSize
+            "Center" -> (bitmap.height + textSize) / 2f
+            "Bottom left" -> bitmap.height - margin
+            else -> bitmap.height - margin
+        }
+        canvas.drawText(safeText, x.coerceAtLeast(0f), y.coerceIn(textSize, bitmap.height.toFloat() - 4f), paint)
+        return output
+    }
+
     fun encode(bitmap: Bitmap, format: OutputFormat, quality: Int): ByteArray {
         val out = ByteArrayOutputStream()
         val type = when (format) {
@@ -166,6 +195,18 @@ object ImageProcessor {
             context.contentResolver.delete(uri, null, null)
             throw error
         }
+        return ImageResult(uri, bytes.size.toLong(), width, height, format)
+    }
+
+    fun saveToUri(
+        context: Context,
+        uri: Uri,
+        bytes: ByteArray,
+        format: OutputFormat,
+        width: Int,
+        height: Int
+    ): ImageResult {
+        context.contentResolver.openOutputStream(uri, "w")?.use { it.write(bytes) } ?: error("write")
         return ImageResult(uri, bytes.size.toLong(), width, height, format)
     }
 
