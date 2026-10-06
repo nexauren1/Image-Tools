@@ -302,7 +302,7 @@ async function createPaypalProduct(paypal, spec) {
   if (spec.category) body.category = spec.category;
   if (spec.homeUrl) body.home_url = spec.homeUrl;
 
-  if (spec.id) body.id = spec.id;
+  if (spec.id && /^PROD-[A-Z0-9]+$/.test(spec.id)) body.id = spec.id;
   if (spec.imageUrl) body.image_url = spec.imageUrl;
 
   const { response, data } = await paypalJson(
@@ -325,7 +325,10 @@ async function createPaypalProduct(paypal, spec) {
 }
 
 async function ensurePaypalProduct(env, paypal, spec) {
-  const configuredId = env.PAYPAL_PRODUCT_ID || spec.id || "";
+  const configuredId = env.PAYPAL_PRODUCT_ID && /^PROD-[A-Z0-9]+$/.test(env.PAYPAL_PRODUCT_ID)
+    ? env.PAYPAL_PRODUCT_ID
+    : "";
+
   if (configuredId) {
     const existing = await getPaypalProduct(paypal, configuredId);
     if (existing) return existing;
@@ -335,14 +338,7 @@ async function ensurePaypalProduct(env, paypal, spec) {
   const byName = products.find((item) => item.name === spec.name);
   if (byName) return byName;
 
-  const id = configuredId || "IMAGE-TOOLS-PREMIUM";
-  try {
-    return await createPaypalProduct(paypal, { ...spec, id });
-  } catch (error) {
-    const retry = await getPaypalProduct(paypal, id);
-    if (retry) return retry;
-    throw error;
-  }
+  return createPaypalProduct(paypal, { ...spec, id: undefined });
 }
 
 async function listPaypalPlans(paypal, productId) {
@@ -456,7 +452,7 @@ async function ensurePaypalPlan(paypal, productId, spec) {
 
 async function ensurePaypalCatalog(env, paypal, plans = []) {
   const product = await ensurePaypalProduct(env, paypal, {
-    id: env.PAYPAL_PRODUCT_ID || "IMAGE-TOOLS-PREMIUM",
+    id: env.PAYPAL_PRODUCT_ID || "",
     name: env.PAYPAL_PRODUCT_NAME || "Image Tools Premium",
     description: env.PAYPAL_PRODUCT_DESCRIPTION || "Premium image editing features for Image Tools.",
     type: "DIGITAL",
