@@ -7,40 +7,67 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
+data class SubscriptionStart(
+    val subscriptionId: String,
+    val approveUrl: String
+)
+
 object PaymentRepository {
-    suspend fun createOrder(token: String): Result<Pair<String, String>> = withContext(Dispatchers.IO) {
+    suspend fun createSubscription(token: String): Result<SubscriptionStart> = withContext(Dispatchers.IO) {
         runCatching {
-            val connection = open("/paypal/create-order", token)
+            val connection = open("/paypal/create-subscription", token, "POST")
             connection.outputStream.bufferedWriter().use {
-                it.write("{\"plan\":\"premium\",\"amount\":\"9.00\"}")
+                it.write("{}")
             }
-            val body = read(connection)
-            val data = JSONObject(body)
-            require(data.optBoolean("ok")) { data.optString("error", "Unable to create order") }
-            Pair(data.getString("orderId"), data.getString("approveUrl"))
+            val data = JSONObject(read(connection))
+            require(data.optBoolean("ok")) {
+                data.optString("error", "Unable to start subscription")
+            }
+            SubscriptionStart(
+                subscriptionId = data.getString("subscriptionId"),
+                approveUrl = data.getString("approveUrl")
+            )
         }
     }
 
-    suspend fun captureOrder(token: String, orderId: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun refreshSubscription(token: String, subscriptionId: String? = null): Result<Boolean> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val path = if (subscriptionId.isNullOrBlank()) {
+                    "/paypal/subscription-status"
+                } else {
+                    "/paypal/subscription-status?subscriptionId=" +
+                        java.net.URLEncoder.encode(subscriptionId, "UTF-8")
+                }
+                val connection = open(path, token, "GET")
+                val data = JSONObject(read(connection))
+                require(data.optBoolean("ok")) {
+                    data.optString("error", "Unable to verify subscription")
+                }
+                data.optBoolean("premium")
+            }
+        }
+
+    suspend fun cancelSubscription(token: String): Result<Boolean> = withContext(Dispatchers.IO) {
         runCatching {
-            val connection = open("/paypal/capture-order", token)
+            val connection = open("/paypal/cancel-subscription", token, "POST")
             connection.outputStream.bufferedWriter().use {
-                it.write(JSONObject().put("orderId", orderId).toString())
+                it.write("{}")
             }
             JSONObject(read(connection)).optBoolean("ok")
-        }.getOrDefault(false)
+        }
     }
 
-    private fun open(path: String, token: String): HttpURLConnection {
+    private fun open(path: String, token: String, method: String): HttpURLConnection {
         require(!BuildConfig.WORKER_URL.contains("YOUR-IMAGE-TOOLS-WORKER"))
-        val connection = URL(BuildConfig.WORKER_URL.trimEnd('/') + path).openConnection() as HttpURLConnection
-        connection.requestMethod = "POST"
-        connection.doOutput = true
-        connection.connectTimeout = 15000
-        connection.readTimeout = 20000
-        connection.setRequestProperty("Authorization", "Bearer " + token)
-        connection.setRequestProperty("Content-Type", "application/json")
-        return connection
+        return (URL(BuildConfig.WORKER_URL.trimEnd('/') + path).openConnection() as HttpURLConnection).apply {
+            requestMethod = method
+            doOutput = method == "POST"
+            connectTimeout = 15000
+            readTimeout = 20000
+            setRequestProperty("Authorization", "Bearer " + token)
+            setRequestProperty("Content-Type", "application/json")
+        }
     }
 
     private fun read(connection: HttpURLConnection): String {
