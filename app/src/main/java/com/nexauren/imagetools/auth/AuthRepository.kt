@@ -11,7 +11,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.tasks.await
 
-class AuthRepository(context: Context) {
+class AuthRepository(private val context: Context) {
     private val credentialManager = CredentialManager.create(context)
     private val auth = FirebaseAuth.getInstance()
     val currentUser get() = auth.currentUser
