@@ -1,6 +1,9 @@
 package com.nexauren.imagetools.auth
 
 import android.content.Context
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
@@ -12,9 +15,17 @@ import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.tasks.await
 
 class AuthRepository(private val context: Context) {
-    private val credentialManager = CredentialManager.create(context)
     private val auth = FirebaseAuth.getInstance()
-    val currentUser get() = auth.currentUser
+    private val credentialManager = CredentialManager.create(context)
+
+    var currentUser by mutableStateOf(auth.currentUser)
+        private set
+
+    init {
+        auth.addAuthStateListener { firebaseAuth ->
+            currentUser = firebaseAuth.currentUser
+        }
+    }
 
     suspend fun signInEmail(email: String, password: String): Result<Unit> = runCatching {
         auth.signInWithEmailAndPassword(email.trim(), password).await()
@@ -33,7 +44,9 @@ class AuthRepository(private val context: Context) {
         val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
         val result = credentialManager.getCredential(context, request)
         val credential = result.credential
-        require(credential is CustomCredential && credential.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL)
+        require(credential is CustomCredential && credential.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+            "Google credential was not returned."
+        }
         val google = GoogleIdTokenCredential.createFrom(credential.data)
         auth.signInWithCredential(GoogleAuthProvider.getCredential(google.idToken, null)).await()
     }
