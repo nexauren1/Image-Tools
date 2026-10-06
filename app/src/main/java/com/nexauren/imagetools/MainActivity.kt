@@ -11,10 +11,11 @@ import com.nexauren.imagetools.data.FirestoreRepository
 import com.nexauren.imagetools.data.PaymentRepository
 import com.nexauren.imagetools.ui.ImageToolsAppV2
 import com.nexauren.imagetools.ui.theme.ImageToolsTheme
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
-    private val paymentOrder = mutableStateOf<String?>(null)
+    private val paymentSubscription = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,7 +26,7 @@ class MainActivity : ComponentActivity() {
             val firestore = remember { FirestoreRepository() }
             var premium by remember { mutableStateOf(false) }
             var darkMode by remember { mutableStateOf(false) }
-            val orderId = paymentOrder.value
+            val subscriptionId = paymentSubscription.value
             val scope = rememberCoroutineScope()
 
             LaunchedEffect(auth.currentUser?.uid) {
@@ -37,16 +38,27 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            LaunchedEffect(orderId, auth.currentUser?.uid) {
-                if (!orderId.isNullOrBlank() && auth.currentUser != null) {
+            LaunchedEffect(subscriptionId, auth.currentUser?.uid) {
+                if (!subscriptionId.isNullOrBlank() && auth.currentUser != null) {
                     val token = auth.idToken()
                     if (!token.isNullOrBlank()) {
                         scope.launch {
-                            if (PaymentRepository.captureOrder(token, orderId)) {
-                                premium = true
+                            repeat(5) { attempt ->
+                                PaymentRepository.refreshSubscription(token, subscriptionId)
+                                    .onSuccess { active ->
+                                        if (active) {
+                                            premium = true
+                                            return@launch
+                                        }
+                                    }
+                                    .onFailure { }
+
+                                if (attempt < 4) delay(2000)
                             }
-                            paymentOrder.value = null
+                            paymentSubscription.value = null
                         }
+                    } else {
+                        paymentSubscription.value = null
                     }
                 }
             }
@@ -60,6 +72,17 @@ class MainActivity : ComponentActivity() {
                     onDarkModeChange = { darkMode = it },
                     onStartPayment = { url ->
                         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                    },
+                    onCancelSubscription = {
+                        val token = auth.idToken()
+                        if (!token.isNullOrBlank()) {
+                            scope.launch {
+                                PaymentRepository.cancelSubscription(token)
+                                    .onSuccess { cancelled ->
+                                        if (cancelled) premium = false
+                                    }
+                            }
+                        }
                     }
                 )
             }
@@ -74,7 +97,9 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(intent: Intent?) {
         val uri = intent?.data ?: return
         if (uri.scheme == "imagetools" && uri.host == "paypal" && uri.path == "/return") {
-            paymentOrder.value = uri.getQueryParameter("orderId")
+            paymentSubscription.value = uri.getQueryParameter("subscriptionId")
+                ?: uri.getQueryParameter("ba_token")
+                ?: uri.getQueryParameter("orderId")
         }
     }
 }
