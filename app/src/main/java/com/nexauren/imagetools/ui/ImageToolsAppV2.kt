@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -161,9 +162,15 @@ private fun DrawerEntry(icon: ImageVector, label: String, onClick: () -> Unit) {
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BottomEntry(id: String, icon: ImageVector, label: String, page: String, onClick: () -> Unit) {
-    NavigationBarItem(page == id, onClick, icon = { Icon(icon, label) }, label = { Text(label) })
+    NavigationBarItem(
+        selected = page == id,
+        onClick = onClick,
+        icon = { Icon(icon, contentDescription = label) },
+        label = { Text(label) }
+    )
 }
 
 @Composable
