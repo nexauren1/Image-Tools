@@ -9,7 +9,7 @@ import androidx.compose.runtime.*
 import com.nexauren.imagetools.auth.AuthRepository
 import com.nexauren.imagetools.data.FirestoreRepository
 import com.nexauren.imagetools.data.PaymentRepository
-import com.nexauren.imagetools.ui.ImageToolsApp
+import com.nexauren.imagetools.ui.ImageToolsAppV2
 import com.nexauren.imagetools.ui.theme.ImageToolsTheme
 import kotlinx.coroutines.launch
 
@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity() {
             }
 
             ImageToolsTheme(darkTheme = darkMode) {
-                ImageToolsApp(
+                ImageToolsAppV2(
                     auth = auth,
                     firestore = firestore,
                     premium = premium,
