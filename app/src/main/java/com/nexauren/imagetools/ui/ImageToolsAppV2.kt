@@ -518,6 +518,7 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
     val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument()) { uri ->
         val bytes = pendingBytes
         if (uri == null || bytes == null) {
+            pendingBytes = null
             status = "Save cancelled. Your image was not changed."
             return@rememberLauncherForActivityResult
         }
