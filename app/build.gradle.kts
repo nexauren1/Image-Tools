@@ -41,9 +41,9 @@ android {
         create("release") {
             if (hasReleaseSigning) {
                 storeFile = releaseKeystoreFile
-                storePassword = releaseKeystorePassword
-                keyAlias = releaseKeyAlias
-                keyPassword = releaseKeyPassword
+                storePassword = releaseKeystorePassword!!
+                keyAlias = releaseKeyAlias!!
+                keyPassword = releaseKeyPassword!!
             }
         }
     }
