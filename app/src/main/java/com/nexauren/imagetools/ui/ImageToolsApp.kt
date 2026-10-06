@@ -46,6 +46,7 @@ private val toolCatalog = listOf(
 )
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun ImageToolsApp(
     auth: AuthRepository,
     firestore: FirestoreRepository,
@@ -157,8 +158,30 @@ fun ImageToolsApp(
 }
 
 @Composable
-private fun NavItem(id: String, icon: ImageVector, label: String, page: String, onClick: () -> Unit) {
-    NavigationBarItem(selected = page == id, onClick = onClick, icon = { Icon(icon, label) }, label = { Text(label) })
+private fun RowScope.NavItem(id: String, icon: ImageVector, label: String, page: String, onClick: () -> Unit) {
+    val selected = page == id
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            icon,
+            contentDescription = label,
+            tint = if (selected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(24.dp)
+        )
+        Text(
+            label,
+            fontSize = 11.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            color = if (selected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
 }
 
 @Composable
