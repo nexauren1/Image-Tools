@@ -12,6 +12,13 @@ data class SubscriptionStart(
     val approveUrl: String
 )
 
+class PaymentException(
+    val code: String,
+    val stage: String,
+    val httpStatus: Int,
+    message: String
+) : Exception(message)
+
 object PaymentRepository {
     suspend fun createSubscription(token: String): Result<SubscriptionStart> = withContext(Dispatchers.IO) {
         runCatching {
@@ -19,10 +26,9 @@ object PaymentRepository {
             connection.outputStream.bufferedWriter().use {
                 it.write("{}")
             }
-            val data = JSONObject(read(connection))
-            require(data.optBoolean("ok")) {
-                data.optString("error", "Unable to start subscription")
-            }
+            val body = read(connection)
+            val data = JSONObject(body)
+            requirePaymentOk(connection, data, "subscription-create")
             SubscriptionStart(
                 subscriptionId = data.getString("subscriptionId"),
                 approveUrl = data.getString("approveUrl")
@@ -41,9 +47,7 @@ object PaymentRepository {
                 }
                 val connection = open(path, token, "GET")
                 val data = JSONObject(read(connection))
-                require(data.optBoolean("ok")) {
-                    data.optString("error", "Unable to verify subscription")
-                }
+                requirePaymentOk(connection, data, "subscription-status")
                 data.optBoolean("premium")
             }
         }
@@ -54,7 +58,9 @@ object PaymentRepository {
             connection.outputStream.bufferedWriter().use {
                 it.write("{}")
             }
-            JSONObject(read(connection)).optBoolean("ok")
+            val data = JSONObject(read(connection))
+            requirePaymentOk(connection, data, "subscription-cancel")
+            true
         }
     }
 
@@ -68,6 +74,14 @@ object PaymentRepository {
             setRequestProperty("Authorization", "Bearer " + token)
             setRequestProperty("Content-Type", "application/json")
         }
+    }
+
+    private fun requirePaymentOk(connection: HttpURLConnection, data: JSONObject, fallbackStage: String) {
+        if (data.optBoolean("ok")) return
+        val code = data.optString("code").ifBlank { data.optString("error", "PAYMENT_ERROR") }
+        val stage = data.optString("stage").ifBlank { fallbackStage }
+        val message = data.optString("error").ifBlank { "Unable to complete payment." }
+        throw PaymentException(code, stage, connection.responseCode, message)
     }
 
     private fun read(connection: HttpURLConnection): String {
