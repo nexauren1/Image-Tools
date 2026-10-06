@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
 
         setContent {
-            val auth = remember { AuthRepository(applicationContext) }
+            val auth = remember { AuthRepository(this@MainActivity) }
             val firestore = remember { FirestoreRepository() }
             var premium by remember { mutableStateOf(false) }
             var darkMode by remember { mutableStateOf(false) }
