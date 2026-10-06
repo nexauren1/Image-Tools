@@ -69,7 +69,8 @@ fun ImageToolsAppV2(
     premium: Boolean,
     darkMode: Boolean,
     onDarkModeChange: (Boolean) -> Unit,
-    onStartPayment: (String) -> Unit
+    onStartPayment: (String) -> Unit,
+    onCancelSubscription: () -> Unit
 ) {
     if (auth.currentUser == null) {
         ModernAuthScreen(auth)
@@ -141,7 +142,7 @@ fun ImageToolsAppV2(
                         "home" -> ModernHome(premium) { selectedTool = it }
                         "tools" -> ModernTools { selectedTool = it }
                         "account" -> ModernAccount(auth, firestore, premium) { page = "premium" }
-                        "premium" -> ModernPremium(auth, premium, onStartPayment)
+                        "premium" -> ModernPremium(auth, premium, onStartPayment, onCancelSubscription)
                         "settings" -> ModernSettings(darkMode, onDarkModeChange)
                         "about" -> ModernAbout()
                         else -> ModernToolWorkspace(target, premium) { selectedTool = null }
@@ -760,7 +761,12 @@ private fun ModernAccount(auth: AuthRepository, firestore: FirestoreRepository, 
 }
 
 @Composable
-private fun ModernPremium(auth: AuthRepository, premium: Boolean, onStartPayment: (String) -> Unit) {
+private fun ModernPremium(
+    auth: AuthRepository,
+    premium: Boolean,
+    onStartPayment: (String) -> Unit,
+    onCancelSubscription: () -> Unit
+) {
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -770,8 +776,9 @@ private fun ModernPremium(auth: AuthRepository, premium: Boolean, onStartPayment
             Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(30.dp)).background(Brush.linearGradient(listOf(Color(0xFF171126), Color(0xFF7B2FF7), Color(0xFFF107A3)))).padding(24.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Premium", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
-                    Text("More power without a subscription.", color = Color.White.copy(alpha = 0.82f))
-                    Text("US$9", color = Color.White, fontSize = 44.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("More power with a simple monthly plan.", color = Color.White.copy(alpha = 0.82f))
+                    Text("US$5 / month", color = Color.White, fontSize = 38.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("Recurring subscription • Cancel anytime", color = Color.White.copy(alpha = 0.82f), fontSize = 12.sp)
                 }
             }
         }
@@ -780,8 +787,8 @@ private fun ModernPremium(auth: AuthRepository, premium: Boolean, onStartPayment
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
                     PremiumLine("Growing library of advanced workflows")
                     PremiumLine("Premium features as the app expands")
-                    PremiumLine("Secure account entitlement")
-                    PremiumLine("One-time purchase in v1")
+                    PremiumLine("Secure monthly account entitlement")
+                    PremiumLine("US$5 billed every month by PayPal")
                     Button(
                         onClick = {
                             busy = true
@@ -791,9 +798,9 @@ private fun ModernPremium(auth: AuthRepository, premium: Boolean, onStartPayment
                                 if (token.isNullOrBlank()) {
                                     error = "Please sign in again and retry."
                                 } else {
-                                    PaymentRepository.createOrder(token)
+                                    PaymentRepository.createSubscription(token)
                                         .onSuccess { (_, approveUrl) -> onStartPayment(approveUrl) }
-                                        .onFailure { error = "Checkout could not be started. Please try again." }
+                                        .onFailure { error = "Subscription could not be started. Please try again." }
                                 }
                                 busy = false
                             }
@@ -801,7 +808,15 @@ private fun ModernPremium(auth: AuthRepository, premium: Boolean, onStartPayment
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !premium && !busy
                     ) {
-                        Text(if (premium) "Premium active" else if (busy) "Opening checkout…" else "Continue to checkout")
+                        Text(if (premium) "Premium active" else if (busy) "Opening PayPal…" else "Subscribe for US$5/month")
+                    }
+                    if (premium) {
+                        OutlinedButton(
+                            onClick = onCancelSubscription,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Cancel subscription")
+                        }
                     }
                     if (error != null) Text(error ?: "", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
                 }
