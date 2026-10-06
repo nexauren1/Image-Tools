@@ -74,9 +74,9 @@ class MainActivity : ComponentActivity() {
                         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                     },
                     onCancelSubscription = {
-                        val token = auth.idToken()
-                        if (!token.isNullOrBlank()) {
-                            scope.launch {
+                        scope.launch {
+                            val token = auth.idToken()
+                            if (!token.isNullOrBlank()) {
                                 PaymentRepository.cancelSubscription(token)
                                     .onSuccess { cancelled ->
                                         if (cancelled) premium = false
