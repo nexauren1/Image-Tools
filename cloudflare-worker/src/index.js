@@ -141,6 +141,7 @@ async function createOrder(request, env) {
   const user = await firebaseUser(request, env);
   const paypal = await paypalToken(env);
 
+  const publicUrl = (env.WORKER_PUBLIC_URL || new URL(request.url).origin).replace(/\/$/, "");
   const r = await fetch(paypal.base + "/v2/checkout/orders", {
     method: "POST",
     headers: {
