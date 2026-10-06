@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.nexauren.imagetools"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.nexauren.imagetools"
