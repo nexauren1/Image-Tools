@@ -130,7 +130,7 @@ object ImageProcessor {
         val margin = textSize.toInt()
         val width = paint.measureText(safeText)
         val x = when (position) {
-            "Bottom left" -> margin.toFloat()
+            "Top left", "Bottom left" -> margin.toFloat()
             "Center" -> (bitmap.width - width) / 2f
             else -> bitmap.width - width - margin
         }
