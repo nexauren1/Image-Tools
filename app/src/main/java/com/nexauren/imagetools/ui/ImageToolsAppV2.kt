@@ -164,7 +164,7 @@ private fun DrawerEntry(icon: ImageVector, label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun BottomEntry(id: String, icon: ImageVector, label: String, page: String, onClick: () -> Unit) {
+private fun RowScope.BottomEntry(id: String, icon: ImageVector, label: String, page: String, onClick: () -> Unit) {
     val selected = page == id
     Column(
         modifier = Modifier
