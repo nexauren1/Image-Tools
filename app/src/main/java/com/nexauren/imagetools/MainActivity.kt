@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val paymentSubscription = mutableStateOf<String?>(null)
+    private val paymentRefreshNonce = mutableStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,27 +39,29 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            LaunchedEffect(subscriptionId, auth.currentUser?.uid) {
-                if (!subscriptionId.isNullOrBlank() && auth.currentUser != null) {
-                    val token = auth.idToken()
-                    if (!token.isNullOrBlank()) {
-                        scope.launch {
-                            repeat(5) { attempt ->
+            LaunchedEffect(subscriptionId, auth.currentUser?.uid, paymentRefreshNonce.value) {
+                if (auth.currentUser != null) {
+                    scope.launch {
+                        var activated = false
+                        repeat(20) { attempt ->
+                            val token = auth.idToken(attempt > 0)
+                            if (!token.isNullOrBlank()) {
                                 PaymentRepository.refreshSubscription(token, subscriptionId)
                                     .onSuccess { active ->
                                         if (active) {
                                             premium = true
-                                            return@launch
+                                            activated = true
                                         }
                                     }
-                                    .onFailure { }
-
-                                if (attempt < 4) delay(2000)
                             }
+
+                            if (activated) return@launch
+                            if (attempt < 19) delay(3000)
+                        }
+
+                        if (!subscriptionId.isNullOrBlank()) {
                             paymentSubscription.value = null
                         }
-                    } else {
-                        paymentSubscription.value = null
                     }
                 }
             }
@@ -92,6 +95,11 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleIntent(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        paymentRefreshNonce.value += 1
     }
 
     private fun handleIntent(intent: Intent?) {
