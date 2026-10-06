@@ -12,6 +12,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -49,7 +53,8 @@ private data class Tool(
     val icon: ImageVector,
     val start: Color,
     val end: Color,
-    val soft: Color
+    val soft: Color,
+    val premiumOnly: Boolean = false
 )
 
 private val tools = listOf(
@@ -59,7 +64,8 @@ private val tools = listOf(
     Tool("crop", "Smart Crop", "Common ratios for social and web", Icons.Default.Crop, Color(0xFFFF8008), Color(0xFFFFC837), Color(0xFFFFF6E7)),
     Tool("rotate", "Rotate & Flip", "Straighten or mirror instantly", Icons.Default.Rotate90DegreesCw, Color(0xFF4F46E5), Color(0xFFEC4899), Color(0xFFF1EFFF)),
     Tool("filter", "Quick Filters", "Clean presets for everyday photos", Icons.Default.FilterVintage, Color(0xFF11998E), Color(0xFF38EF7D), Color(0xFFE9FFF4)),
-    Tool("info", "Image Details", "Check dimensions and file size", Icons.Default.Info, Color(0xFF334155), Color(0xFF06B6D4), Color(0xFFEEF7F9))
+    Tool("info", "Image Details", "Check dimensions and file size", Icons.Default.Info, Color(0xFF334155), Color(0xFF06B6D4), Color(0xFFEEF7F9)),
+    Tool("watermark", "Smart Watermark", "Brand images with a clean custom mark", Icons.Default.TextFields, Color(0xFF7C3AED), Color(0xFFEC4899), Color(0xFFF7EEFF), premiumOnly = true)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -140,8 +146,14 @@ fun ImageToolsAppV2(
             Box(Modifier.fillMaxSize().padding(padding)) {
                 AnimatedContent(targetState = selectedTool ?: page, label = "navigation") { target ->
                     when (target) {
-                        "home" -> ModernHome(premium) { selectedTool = it }
-                        "tools" -> ModernTools { selectedTool = it }
+                        "home" -> ModernHome(premium) {
+                            val selected = tools.firstOrNull { tool -> tool.id == it }
+                            if (selected?.premiumOnly == true && !premium) page = "premium" else selectedTool = it
+                        }
+                        "tools" -> ModernTools {
+                            val selected = tools.firstOrNull { tool -> tool.id == it }
+                            if (selected?.premiumOnly == true && !premium) page = "premium" else selectedTool = it
+                        }
                         "account" -> ModernAccount(auth, firestore, premium) { page = "premium" }
                         "premium" -> ModernPremium(auth, premium, onStartPayment, onCancelSubscription)
                         "settings" -> ModernSettings(darkMode, onDarkModeChange)
@@ -312,39 +324,91 @@ private fun ModernHome(premium: Boolean, openTool: (String) -> Unit) {
     var query by remember { mutableStateOf("") }
     val results = tools.filter { (it.title + " " + it.subtitle).contains(query, true) }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
-        item {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
             Box(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(30.dp)).background(
-                    Brush.linearGradient(listOf(Color(0xFF0B1022), Color(0xFF5B2EFF), Color(0xFF00B9F2)))
-                ).padding(24.dp)
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(30.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color(0xFF0B1022), Color(0xFF6D28D9), Color(0xFF06B6D4))
+                        )
+                    )
+                    .padding(22.dp)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Edit without the clutter.", color = Color.White, fontSize = 29.sp, fontWeight = FontWeight.ExtraBold)
-                    Text("Focused tools, cleaner screens and local image processing.", color = Color.White.copy(alpha = 0.82f))
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("Your creative toolbox", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(
+                        "Fast local editing with a sharper, more visual workflow.",
+                        color = Color.White.copy(alpha = 0.82f)
+                    )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        AssistChip(onClick = {}, label = { Text("LOCAL") })
-                        AssistChip(onClick = {}, label = { Text(tools.size.toString() + " TOOLS") })
+                        Surface(shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.14f)) {
+                            Text("ON-DEVICE", Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Surface(shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.14f)) {
+                            Text("undefined TOOLS", Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
         }
-        item {
-            OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(18.dp), leadingIcon = { Icon(Icons.Default.Search, null) }, placeholder = { Text("Search tools") })
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            OutlinedTextField(
+                query,
+                { query = it },
+                Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(18.dp),
+                leadingIcon = { Icon(Icons.Default.Search, null) },
+                placeholder = { Text("Search tools") }
+            )
         }
-        item { Text("Your tools", fontSize = 21.sp, fontWeight = FontWeight.Bold) }
-        items(results) { ToolCard(it, openTool) }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                Column {
+                    Text("Tools", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("Pick a workflow and start editing.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (premium) {
+                    AssistChip(onClick = {}, label = { Text("PREMIUM ACTIVE") }, leadingIcon = { Icon(Icons.Default.WorkspacePremium, null) })
+                }
+            }
+        }
         if (results.isEmpty()) {
-            item { EmptyCard("No tool found", "Try another search term.") }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                EmptyCard("No tool found", "Try another search term.")
+            }
+        } else {
+            gridItems(results) { ToolCard(it, openTool) }
         }
         if (!premium) {
-            item {
-                Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
-                    Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Card(
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5EEFF)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+                ) {
+                    Row(Modifier.padding(17.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(
+                                Brush.linearGradient(listOf(Color(0xFF7C3AED), Color(0xFFEC4899)))
+                            ),
+                            contentAlignment = Alignment.Center
+                        ) { Icon(Icons.Default.WorkspacePremium, null, tint = Color.White) }
+                        Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("Unlock Premium", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                            Text("US$5/month as the premium toolbox grows.")
+                            Text("Unlock Smart Watermark", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                            Text("Brand your images with a polished custom mark.", fontSize = 12.sp, color = Color(0xFF6B7280))
                         }
+                        Text("US$5", fontWeight = FontWeight.ExtraBold, color = Color(0xFF7C3AED))
                     }
                 }
             }
@@ -354,12 +418,20 @@ private fun ModernHome(premium: Boolean, openTool: (String) -> Unit) {
 
 @Composable
 private fun ModernTools(openTool: (String) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item {
-            Text("All tools", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold)
-            Text("Each workflow now has its own visual identity and controls.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text("All tools", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold)
+                Text("Modern image workflows, ready when you are.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+            }
         }
-        items(tools) { ToolCard(it, openTool) }
+        gridItems(tools) { ToolCard(it, openTool) }
     }
 }
 
@@ -367,20 +439,47 @@ private fun ModernTools(openTool: (String) -> Unit) {
 private fun ToolCard(tool: Tool, openTool: (String) -> Unit) {
     Card(
         onClick = { openTool(tool.id) },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().height(178.dp),
         shape = RoundedCornerShape(26.dp),
-        colors = CardDefaults.cardColors(containerColor = tool.soft)
+        colors = CardDefaults.cardColors(containerColor = tool.soft),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(58.dp).clip(RoundedCornerShape(19.dp)).background(Brush.linearGradient(listOf(tool.start, tool.end))), contentAlignment = Alignment.Center) {
-                Icon(tool.icon, null, tint = Color.White, modifier = Modifier.size(29.dp))
+        Box(Modifier.fillMaxSize()) {
+            Column(
+                Modifier.fillMaxSize().padding(14.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                    Box(
+                        Modifier.size(58.dp).clip(RoundedCornerShape(19.dp))
+                            .background(Brush.linearGradient(listOf(tool.start, tool.end))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(tool.icon, null, tint = Color.White, modifier = Modifier.size(29.dp))
+                    }
+                    if (tool.premiumOnly) {
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = Color(0xFF171126).copy(alpha = 0.92f)
+                        ) {
+                            Row(Modifier.padding(horizontal = 8.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Lock, null, tint = Color.White, modifier = Modifier.size(13.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("PRO", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                            }
+                        }
+                    }
+                }
+                Column {
+                    Text(tool.title, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
+                    Spacer(Modifier.height(4.dp))
+                    Text(tool.subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (tool.premiumOnly) "Premium" else "Free", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = tool.start)
+                    Icon(Icons.Default.ArrowForward, null, tint = tool.start)
+                }
             }
-            Spacer(Modifier.width(15.dp))
-            Column(Modifier.weight(1f)) {
-                Text(tool.title, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                Text(tool.subtitle, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Icon(Icons.Default.ChevronRight, null)
         }
     }
 }
@@ -395,6 +494,11 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
     var result by remember { mutableStateOf<com.nexauren.imagetools.media.ImageResult?>(null) }
     var status by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var pendingFormat by remember { mutableStateOf(OutputFormat.JPEG) }
+    var pendingWidth by remember { mutableIntStateOf(1) }
+    var pendingHeight by remember { mutableIntStateOf(1) }
+    var pendingPrefix by remember { mutableStateOf("image-tools") }
 
     var width by remember { mutableStateOf("1920") }
     var height by remember { mutableStateOf("1080") }
@@ -407,6 +511,29 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
     var mirrorH by remember { mutableStateOf(false) }
     var mirrorV by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf(ImageFilter.ORIGINAL) }
+    var watermarkText by remember { mutableStateOf("IMAGE TOOLS") }
+    var watermarkOpacity by remember { mutableFloatStateOf(72f) }
+    var watermarkPosition by remember { mutableStateOf("Bottom right") }
+
+    val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument()) { uri ->
+        val bytes = pendingBytes
+        if (uri == null || bytes == null) {
+            status = "Save cancelled. Your image was not changed."
+            return@rememberLauncherForActivityResult
+        }
+        scope.launch {
+            try {
+                result = withContext(Dispatchers.IO) {
+                    ImageProcessor.saveToUri(context, uri, bytes, pendingFormat, pendingWidth, pendingHeight)
+                }
+                status = "Saved successfully. You chose where the file goes."
+            } catch (_: Exception) {
+                status = "We could not save the file. Please choose another location."
+            } finally {
+                pendingBytes = null
+            }
+        }
+    }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         image = uri?.let { ImageProcessor.decode(context, it) }
@@ -471,6 +598,11 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                     "crop" -> CropPanel(cropRatio) { cropRatio = it }
                     "rotate" -> RotatePanel(angle, mirrorH, mirrorV, { angle = it }, { mirrorH = it }, { mirrorV = it })
                     "filter" -> FilterPanel(filter) { filter = it }
+                    "watermark" -> WatermarkPanel(watermarkText, watermarkOpacity, watermarkPosition,
+                        onText = { watermarkText = it },
+                        onOpacity = { watermarkOpacity = it },
+                        onPosition = { watermarkPosition = it }
+                    )
                 }
             }
             item {
@@ -488,16 +620,20 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                                         "crop" -> ImageProcessor.cropCenter(source, cropRatio)
                                         "rotate" -> ImageProcessor.rotate(source, angle, mirrorH, mirrorV)
                                         "filter" -> ImageProcessor.filter(source, filter)
+                                        "watermark" -> ImageProcessor.watermark(source, watermarkText, watermarkOpacity.toInt(), watermarkPosition)
                                         else -> source
                                     }
                                 }
                                 val outputFormat = if (id == "compress") compressFormat else format
                                 val outputQuality = if (outputFormat == OutputFormat.PNG) 100 else quality.toInt().coerceIn(1, 100)
                                 val bytes = withContext(Dispatchers.Default) { ImageProcessor.encode(transformed, outputFormat, outputQuality) }
-                                result = withContext(Dispatchers.IO) {
-                                    ImageProcessor.save(context, bytes, outputFormat, id, transformed.width, transformed.height)
-                                }
-                                status = "Saved to Pictures / Image Tools"
+                                pendingBytes = bytes
+                                pendingFormat = outputFormat
+                                pendingWidth = transformed.width
+                                pendingHeight = transformed.height
+                                pendingPrefix = id
+                                status = "Choose where to save your result."
+                                saveLauncher.launch(id + "_" + System.currentTimeMillis() + "." + outputFormat.extension)
                             } catch (_: Exception) {
                                 status = "We could not create the result. Try another image or a smaller output."
                             } finally {
@@ -513,7 +649,7 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                     if (busy) {
                         CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = Color.White)
                     } else {
-                        Text("Create result", fontWeight = FontWeight.Bold)
+                        Text("Create & save…", fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -890,7 +1026,7 @@ private fun ModernAbout() {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Text("About", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold)
-            Text("Image Tools 1.1", fontWeight = FontWeight.Bold)
+            Text("Image Tools 1.2.2", fontWeight = FontWeight.Bold)
             Text("A focused image workspace built for fast, private editing.")
         }
         item {
