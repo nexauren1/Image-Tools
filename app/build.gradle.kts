@@ -3,8 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
-if (file("google-services.json").exists()) {
-    apply(plugin = "com.google.gms.google-services")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -18,8 +17,8 @@ android {
         versionName = "1.0.0"
         vectorDrawables { useSupportLibrary = true }
 
-        val worker = providers.gradleProperty("WORKER_URL").orElse("https://YOUR-IMAGE-TOOLS-WORKER.workers.dev").get()
-        val googleClient = providers.gradleProperty("GOOGLE_WEB_CLIENT_ID").orElse("").get()
+        val worker = providers.gradleProperty("WORKER_URL").orElse("https://steep-pine-34fe.nexaurenstore.workers.dev").get()
+        val googleClient = providers.gradleProperty("GOOGLE_WEB_CLIENT_ID").orElse("1062438516387-i2plli4d5mq9gkaauik6q2tf4nb1bqq7.apps.googleusercontent.com").get()
         buildConfigField("String", "WORKER_URL", "\"" + worker.replace("\"", "\\\"") + "\"")
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"" + googleClient.replace("\"", "\\\"") + "\"")
     }
