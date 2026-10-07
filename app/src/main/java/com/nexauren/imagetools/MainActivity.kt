@@ -34,7 +34,6 @@ class MainActivity : ComponentActivity() {
                 if (auth.currentUser == null) {
                     premium = false
                 } else {
-                    firestore.syncUser()
                     firestore.observePremium { premium = it }
                 }
             }
@@ -69,7 +68,6 @@ class MainActivity : ComponentActivity() {
             ImageToolsTheme(darkTheme = darkMode) {
                 ImageToolsAppV2(
                     auth = auth,
-                    firestore = firestore,
                     premium = premium,
                     darkMode = darkMode,
                     onDarkModeChange = { darkMode = it },
