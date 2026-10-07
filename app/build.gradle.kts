@@ -53,8 +53,8 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = false
+            isShrinkResources = false
             signingConfig = if (hasReleaseSigning) {
                 signingConfigs.getByName("release")
             } else {
