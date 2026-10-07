@@ -211,7 +211,31 @@ object ImageProcessor {
         return ImageResult(uri, bytes.size.toLong(), width, height, format)
     }
 
-    fun humanBytes(bytes: Long): String {
+    fun saveToFolder(
+        context: Context,
+        treeUri: Uri,
+        bytes: ByteArray,
+        format: OutputFormat,
+        prefix: String,
+        width: Int,
+        height: Int
+    ): ImageResult {
+        val fileName = prefix + "_" + System.currentTimeMillis() + "." + format.extension
+        val uri = android.provider.DocumentsContract.createDocument(
+            context.contentResolver,
+            treeUri,
+            format.mime,
+            fileName
+        ) ?: error("create")
+        return try {
+            saveToUri(context, uri, bytes, format, width, height)
+        } catch (error: Exception) {
+            context.contentResolver.delete(uri, null, null)
+            throw error
+        }
+    }
+
+    fun humanBytes(bytes: Long) {
         if (bytes < 1024) return "$bytes B"
         val kb = bytes / 1024.0
         if (kb < 1024) return DecimalFormat("#,##0.0").format(kb) + " KB"
