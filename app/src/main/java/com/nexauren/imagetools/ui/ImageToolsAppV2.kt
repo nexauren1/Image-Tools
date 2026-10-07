@@ -1315,6 +1315,117 @@ private fun PixelateStudio(size: Float, setSize: (Float) -> Unit) {
     }
 }
 
+@Composable
+private fun BlurStudio(value: Float, setValue: (Float) -> Unit) {
+    Surface(shape = RoundedCornerShape(28.dp), color = Color(0xFFEAF4FF)) {
+        Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Text("Blur Studio", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF1D4ED8))
+            Text("Create a soft-focus finish while keeping the original canvas size.", fontSize = 12.sp, color = Color(0xFF4B6480))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Intensity", fontWeight = FontWeight.Bold)
+                Text((value * 100).toInt().toString() + "%", color = Color(0xFF1D4ED8), fontWeight = FontWeight.ExtraBold)
+            }
+            Slider(value, setValue, valueRange = 0.15f..1f)
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Soft" to 0.30f, "Balanced" to 0.60f, "Strong" to 0.90f).forEach { (label, amount) ->
+                    FilterChip(value == amount, { setValue(amount) }, label = { Text(label) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SocialCanvasStudio(
+    preset: String,
+    setPreset: (String) -> Unit,
+    background: String,
+    setBackground: (String) -> Unit
+) {
+    Surface(shape = RoundedCornerShape(28.dp), color = Color(0xFFE7FFFB)) {
+        Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Text("Social Canvas", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF0F766E))
+            Text("Build export-ready canvases without stretching the image.", fontSize = 12.sp, color = Color(0xFF47736E))
+            Text("Preset", fontWeight = FontWeight.Bold)
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Square 1:1", "Portrait 4:5", "Story 9:16", "Landscape 16:9").forEach {
+                    FilterChip(it == preset, { setPreset(it) }, label = { Text(it) })
+                }
+            }
+            Text("Canvas background", fontWeight = FontWeight.Bold)
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("White", "Black", "Soft").forEach {
+                    FilterChip(it == background, { setBackground(it) }, label = { Text(it) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NegativeStudio() {
+    Surface(shape = RoundedCornerShape(28.dp), color = Color(0xFFF1F0FF)) {
+        Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Negative", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF6D28D9))
+            Text("Invert RGB values while preserving the original transparency.", fontSize = 12.sp, color = Color(0xFF5E5575))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.InvertColors, null, tint = Color(0xFF6D28D9))
+                Spacer(Modifier.width(8.dp))
+                Text("Designed for creative experiments, posters and high-contrast effects.", fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DuotoneStudio(style: String, setStyle: (String) -> Unit) {
+    Surface(shape = RoundedCornerShape(28.dp), color = Color(0xFFF8EEFF)) {
+        Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Text("DuoTone", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF7C3AED))
+            Text("Transform a photo into a cinematic two-color grade.", fontSize = 12.sp, color = Color(0xFF6D5A7C))
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Violet", "Ocean", "Sunset", "Mono").forEach {
+                    FilterChip(it == style, { setStyle(it) }, label = { Text(it) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RoundedStudio(radius: Float, setRadius: (Float) -> Unit) {
+    Surface(shape = RoundedCornerShape(28.dp), color = Color(0xFFFFF0F2)) {
+        Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Text("Rounded Corners", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFE11D48))
+            Text("Export a transparent PNG with polished card-style corners.", fontSize = 12.sp, color = Color(0xFF7C5260))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Radius", fontWeight = FontWeight.Bold)
+                Text(radius.toInt().toString() + " px", color = Color(0xFFE11D48), fontWeight = FontWeight.ExtraBold)
+            }
+            Slider(radius, setRadius, valueRange = 12f..280f)
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Small" to 32f, "Medium" to 88f, "Large" to 160f, "XL" to 240f).forEach { (label, amount) ->
+                    FilterChip(radius == amount, { setRadius(amount) }, label = { Text(label) })
+                }
+            }
+        }
+    }
+}
+
+private fun duotoneShadow(style: String): Int = when (style) {
+    "Ocean" -> android.graphics.Color.rgb(5, 33, 67)
+    "Sunset" -> android.graphics.Color.rgb(78, 16, 30)
+    "Mono" -> android.graphics.Color.rgb(24, 24, 27)
+    else -> android.graphics.Color.rgb(42, 12, 82)
+}
+
+private fun duotoneHighlight(style: String): Int = when (style) {
+    "Ocean" -> android.graphics.Color.rgb(64, 224, 208)
+    "Sunset" -> android.graphics.Color.rgb(255, 173, 102)
+    "Mono" -> android.graphics.Color.WHITE
+    else -> android.graphics.Color.rgb(237, 233, 254)
+}
+
 private fun frameColor(value: String): Int {
     return when (value) {
         "Black" -> android.graphics.Color.BLACK
