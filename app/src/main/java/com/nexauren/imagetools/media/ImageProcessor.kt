@@ -13,6 +13,8 @@ import java.text.DecimalFormat
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
+import kotlin.math.pow
+import kotlin.math.roundToInt
 
 enum class OutputFormat(val label: String, val mime: String, val extension: String) {
     JPEG("JPEG", "image/jpeg", "jpg"),
@@ -599,6 +601,219 @@ object ImageProcessor {
             }
         }
         return Bitmap.createBitmap(output, width, height, Bitmap.Config.ARGB_8888)
+    }
+
+
+    suspend fun smartBackgroundCutout(context: Context, bitmap: Bitmap, tolerance: Int): Bitmap {
+        return SubjectBackgroundRemover.remove(context, bitmap)
+            ?: backgroundCutout(bitmap, tolerance)
+    }
+
+    fun exposure(bitmap: Bitmap, stops: Float): Bitmap {
+        val factor = Math.pow(2.0, stops.coerceIn(-2f, 2f).toDouble()).toFloat()
+        return adjust(bitmap, (factor - 1f) * 0.30f, (factor - 1f) * 0.08f, 1f)
+    }
+
+    fun gamma(bitmap: Bitmap, gamma: Float): Bitmap {
+        val g = gamma.coerceIn(0.25f, 3f)
+        val lut = IntArray(256) { value ->
+            (((value / 255f).toDouble().pow(1.0 / g) * 255.0).toInt()).coerceIn(0, 255)
+        }
+        val pixels = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        for (i in pixels.indices) {
+            val c = pixels[i]
+            pixels[i] = Color.argb(
+                Color.alpha(c),
+                lut[Color.red(c)],
+                lut[Color.green(c)],
+                lut[Color.blue(c)]
+            )
+        }
+        return Bitmap.createBitmap(pixels, bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+    }
+
+    fun rgbBalance(bitmap: Bitmap, red: Float, green: Float, blue: Float): Bitmap {
+        val output = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        paint.colorFilter = ColorMatrixColorFilter(
+            ColorMatrix(
+                floatArrayOf(
+                    1f, 0f, 0f, 0f, red.coerceIn(-80f, 80f),
+                    0f, 1f, 0f, 0f, green.coerceIn(-80f, 80f),
+                    0f, 0f, 1f, 0f, blue.coerceIn(-80f, 80f),
+                    0f, 0f, 0f, 1f, 0f
+                )
+            )
+        )
+        canvas.drawBitmap(bitmap, 0f, 0f, paint)
+        return output
+    }
+
+    fun colorTint(bitmap: Bitmap, red: Int, green: Int, blue: Int, amount: Float): Bitmap {
+        val mix = amount.coerceIn(0f, 1f)
+        val pixels = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        for (i in pixels.indices) {
+            val c = pixels[i]
+            val r = (Color.red(c) * (1f - mix) + red * mix).toInt().coerceIn(0, 255)
+            val g = (Color.green(c) * (1f - mix) + green * mix).toInt().coerceIn(0, 255)
+            val b = (Color.blue(c) * (1f - mix) + blue * mix).toInt().coerceIn(0, 255)
+            pixels[i] = Color.argb(Color.alpha(c), r, g, b)
+        }
+        return Bitmap.createBitmap(pixels, bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+    }
+
+    fun vignette(bitmap: Bitmap, strength: Float): Bitmap {
+        val amount = strength.coerceIn(0f, 1f)
+        val width = bitmap.width
+        val height = bitmap.height
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+        val cx = width / 2f
+        val cy = height / 2f
+        val maxDistance = sqrt(cx * cx + cy * cy)
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                val dx = x - cx
+                val dy = y - cy
+                val distance = sqrt(dx * dx + dy * dy) / maxDistance
+                val factor = 1f - (distance.coerceIn(0f, 1f).pow(2f) * amount * 0.72f)
+                val i = y * width + x
+                val c = pixels[i]
+                pixels[i] = Color.argb(
+                    Color.alpha(c),
+                    (Color.red(c) * factor).toInt().coerceIn(0, 255),
+                    (Color.green(c) * factor).toInt().coerceIn(0, 255),
+                    (Color.blue(c) * factor).toInt().coerceIn(0, 255)
+                )
+            }
+        }
+        return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
+    }
+
+    fun filmGrain(bitmap: Bitmap, amount: Float): Bitmap {
+        val strength = (amount.coerceIn(0f, 1f) * 54f).toInt()
+        if (strength == 0) return bitmap.copy(Bitmap.Config.ARGB_8888, true)
+        val width = bitmap.width
+        val height = bitmap.height
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                val hash = (x * 73856093) xor (y * 19349663)
+                val noise = ((hash ushr 16) and 255) - 128
+                val delta = noise * strength / 128
+                val i = y * width + x
+                val c = pixels[i]
+                pixels[i] = Color.argb(
+                    Color.alpha(c),
+                    (Color.red(c) + delta).coerceIn(0, 255),
+                    (Color.green(c) + delta).coerceIn(0, 255),
+                    (Color.blue(c) + delta).coerceIn(0, 255)
+                )
+            }
+        }
+        return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
+    }
+
+    fun posterize(bitmap: Bitmap, levels: Int): Bitmap {
+        val count = levels.coerceIn(2, 16)
+        val step = 255f / (count - 1)
+        val pixels = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        for (i in pixels.indices) {
+            val c = pixels[i]
+            fun quantize(value: Int): Int =
+                (((value / 255f) * (count - 1)).roundToInt() * step).toInt().coerceIn(0, 255)
+            pixels[i] = Color.argb(
+                Color.alpha(c),
+                quantize(Color.red(c)),
+                quantize(Color.green(c)),
+                quantize(Color.blue(c))
+            )
+        }
+        return Bitmap.createBitmap(pixels, bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+    }
+
+    fun edgeDetect(bitmap: Bitmap, strength: Float): Bitmap {
+        val amount = strength.coerceIn(0.1f, 1f)
+        val width = bitmap.width
+        val height = bitmap.height
+        if (width < 3 || height < 3) return bitmap.copy(Bitmap.Config.ARGB_8888, true)
+        val source = IntArray(width * height)
+        bitmap.getPixels(source, 0, width, 0, 0, width, height)
+        val output = source.copyOf()
+        fun lum(c: Int): Float =
+            0.2126f * Color.red(c) + 0.7152f * Color.green(c) + 0.0722f * Color.blue(c)
+        for (y in 1 until height - 1) {
+            for (x in 1 until width - 1) {
+                val i = y * width + x
+                val gx = -lum(source[i - width - 1]) - 2f * lum(source[i - 1]) - lum(source[i + width - 1]) +
+                    lum(source[i - width + 1]) + 2f * lum(source[i + 1]) + lum(source[i + width + 1])
+                val gy = -lum(source[i - width - 1]) - 2f * lum(source[i - width]) - lum(source[i - width + 1]) +
+                    lum(source[i + width - 1]) + 2f * lum(source[i + width]) + lum(source[i + width + 1])
+                val edge = (sqrt(gx * gx + gy * gy) / 4f * amount).coerceIn(0f, 255f).toInt()
+                output[i] = Color.argb(Color.alpha(source[i]), edge, edge, edge)
+            }
+        }
+        return Bitmap.createBitmap(output, width, height, Bitmap.Config.ARGB_8888)
+    }
+
+    fun highlightsShadows(bitmap: Bitmap, shadows: Float, highlights: Float): Bitmap {
+        val shadowAmount = shadows.coerceIn(-1f, 1f)
+        val highlightAmount = highlights.coerceIn(-1f, 1f)
+        val pixels = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        for (i in pixels.indices) {
+            val c = pixels[i]
+            val luminance = (0.2126f * Color.red(c) + 0.7152f * Color.green(c) + 0.0722f * Color.blue(c)) / 255f
+            val weight = if (luminance < 0.5f) (1f - luminance * 2f) else (luminance - 0.5f) * 2f
+            val delta = if (luminance < 0.5f) shadowAmount * weight * 85f else highlightAmount * weight * 85f
+            pixels[i] = Color.argb(
+                Color.alpha(c),
+                (Color.red(c) + delta).toInt().coerceIn(0, 255),
+                (Color.green(c) + delta).toInt().coerceIn(0, 255),
+                (Color.blue(c) + delta).toInt().coerceIn(0, 255)
+            )
+        }
+        return Bitmap.createBitmap(pixels, bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+    }
+
+    fun photoStrip(
+        bitmaps: List<Bitmap>,
+        vertical: Boolean,
+        gap: Int = 18,
+        background: Int = Color.WHITE
+    ): Bitmap {
+        require(bitmaps.isNotEmpty())
+        val safeGap = gap.coerceIn(0, 64)
+        val target = bitmaps.maxOf { if (vertical) it.width else it.height }.coerceIn(480, 1600)
+        val fitted = bitmaps.map { source ->
+            val ratio = if (vertical) target.toFloat() / source.width else target.toFloat() / source.height
+            Bitmap.createScaledBitmap(
+                source,
+                (source.width * ratio).toInt().coerceAtLeast(1),
+                (source.height * ratio).toInt().coerceAtLeast(1),
+                true
+            )
+        }
+        val width = if (vertical) target else fitted.sumOf { it.width } + safeGap * (fitted.size - 1)
+        val height = if (vertical) fitted.sumOf { it.height } + safeGap * (fitted.size - 1) else target
+        val output = Bitmap.createBitmap(width.coerceAtLeast(1), height.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        canvas.drawColor(background)
+        var cursor = 0
+        fitted.forEachIndexed { index, bitmap ->
+            val left = if (vertical) (width - bitmap.width) / 2 else cursor
+            val top = if (vertical) cursor else (height - bitmap.height) / 2
+            canvas.drawBitmap(bitmap, left.toFloat(), top.toFloat(), Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+            cursor += if (vertical) bitmap.height else bitmap.width
+            if (index != fitted.lastIndex) cursor += safeGap
+        }
+        fitted.forEach { if (!it.isRecycled) it.recycle() }
+        return output
     }
 
     fun encode(bitmap: Bitmap, format: OutputFormat, quality: Int): ByteArray {
