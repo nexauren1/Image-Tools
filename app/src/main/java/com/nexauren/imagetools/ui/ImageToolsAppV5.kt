@@ -1783,7 +1783,7 @@ private fun ToolControlsV5(
 }
 
 @Composable
-private fun FormatChipsV5(
+fun FormatChipsV5(
     selected: OutputFormat,
     onSelected: (OutputFormat) -> Unit,
     options: List<OutputFormat>
@@ -1801,7 +1801,7 @@ private fun FormatChipsV5(
 }
 
 @Composable
-private fun ChoicesV5(
+fun ChoicesV5(
     options: List<String>,
     selected: String,
     onSelected: (String) -> Unit
