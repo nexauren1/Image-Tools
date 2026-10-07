@@ -325,21 +325,21 @@ private fun AuthScreenV5(auth: AuthRepository) {
                         ) {
                             Icon(Icons.Default.AccountCircle, null)
                             Spacer(Modifier.width(8.dp))
-                            Text("Continue with Google")
+                            Text(strings.get("auth.google"))
                         }
                         HorizontalDivider()
                         OutlinedTextField(
                             value = email,
                             onValueChange = { email = it },
                             modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Email") },
+                            label = { Text(strings.get("auth.email")) },
                             singleLine = true
                         )
                         OutlinedTextField(
                             value = password,
                             onValueChange = { password = it },
                             modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Password") },
+                            label = { Text(strings.get("auth.password")) },
                             singleLine = true,
                             visualTransformation = PasswordVisualTransformation()
                         )
@@ -357,13 +357,13 @@ private fun AuthScreenV5(auth: AuthRepository) {
                             modifier = Modifier.fillMaxWidth().height(52.dp),
                             shape = RoundedCornerShape(16.dp)
                         ) {
-                            Text(if (create) "Create account" else "Sign in")
+                            Text(if (create) strings.get("auth.create") else strings.get("auth.signin"))
                         }
                         TextButton(
                             onClick = { create = !create },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(if (create) "I already have an account" else "Create an account")
+                            Text(if (create) strings.get("auth.already") else strings.get("auth.new"))
                         }
                         TextButton(
                             onClick = {
@@ -375,7 +375,7 @@ private fun AuthScreenV5(auth: AuthRepository) {
                             enabled = !create,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Forgot password?")
+                            Text(strings.get("auth.forgot"))
                         }
                         error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
                     }
@@ -873,7 +873,7 @@ private fun ToolWorkspaceV5(
                 }
             }
         } catch (error: Exception) {
-            status = error.message ?: "Could not process the image."
+            status = error.message ?: strings.get("process.error")
         } finally {
             busy = false
         }
@@ -1567,7 +1567,7 @@ private fun PremiumScreenV5(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(17.dp)
                 ) {
-                    Text("Cancel subscription")
+                    Text(strings.get("premium.cancel"))
                 }
             }
         }
@@ -1622,7 +1622,7 @@ private fun AccountScreenV5(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Sign out")
+                Text(strings.get("account.signout"))
             }
         }
         item {
