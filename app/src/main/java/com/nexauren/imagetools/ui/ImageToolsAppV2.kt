@@ -1039,7 +1039,7 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
 
         item {
             when {
-                current == null && id == "collage" -> {
+                current == null && (id == "collage" || id == "photoStrip") -> {
                     Surface(
                         Modifier.fillMaxWidth().height(230.dp).clickable { multiPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                         shape = RoundedCornerShape(30.dp),
@@ -1048,8 +1048,17 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                             Icon(Icons.Default.Collections, null, tint = Color(0xFF00C6FF), modifier = Modifier.size(46.dp))
                             Spacer(Modifier.height(10.dp))
-                            Text("Pick 2–6 images", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
-                            Text("Build one layout on the phone", color = Color.White.copy(alpha = .70f), fontSize = 12.sp)
+                            Text(
+                                if (id == "photoStrip") "Pick 2–6 images" else "Pick 2–6 images",
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                            Text(
+                                if (id == "photoStrip") "Build a vertical or horizontal photo strip" else "Build one layout on the phone",
+                                color = Color.White.copy(alpha = .70f),
+                                fontSize = 12.sp
+                            )
                             Spacer(Modifier.height(13.dp))
                             Button(onClick = { multiPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) { Text(t.chooseImages) }
                         }
@@ -1232,6 +1241,22 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                         shape = RoundedCornerShape(19.dp)
                     ) { Text(if (busy) t.processing else t.apply) }
                 }
+                "photoStrip" -> {
+                    Button(
+                        onClick = {
+                            if (sources.size >= 2) {
+                                processImage(
+                                    { ImageProcessor.photoStrip(sources, stripVertical, background = frameColor("White")) },
+                                    OutputFormat.JPEG,
+                                    94
+                                )
+                            }
+                        },
+                        enabled = sources.size >= 2 && !busy,
+                        modifier = Modifier.fillMaxWidth().height(57.dp),
+                        shape = RoundedCornerShape(19.dp)
+                    ) { Text(if (busy) t.processing else t.apply) }
+                }
                 else -> {
                     Button(
                         onClick = {
@@ -1244,7 +1269,17 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                                     "crop" -> processImage({ ImageProcessor.cropCenter(source, cropRatio) })
                                     "rotate" -> processImage({ ImageProcessor.rotate(source, angle, flipH, flipV) })
                                     "filter" -> processImage({ ImageProcessor.filter(source, filter) })
-                                    "cutout" -> processImage({ ImageProcessor.backgroundCutout(source, cutoutTolerance.toInt()) }, OutputFormat.PNG, 100)
+                                    "cutout" -> processImage(
+                    {
+                        ImageProcessor.smartBackgroundCutout(
+                            context,
+                            source,
+                            cutoutTolerance.toInt()
+                        )
+                    },
+                    OutputFormat.PNG,
+                    100
+                )
                                     "portraitBlur" -> processImage({ ImageProcessor.portraitBlur(source, blurIntensity) })
                                     "autoEnhance" -> processImage({ ImageProcessor.autoEnhance(source) })
                                     "sharpen" -> processImage({ ImageProcessor.sharpen(source, sharpenAmount) })
@@ -1800,6 +1835,180 @@ private fun TransparencyGrid(modifier: Modifier = Modifier) {
             }
         }
     }
+}
+
+@Composable
+private fun EffectSliderStudio(
+    title: String,
+    subtitle: String,
+    value: Float,
+    setValue: (Float) -> Unit,
+    range: ClosedFloatingPointRange<Float>,
+    presets: List<Pair<String, Float>>
+) {
+    Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .72f)) {
+        Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(title, fontSize = 21.sp, fontWeight = FontWeight.ExtraBold)
+            Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Amount", fontWeight = FontWeight.Bold)
+                Text(String.format("%.2f", value), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.ExtraBold)
+            }
+            Slider(value, setValue, valueRange = range)
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                presets.forEach { (label, amount) ->
+                    FilterChip(value == amount, { setValue(amount) }, label = { Text(label) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VignetteStudio(value: Float, setValue: (Float) -> Unit) =
+    EffectSliderStudio(
+        "Vignette",
+        "Darken the edges to guide attention toward the subject.",
+        value,
+        setValue,
+        0f..1f,
+        listOf("Soft" to 0.28f, "Medium" to 0.58f, "Strong" to 0.88f)
+    )
+
+@Composable
+private fun GrainStudio(value: Float, setValue: (Float) -> Unit) =
+    EffectSliderStudio(
+        "Film Grain",
+        "Add controlled analog texture without changing the canvas.",
+        value,
+        setValue,
+        0f..1f,
+        listOf("Subtle" to 0.20f, "Classic" to 0.45f, "Heavy" to 0.75f)
+    )
+
+@Composable
+private fun PosterizeStudio(value: Float, setValue: (Float) -> Unit) =
+    EffectSliderStudio(
+        "Posterize",
+        "Reduce color levels for a crisp graphic effect.",
+        value,
+        setValue,
+        2f..16f,
+        listOf("4" to 4f, "6" to 6f, "10" to 10f, "14" to 14f)
+    )
+
+@Composable
+private fun EdgeDetectStudio(value: Float, setValue: (Float) -> Unit) =
+    EffectSliderStudio(
+        "Edge Detect",
+        "Extract high-contrast contours for technical or artistic looks.",
+        value,
+        setValue,
+        0.1f..1f,
+        listOf("Soft" to 0.30f, "Balanced" to 0.72f, "Hard" to 1f)
+    )
+
+@Composable
+private fun ExposureStudio(value: Float, setValue: (Float) -> Unit) =
+    EffectSliderStudio(
+        "Exposure",
+        "Control overall light in photographic stops.",
+        value,
+        setValue,
+        -2f..2f,
+        listOf("-1" to -1f, "0" to 0f, "+1" to 1f)
+    )
+
+@Composable
+private fun GammaStudio(value: Float, setValue: (Float) -> Unit) =
+    EffectSliderStudio(
+        "Gamma",
+        "Shape midtones without using a simple brightness shift.",
+        value,
+        setValue,
+        0.25f..3f,
+        listOf("0.6" to 0.6f, "1.0" to 1f, "1.5" to 1.5f, "2.0" to 2f)
+    )
+
+@Composable
+private fun RgbBalanceStudio(
+    red: Float, setRed: (Float) -> Unit,
+    green: Float, setGreen: (Float) -> Unit,
+    blue: Float, setBlue: (Float) -> Unit
+) {
+    Surface(shape = RoundedCornerShape(28.dp), color = Color(0xFFEEF5FF)) {
+        Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Text("RGB Balance", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF1D4ED8))
+            Text("Tune each color channel independently.", fontSize = 12.sp, color = Color(0xFF4B6480))
+            AdjustLine("Red", red / 80f, -1f..1f) { setRed(it * 80f) }
+            AdjustLine("Green", green / 80f, -1f..1f) { setGreen(it * 80f) }
+            AdjustLine("Blue", blue / 80f, -1f..1f) { setBlue(it * 80f) }
+        }
+    }
+}
+
+@Composable
+private fun TintStudio(
+    style: String,
+    setStyle: (String) -> Unit,
+    amount: Float,
+    setAmount: (Float) -> Unit
+) {
+    Surface(shape = RoundedCornerShape(28.dp), color = Color(0xFFFFF1F2)) {
+        Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Color Tint", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFBE123C))
+            Text("Blend a controlled color grade into the full image.", fontSize = 12.sp, color = Color(0xFF7C5260))
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Rose", "Amber", "Ocean", "Violet", "Teal").forEach {
+                    FilterChip(style == it, { setStyle(it) }, label = { Text(it) })
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Strength", fontWeight = FontWeight.Bold)
+                Text((amount * 100).toInt().toString() + "%", color = Color(0xFFBE123C), fontWeight = FontWeight.ExtraBold)
+            }
+            Slider(amount, setAmount, valueRange = 0f..0.75f)
+        }
+    }
+}
+
+@Composable
+private fun HighlightsShadowsStudio(
+    shadows: Float,
+    setShadows: (Float) -> Unit,
+    highlights: Float,
+    setHighlights: (Float) -> Unit
+) {
+    Surface(shape = RoundedCornerShape(28.dp), color = Color(0xFFE9FFF8)) {
+        Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Text("Highlights & Shadows", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF047857))
+            Text("Recover dark detail and tame bright areas independently.", fontSize = 12.sp, color = Color(0xFF47736E))
+            AdjustLine("Shadows", shadows, -1f..1f, setShadows)
+            AdjustLine("Highlights", highlights, -1f..1f, setHighlights)
+        }
+    }
+}
+
+@Composable
+private fun PhotoStripStudio(vertical: Boolean, setVertical: (Boolean) -> Unit) {
+    Surface(shape = RoundedCornerShape(28.dp), color = Color(0xFFFFF5E6)) {
+        Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Text("Photo Strip", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFB45309))
+            Text("Combine 2–6 photos with consistent sizing and spacing.", fontSize = 12.sp, color = Color(0xFF7A5A37))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(vertical, { setVertical(true) }, label = { Text("Vertical") }, modifier = Modifier.weight(1f))
+                FilterChip(!vertical, { setVertical(false) }, label = { Text("Horizontal") }, modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+private fun tintColor(style: String): Triple<Int, Int, Int> = when (style) {
+    "Amber" -> Triple(255, 179, 71)
+    "Ocean" -> Triple(39, 174, 255)
+    "Violet" -> Triple(139, 92, 246)
+    "Teal" -> Triple(20, 184, 166)
+    else -> Triple(244, 63, 94)
 }
 
 private fun frameColor(value: String): Int {
