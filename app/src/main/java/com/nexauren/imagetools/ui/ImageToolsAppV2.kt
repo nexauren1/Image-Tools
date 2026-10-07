@@ -795,92 +795,345 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
     }
 }
 
+
 @Composable
 private fun WorkspaceHeader(tool: Tool, onBack: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }
-        Box(Modifier.size(52.dp).clip(RoundedCornerShape(17.dp)).background(Brush.linearGradient(listOf(tool.start, tool.end))), contentAlignment = Alignment.Center) {
-            Icon(tool.icon, null, tint = Color.White)
-        }
-        Spacer(Modifier.width(12.dp))
-        Column {
-            Text(tool.title, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
-            Text(tool.subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
-private fun ResizePanel(width: String, height: String, lock: Boolean, onWidth: (String) -> Unit, onHeight: (String) -> Unit, onLock: (Boolean) -> Unit) {
-    ControlPanel("Precision resize", "Set the exact output size.") {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedTextField(width, onWidth, Modifier.weight(1f), label = { Text("Width") }, singleLine = true)
-            OutlinedTextField(height, onHeight, Modifier.weight(1f), label = { Text("Height") }, singleLine = true)
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Switch(lock, onLock)
-            Spacer(Modifier.width(8.dp))
-            Text("Keep aspect ratio")
-        }
-    }
-}
-
-@Composable
-private fun CompressPanel(quality: Float, format: OutputFormat, onQuality: (Float) -> Unit, onFormat: (OutputFormat) -> Unit) {
-    ControlPanel("Compression lab", "Find your balance between quality and file size.") {
-        Text(quality.toInt().toString() + "% quality", fontWeight = FontWeight.ExtraBold)
-        Slider(quality, onQuality, valueRange = 10f..100f)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(OutputFormat.JPEG, OutputFormat.WEBP).forEach {
-                FilterChip(format == it, { onFormat(it) }, label = { Text(it.label) })
+    Card(
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = tool.soft),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Default.ArrowBack, "Back")
             }
+            Box(
+                Modifier.size(56.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Brush.linearGradient(listOf(tool.start, tool.end))),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(tool.icon, null, tint = Color.White, modifier = Modifier.size(29.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(tool.title, fontSize = 21.sp, fontWeight = FontWeight.ExtraBold)
+                Text(tool.subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = if (tool.premiumOnly) Color(0xFF171126) else tool.start.copy(alpha = 0.10f)
+            ) {
+                Text(
+                    if (tool.premiumOnly) "PRO" else "LOCAL",
+                    Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                    color = if (tool.premiumOnly) Color.White else tool.start,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ResizePanel(
+    width: String,
+    height: String,
+    lock: Boolean,
+    onWidth: (String) -> Unit,
+    onHeight: (String) -> Unit,
+    onLock: (Boolean) -> Unit
+) {
+    ControlPanel("Precision resize", "Tune the canvas while preserving proportions when needed.") {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            DimensionField("WIDTH", width, onWidth, Modifier.weight(1f))
+            DimensionField("HEIGHT", height, onHeight, Modifier.weight(1f))
+        }
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = Color(0xFFF4F6FA)
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    if (lock) Icons.Default.Link else Icons.Default.LinkOff,
+                    null,
+                    tint = if (lock) Color(0xFF2563EB) else Color(0xFF64748B)
+                )
+                Spacer(Modifier.width(8.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Keep aspect ratio", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("Avoid stretched images", fontSize = 11.sp, color = Color(0xFF64748B))
+                }
+                Switch(lock, onLock)
+            }
+        }
+        Surface(shape = RoundedCornerShape(14.dp), color = Color(0xFFEFF6FF)) {
+            Text(
+                "Output  •  " + width + " × " + height + " px",
+                Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                color = Color(0xFF1D4ED8),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun DimensionField(
+    label: String,
+    value: String,
+    onValue: (String) -> Unit,
+    modifier: Modifier
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { onValue(it.filter(Char::isDigit)) },
+        modifier = modifier,
+        label = { Text(label) },
+        suffix = { Text("px") },
+        singleLine = true,
+        shape = RoundedCornerShape(18.dp)
+    )
+}
+
+@Composable
+private fun CompressPanel(
+    quality: Float,
+    format: OutputFormat,
+    onQuality: (Float) -> Unit,
+    onFormat: (OutputFormat) -> Unit
+) {
+    ControlPanel("Compression lab", "Balance visual quality and a smaller final file.") {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column {
+                Text("Quality", fontSize = 12.sp, color = Color(0xFF64748B))
+                Text(quality.toInt().toString() + "%", fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
+            }
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = when {
+                    quality <= 40f -> Color(0xFFFEF2F2)
+                    quality <= 70f -> Color(0xFFFFF7ED)
+                    else -> Color(0xFFECFDF5)
+                }
+            ) {
+                Text(
+                    when {
+                        quality <= 40f -> "Small file"
+                        quality <= 70f -> "Balanced"
+                        else -> "High quality"
+                    },
+                    Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        LinearProgressIndicator(
+            progress = { quality / 100f },
+            modifier = Modifier.fillMaxWidth().height(9.dp).clip(RoundedCornerShape(50))
+        )
+        Slider(quality, onQuality, valueRange = 10f..100f)
+        Text("Output format", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            listOf(OutputFormat.JPEG, OutputFormat.WEBP).forEach { option ->
+                FormatChoice(
+                    option.label,
+                    option.extension.uppercase(),
+                    format == option,
+                    Modifier.weight(1f)
+                ) { onFormat(option) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FormatChoice(
+    title: String,
+    ext: String,
+    selected: Boolean,
+    modifier: Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) Color(0xFFEEF2FF) else Color(0xFFF8FAFC)
+        ),
+        border = if (selected) androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF6366F1)) else null
+    ) {
+        Column(Modifier.padding(13.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(ext, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = if (selected) Color(0xFF4F46E5) else Color(0xFF334155))
+            Spacer(Modifier.height(4.dp))
+            Text(title, fontSize = 11.sp, color = Color(0xFF64748B))
         }
     }
 }
 
 @Composable
 private fun FormatPanel(format: OutputFormat, onFormat: (OutputFormat) -> Unit) {
-    ControlPanel("Format studio", "Pick the output type for the next app or website.") {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutputFormat.values().forEach {
-                FilterChip(format == it, { onFormat(it) }, label = { Text(it.label) })
+    ControlPanel("Format studio", "Choose the right export format for your next destination.") {
+        OutputFormat.values().forEach { option ->
+            Card(
+                onClick = { onFormat(option) },
+                shape = RoundedCornerShape(19.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (format == option) Color(0xFFF5F3FF) else Color(0xFFF8FAFC)
+                ),
+                border = if (format == option) androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF8B5CF6)) else null
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        Modifier.size(44.dp).clip(RoundedCornerShape(14.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    when (option) {
+                                        OutputFormat.JPEG -> listOf(Color(0xFF2563EB), Color(0xFF06B6D4))
+                                        OutputFormat.PNG -> listOf(Color(0xFF7C3AED), Color(0xFFEC4899))
+                                        OutputFormat.WEBP -> listOf(Color(0xFF059669), Color(0xFF22C55E))
+                                    }
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(option.extension.uppercase(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(option.label, fontWeight = FontWeight.ExtraBold)
+                        Text(option.mime, fontSize = 11.sp, color = Color(0xFF64748B))
+                    }
+                    if (format == option) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF7C3AED))
+                    }
+                }
             }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
 
 @Composable
 private fun CropPanel(ratio: String, onRatio: (String) -> Unit) {
-    ControlPanel("Crop presets", "Fast centered crops for common formats.") {
-        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            listOf("Original", "1:1", "4:5").forEach { FilterChip(ratio == it, { onRatio(it) }, label = { Text(it) }) }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            listOf("16:9", "9:16").forEach { FilterChip(ratio == it, { onRatio(it) }, label = { Text(it) }) }
+    ControlPanel("Smart crop", "Pick a composition ratio before creating the result.") {
+        val options = listOf("Original", "1:1", "4:5", "16:9", "9:16")
+        options.chunked(2).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                row.forEach { option ->
+                    CropChoice(option, ratio == option, Modifier.weight(1f)) { onRatio(option) }
+                }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
 
 @Composable
-private fun RotatePanel(angle: Int, h: Boolean, v: Boolean, onAngle: (Int) -> Unit, onH: (Boolean) -> Unit, onV: (Boolean) -> Unit) {
-    ControlPanel("Transform studio", "Rotate or mirror before export.") {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(90, 180, 270).forEach { FilterChip(angle == it, { onAngle(it) }, label = { Text(it.toString() + "°") }) }
+private fun CropChoice(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = if (selected) Color(0xFFFFF7ED) else Color(0xFFF8FAFC)),
+        border = if (selected) androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF59E0B)) else null
+    ) {
+        Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            val w = when (label) { "9:16" -> 18.dp; "4:5" -> 28.dp; "1:1" -> 34.dp; else -> 42.dp }
+            val h = when (label) { "16:9" -> 22.dp; "4:5" -> 34.dp; "9:16" -> 42.dp; "1:1" -> 34.dp; else -> 28.dp }
+            Box(
+                Modifier.size(width = w, height = h).clip(RoundedCornerShape(7.dp))
+                    .background(if (selected) Color(0xFFF59E0B) else Color(0xFFCBD5E1))
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(label, fontWeight = FontWeight.Bold, fontSize = 11.sp)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(h, { onH(!h) }, label = { Text("Mirror H") })
-            FilterChip(v, { onV(!v) }, label = { Text("Mirror V") })
+    }
+}
+
+@Composable
+private fun RotatePanel(
+    angle: Int,
+    h: Boolean,
+    v: Boolean,
+    onAngle: (Int) -> Unit,
+    onH: (Boolean) -> Unit,
+    onV: (Boolean) -> Unit
+) {
+    ControlPanel("Transform studio", "Straighten, rotate or mirror before export.") {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+            Box(
+                Modifier.size(92.dp).clip(RoundedCornerShape(24.dp)).background(Color(0xFFF1F5F9)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Image, null, modifier = Modifier.size(50.dp), tint = Color(0xFF4F46E5))
+                Text(angle.toString() + "°", Modifier.align(Alignment.BottomCenter).padding(bottom = 9.dp), fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF4F46E5))
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(90, 180, 270).forEach { value ->
+                FilterChip(angle == value, { onAngle(value) }, label = { Text(value.toString() + "°") }, modifier = Modifier.weight(1f))
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(h, { onH(!h) }, label = { Text("Mirror H") }, modifier = Modifier.weight(1f))
+            FilterChip(v, { onV(!v) }, label = { Text("Mirror V") }, modifier = Modifier.weight(1f))
         }
     }
 }
 
 @Composable
 private fun FilterPanel(filter: ImageFilter, onFilter: (ImageFilter) -> Unit) {
-    ControlPanel("Filter presets", "Clean, simple looks without leaving the app.") {
-        ImageFilter.values().toList().chunked(2).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                row.forEach { FilterChip(filter == it, { onFilter(it) }, label = { Text(it.label) }) }
+    ControlPanel("Quick filters", "Preview-ready presets for fast visual changes.") {
+        val options = ImageFilter.values().toList()
+        options.chunked(2).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                row.forEach { option ->
+                    Card(
+                        onClick = { onFilter(option) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = if (filter == option) Color(0xFFECFDF5) else Color(0xFFF8FAFC)),
+                        border = if (filter == option) androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981)) else null
+                    ) {
+                        Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                Modifier.size(44.dp).clip(RoundedCornerShape(14.dp))
+                                    .background(
+                                        when (option) {
+                                            ImageFilter.ORIGINAL -> Color(0xFFE2E8F0)
+                                            ImageFilter.GRAYSCALE -> Color(0xFF64748B)
+                                            ImageFilter.SEPIA -> Color(0xFFB7791F)
+                                            ImageFilter.HIGH_CONTRAST -> Color(0xFF111827)
+                                        }
+                                    )
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(option.label, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
             }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
@@ -894,7 +1147,7 @@ private fun WatermarkPanel(
     onOpacity: (Float) -> Unit,
     onPosition: (String) -> Unit
 ) {
-    ControlPanel("Smart Watermark", "Add a clean brand mark without uploading your photo.") {
+    ControlPanel("Smart Watermark", "A polished brand mark for creators and product images.") {
         OutlinedTextField(
             value = text,
             onValueChange = onText,
@@ -903,10 +1156,13 @@ private fun WatermarkPanel(
             singleLine = true,
             shape = RoundedCornerShape(16.dp)
         )
-        Text("Opacity " + opacity.toInt() + "%", fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Opacity", fontWeight = FontWeight.Bold)
+            Text(opacity.toInt().toString() + "%", color = Color(0xFF7C3AED), fontWeight = FontWeight.ExtraBold)
+        }
         Slider(opacity, onOpacity, valueRange = 15f..100f)
-        Text("Position", fontWeight = FontWeight.Bold)
-        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        Text("Placement", fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             listOf("Top left", "Center", "Bottom left", "Bottom right").forEach { item ->
                 FilterChip(position == item, { onPosition(item) }, label = { Text(item) })
             }
@@ -916,10 +1172,11 @@ private fun WatermarkPanel(
 
 @Composable
 private fun ControlPanel(title: String, subtitle: String, content: @Composable ColumnScope.() -> Unit) {
-    Card(shape = RoundedCornerShape(24.dp)) {
+    Card(shape = RoundedCornerShape(26.dp), elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
-            Text(title, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold)
+            Text(title, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
             Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            HorizontalDivider()
             content()
         }
     }
