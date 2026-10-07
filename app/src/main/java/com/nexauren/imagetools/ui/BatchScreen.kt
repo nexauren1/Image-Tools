@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import com.nexauren.imagetools.data.OutputFolderStore
+import com.nexauren.imagetools.data.ProcessingStatsStore
 import com.nexauren.imagetools.media.ImageFilter
 import com.nexauren.imagetools.media.ImageProcessor
 import com.nexauren.imagetools.media.OutputExporter
@@ -88,7 +89,7 @@ fun BatchScreen(strings: UiText = LocalUiText.current) {
                     }
                     if (uris.isNotEmpty()) {
                         Text(
-                            uris.size.toString() + " selected",
+                            uris.size.toString() + " " + strings.get("batch.selected"),
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -205,6 +206,7 @@ fun BatchScreen(strings: UiText = LocalUiText.current) {
                                             preview to bytes
                                         }
                                     }
+                                    ProcessingStatsStore.recordProcessed(context, results.size)
                                     status = strings.get("batch.ready")
                                     busy = false
                                 }
@@ -230,7 +232,7 @@ fun BatchScreen(strings: UiText = LocalUiText.current) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            results.size.toString() + " results",
+                            results.size.toString() + " " + strings.get("batch.results"),
                             fontWeight = FontWeight.ExtraBold
                         )
                         results.take(8).forEachIndexed { index, result ->
@@ -244,7 +246,7 @@ fun BatchScreen(strings: UiText = LocalUiText.current) {
                                     contentScale = ContentScale.Crop
                                 )
                                 Spacer(Modifier.width(10.dp))
-                                Text("Image " + (index + 1), Modifier.weight(1f))
+                                Text(strings.get("batch.image") + " " + (index + 1), Modifier.weight(1f))
                                 Text(
                                     ImageProcessor.humanBytes(result.second.size.toLong()),
                                     fontSize = 10.sp
@@ -268,6 +270,7 @@ fun BatchScreen(strings: UiText = LocalUiText.current) {
                                             )
                                         }
                                     }
+                                    ProcessingStatsStore.recordExported(context, results.size)
                                     status = strings.get("saved")
                                 }
                             },
