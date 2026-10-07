@@ -177,6 +177,15 @@ class UiText(private val language: AppLanguage) {
             "tool.background.subtitle" to "Recortar o assunto principal",
             "tool.exif.title" to "EXIF",
             "tool.exif.subtitle" to "Ler e limpar dados da fotografia"
+            ,"filter.original" to "Original"
+            ,"filter.grayscale" to "Escala de cinza"
+            ,"filter.sepia" to "Sépia"
+            ,"filter.high_contrast" to "Alto contraste"
+            ,"filter.vivid" to "Vivo"
+            ,"filter.cool" to "Frio"
+            ,"filter.warm" to "Quente"
+            ,"filter.fade" to "Desbotado"
+            ,"filter.cinematic" to "Cinemático"
         )
         val en = pt + mapOf(
             "home" to "Image tools",
@@ -284,6 +293,15 @@ class UiText(private val language: AppLanguage) {
             "tool.background.subtitle" to "Keep the main subject",
             "tool.exif.title" to "EXIF",
             "tool.exif.subtitle" to "Read and clean photo metadata"
+            ,"filter.original" to "Original"
+            ,"filter.grayscale" to "Grayscale"
+            ,"filter.sepia" to "Sepia"
+            ,"filter.high_contrast" to "High contrast"
+            ,"filter.vivid" to "Vivid"
+            ,"filter.cool" to "Cool"
+            ,"filter.warm" to "Warm"
+            ,"filter.fade" to "Fade"
+            ,"filter.cinematic" to "Cinematic"
         )
         val es = en + mapOf(
             "home" to "Herramientas de imagen", "tools" to "Todas las herramientas", "batch" to "Procesamiento por lotes",
@@ -304,6 +322,15 @@ class UiText(private val language: AppLanguage) {
             "palette.extract" to "Extraer colores", "collage.title" to "Collage", "collage.help" to "Combina de 2 a 4 imágenes en una cuadrícula.",
             "settings.output" to "Carpeta de salida", "settings.dark" to "Modo oscuro", "settings.legal" to "Privacidad, términos y soporte",
             "about.text" to "Herramientas rápidas para editar, convertir y organizar imágenes."
+            ,"filter.original" to "Original"
+            ,"filter.grayscale" to "Escala de grises"
+            ,"filter.sepia" to "Sepia"
+            ,"filter.high_contrast" to "Alto contraste"
+            ,"filter.vivid" to "Vivo"
+            ,"filter.cool" to "Frío"
+            ,"filter.warm" to "Cálido"
+            ,"filter.fade" to "Desvanecido"
+            ,"filter.cinematic" to "Cinemático"
         )
         val fr = en + mapOf(
             "home" to "Outils d’image", "tools" to "Tous les outils", "batch" to "Traitement par lots",
@@ -324,6 +351,15 @@ class UiText(private val language: AppLanguage) {
             "palette.extract" to "Extraire les couleurs", "collage.title" to "Collage", "collage.help" to "Combinez 2 à 4 images dans une grille.",
             "settings.output" to "Dossier de sortie", "settings.dark" to "Mode sombre", "settings.legal" to "Confidentialité, conditions et support",
             "about.text" to "Des outils rapides pour modifier, convertir et organiser les images."
+            ,"filter.original" to "Original"
+            ,"filter.grayscale" to "Niveaux de gris"
+            ,"filter.sepia" to "Sépia"
+            ,"filter.high_contrast" to "Contraste élevé"
+            ,"filter.vivid" to "Vif"
+            ,"filter.cool" to "Froid"
+            ,"filter.warm" to "Chaud"
+            ,"filter.fade" to "Délavé"
+            ,"filter.cinematic" to "Cinématique"
         )
     }
 }
