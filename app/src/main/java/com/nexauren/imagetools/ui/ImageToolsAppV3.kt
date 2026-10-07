@@ -259,23 +259,37 @@ fun ImageToolsAppV3(
 private fun authMessage(e:Throwable):String{val t=e.message?.lowercase().orEmpty();return when{t.contains("already in use")->"This email is already registered.";t.contains("invalid email")||t.contains("badly formatted")->"Please enter a valid email address.";t.contains("wrong-password")||t.contains("invalid-credential")->"The email or password is incorrect.";t.contains("network")->"Connection failed. Check your internet.";else->"We could not complete sign-in. Please try again."}}
 
 @Composable private fun HomeScreen(premium:Boolean,open:(String)->Unit){
+    val strings = LocalUiText.current
     var q by remember{mutableStateOf("")}
     val popular=CATALOG.filter{it.id in listOf("resize","compress","convert","crop","brightness","metadata")}
-    val filtered=CATALOG.filter{(it.title+" "+it.subtitle).contains(q,true)}
+    val filtered=CATALOG.filter{(strings.toolTitle(it.id)+" "+strings.toolSubtitle(it.id)).contains(q,true)}
     LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(14.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
         item{Card(shape=RoundedCornerShape(30.dp)){Box(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Color(0xFF0B1022),Color(0xFF4C1D95),Color(0xFF0891B2)))).padding(22.dp)){Column(verticalArrangement=Arrangement.spacedBy(8.dp)){Text(if(premium)"PRO WORKSPACE" else "IMAGE TOOLBOX",color=Color.White,fontWeight=FontWeight.ExtraBold,fontSize=10.sp,letterSpacing=1.4.sp);Text("Do more with every image.",color=Color.White,fontSize=28.sp,fontWeight=FontWeight.ExtraBold);Text("Resize, compress, convert, transform and clean images without a complicated editor.",color=Color.White.copy(.82f));Row(horizontalArrangement=Arrangement.spacedBy(7.dp)){Pill("20+","tools");Pill("Local","processing");Pill("PRO","optional")}}}}}
         item{OutlinedTextField(q,{q=it},Modifier.fillMaxWidth(),placeholder={Text("Search tools…")},leadingIcon={Icon(Icons.Default.Search,null)},singleLine=true,shape=RoundedCornerShape(18.dp))}
-        item{Header("Popular tools","Fast jobs for everyday images")}
+        item{Header(strings.get("popular"),strings.get("home.subtitle"))}
         item{LazyVerticalGrid(GridCells.Fixed(2),Modifier.height(250.dp),userScrollEnabled=false,horizontalArrangement=Arrangement.spacedBy(10.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){items(popular){ToolCard(it,premium,open)}}}
-        item{Header(if(q.isBlank())"All tools" else "Search results",filtered.size.toString()+" tools")}
+        item{Header(strings.get("all.tools"),filtered.size.toString()+" "+strings.get("tools"))}
         items(filtered){CompactTool(it){open(it.id)}}
-        item{Feature("Private by design","Core editing happens on-device; account and subscription status use Firebase + Cloudflare.","Lock")}
+        item{Feature(strings.get("local"),strings.get("private"),"Lock")}
     }
 }
 @Composable private fun Pill(v:String,l:String){Surface(shape=RoundedCornerShape(14.dp),color=Color.White.copy(.1f)){Column(Modifier.padding(horizontal=10.dp,vertical=6.dp)){Text(v,color=Color.White,fontWeight=FontWeight.ExtraBold,fontSize=13.sp);Text(l,color=Color.White.copy(.7f),fontSize=8.sp)}}}
 @Composable private fun Header(a:String,b:String){Column{Text(a,fontSize=18.sp,fontWeight=FontWeight.ExtraBold);Text(b,fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)}}
-@Composable private fun ToolCard(t:Tool,premium:Boolean,open:(String)->Unit){Card({open(t.id)},shape=RoundedCornerShape(21.dp)){Column(Modifier.padding(13.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){Box(Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(t.a,t.b))),contentAlignment=Alignment.Center){Icon(t.icon,null,tint=Color.White)};Text(t.title,fontWeight=FontWeight.ExtraBold,fontSize=15.sp);Text(t.subtitle,fontSize=10.sp,color=MaterialTheme.colorScheme.onSurfaceVariant,minLines=2);if(t.pro)Text(if(premium)"PRO" else "PRO TOOL",fontSize=9.sp,color=Color(0xFF7C3AED),fontWeight=FontWeight.ExtraBold)}}}
-@Composable private fun CompactTool(t:Tool,click:()->Unit){ListItem(headlineContent={Text(t.title,fontWeight=FontWeight.Bold)},supportingContent={Text(t.subtitle,fontSize=11.sp)},leadingContent={Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(t.a,t.b))),contentAlignment=Alignment.Center){Icon(t.icon,null,tint=Color.White)}} ,trailingContent={Text(if(t.pro)"PRO" else "›",fontSize=12.sp,fontWeight=FontWeight.ExtraBold,color=MaterialTheme.colorScheme.primary)},modifier=Modifier.clip(RoundedCornerShape(18.dp)).clickable{click()})}
+@Composable private fun ToolCard(t:Tool,premium:Boolean,open:(String)->Unit){
+    val strings = LocalUiText.current
+    Card(onClick={open(t.id)},shape=RoundedCornerShape(21.dp)){
+        Column(Modifier.padding(13.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+            Box(Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(t.a,t.b))),contentAlignment=Alignment.Center){Icon(t.icon,null,tint=Color.White)}
+            Text(strings.toolTitle(t.id),fontWeight=FontWeight.ExtraBold,fontSize=15.sp)
+            Text(strings.toolSubtitle(t.id),fontSize=10.sp,color=MaterialTheme.colorScheme.onSurfaceVariant,minLines=2)
+            if(t.pro)Text(strings.get("pro"),fontSize=9.sp,color=Color(0xFF7C3AED),fontWeight=FontWeight.ExtraBold)
+        }
+    }
+}
+@Composable private fun CompactTool(t:Tool,click:()->Unit){
+    val strings = LocalUiText.current
+    ListItem(headlineContent={Text(strings.toolTitle(t.id),fontWeight=FontWeight.Bold)},supportingContent={Text(strings.toolSubtitle(t.id),fontSize=11.sp)},leadingContent={Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(t.a,t.b))),contentAlignment=Alignment.Center){Icon(t.icon,null,tint=Color.White)}} ,trailingContent={Text(if(t.pro)strings.get("pro") else "›",fontSize=12.sp,fontWeight=FontWeight.ExtraBold,color=MaterialTheme.colorScheme.primary)},modifier=Modifier.clip(RoundedCornerShape(18.dp)).clickable{click()})
+}
 @Composable private fun ToolsScreen(premium:Boolean,open:(String)->Unit){LazyVerticalGrid(GridCells.Fixed(2),Modifier.fillMaxSize(),contentPadding=PaddingValues(14.dp),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){items(CATALOG){ToolCard(it,premium,open)}}}
 @Composable private fun Feature(title:String,text:String,icon:String){Card(shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surfaceVariant)){Row(Modifier.padding(16.dp)){Icon(if(icon=="Lock")Icons.Default.Lock else Icons.Default.Info,null,tint=MaterialTheme.colorScheme.primary);Spacer(Modifier.width(10.dp));Column{Text(title,fontWeight=FontWeight.Bold);Text(text,fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)}}}}
 
