@@ -477,3 +477,753 @@ private fun FeatureCardV5(icon: ImageVector, title: String, text: String) {
         }
     }
 }
+
+
+@Composable
+private fun ToolWorkspaceV5(
+    tool: ToolDef,
+    premium: Boolean,
+    onBack: () -> Unit,
+    onNeedPremium: () -> Unit
+) {
+    val context = LocalContext.current
+    val strings = LocalUiText.current
+    val scope = rememberCoroutineScope()
+
+    var sourceUri by remember { mutableStateOf<Uri?>(null) }
+    var sourceBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var pendingFormat by remember { mutableStateOf<OutputFormat?>(null) }
+    var pendingPdf by remember { mutableStateOf(false) }
+    var exportedUri by remember { mutableStateOf<Uri?>(null) }
+    var exportedMime by remember { mutableStateOf("image/*") }
+    var busy by remember { mutableStateOf(false) }
+    var status by remember { mutableStateOf<String?>(null) }
+    var details by remember { mutableStateOf<String?>(null) }
+    var ocrText by remember { mutableStateOf<String?>(null) }
+    var exifText by remember { mutableStateOf<String?>(null) }
+    var palette by remember { mutableStateOf<List<Int>>(emptyList()) }
+
+    var width by remember { mutableStateOf("") }
+    var height by remember { mutableStateOf("") }
+    var keepRatio by remember { mutableStateOf(true) }
+    var quality by remember { mutableFloatStateOf(82f) }
+    var format by remember { mutableStateOf(OutputFormat.JPEG) }
+    var cropRatio by remember { mutableStateOf("Original") }
+    var angle by remember { mutableIntStateOf(90) }
+    var flipH by remember { mutableStateOf(false) }
+    var flipV by remember { mutableStateOf(false) }
+    var imageFilter by remember { mutableStateOf(ImageFilter.ORIGINAL) }
+    var watermark by remember { mutableStateOf("IMAGE TOOLS") }
+    var opacity by remember { mutableFloatStateOf(65f) }
+    var position by remember { mutableStateOf("Bottom right") }
+    var amount by remember { mutableFloatStateOf(0f) }
+    var pixelSize by remember { mutableFloatStateOf(18f) }
+    var borderSize by remember { mutableFloatStateOf(24f) }
+    var cornerRadius by remember { mutableFloatStateOf(36f) }
+
+    val singlePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            sourceUri = uri
+            scope.launch {
+                val bitmap = withContext(Dispatchers.IO) {
+                    ImageProcessor.decode(context, uri)
+                }
+                sourceBitmap = bitmap
+                previewBitmap = null
+                pendingBytes = null
+                pendingFormat = null
+                pendingPdf = false
+                exportedUri = null
+                details = null
+                ocrText = null
+                exifText = null
+                palette = emptyList()
+                width = bitmap?.width?.toString().orEmpty()
+                height = bitmap?.height?.toString().orEmpty()
+                status = if (bitmap == null) "Could not read the image." else strings.get("ready")
+            }
+        }
+    }
+
+    val multiPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(4)
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            scope.launch {
+                busy = true
+                val bitmaps = withContext(Dispatchers.IO) {
+                    uris.mapNotNull { ImageProcessor.decode(context, it) }
+                }
+                if (bitmaps.size >= 2) {
+                    val collage = withContext(Dispatchers.Default) {
+                        AdvancedImageProcessor.collage(bitmaps)
+                    }
+                    sourceBitmap = bitmaps.first()
+                    sourceUri = uris.first()
+                    previewBitmap = collage
+                    pendingBytes = withContext(Dispatchers.Default) {
+                        ImageProcessor.encode(collage, OutputFormat.PNG, 100)
+                    }
+                    pendingFormat = OutputFormat.PNG
+                    pendingPdf = false
+                    status = strings.get("ready")
+                } else {
+                    status = strings.get("collage.help")
+                }
+                busy = false
+            }
+        }
+    }
+
+    fun chooseInput() {
+        if (tool.premium && !premium) {
+            onNeedPremium()
+            return
+        }
+        if (tool.id == "collage") {
+            multiPicker.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
+        } else {
+            singlePicker.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
+        }
+    }
+
+    suspend fun prepareImage(bitmap: Bitmap, output: OutputFormat = format, qualityValue: Int = 100) {
+        pendingBytes = withContext(Dispatchers.Default) {
+            ImageProcessor.encode(bitmap, output, qualityValue)
+        }
+        pendingFormat = output
+        pendingPdf = false
+        previewBitmap = bitmap
+        status = strings.get("ready")
+    }
+
+    suspend fun processAction() {
+        val bitmap = sourceBitmap
+        if (bitmap == null) {
+            status = strings.get("select.first")
+            chooseInput()
+            return
+        }
+        if (tool.premium && !premium) {
+            onNeedPremium()
+            return
+        }
+
+        busy = true
+        details = null
+        ocrText = null
+        exifText = null
+        palette = emptyList()
+        pendingBytes = null
+        pendingFormat = null
+        pendingPdf = false
+        exportedUri = null
+        status = strings.get("processing")
+
+        try {
+            when (tool.id) {
+                "resize" -> {
+                    val targetWidth = width.toIntOrNull()?.coerceAtLeast(1) ?: bitmap.width
+                    val targetHeight = if (keepRatio) {
+                        (bitmap.height * (targetWidth.toFloat() / bitmap.width)).toInt().coerceAtLeast(1)
+                    } else {
+                        height.toIntOrNull()?.coerceAtLeast(1) ?: bitmap.height
+                    }
+                    prepareImage(
+                        ImageProcessor.resize(bitmap, targetWidth, targetHeight),
+                        format,
+                        100
+                    )
+                }
+
+                "compress" -> {
+                    prepareImage(bitmap, format, quality.toInt())
+                }
+
+                "convert" -> {
+                    prepareImage(bitmap, format, 95)
+                }
+
+                "crop" -> {
+                    prepareImage(ImageProcessor.cropCenter(bitmap, cropRatio), format, 100)
+                }
+
+                "rotate" -> {
+                    prepareImage(ImageProcessor.rotate(bitmap, angle, flipH, flipV), format, 100)
+                }
+
+                "filter" -> {
+                    prepareImage(ImageProcessor.filter(bitmap, imageFilter), format, 100)
+                }
+
+                "watermark" -> {
+                    prepareImage(
+                        ImageProcessor.watermark(bitmap, watermark, opacity.toInt(), position),
+                        format,
+                        100
+                    )
+                }
+
+                "brightness" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.adjustColor(bitmap, amount.toInt(), 0, 0, 0),
+                        format,
+                        100
+                    )
+                }
+
+                "contrast" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.adjustColor(bitmap, 0, amount.toInt(), 0, 0),
+                        format,
+                        100
+                    )
+                }
+
+                "saturation" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.adjustColor(bitmap, 0, 0, amount.toInt(), 0),
+                        format,
+                        100
+                    )
+                }
+
+                "warmth" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.adjustColor(bitmap, 0, 0, 0, amount.toInt()),
+                        format,
+                        100
+                    )
+                }
+
+                "negative" -> {
+                    prepareImage(AdvancedImageProcessor.negative(bitmap), format, 100)
+                }
+
+                "blur" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.blur(
+                            bitmap,
+                            (amount / 25f).toInt().coerceIn(1, 4)
+                        ),
+                        format,
+                        100
+                    )
+                }
+
+                "sharpen" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.sharpen(
+                            bitmap,
+                            (amount / 25f).toInt().coerceIn(1, 3)
+                        ),
+                        format,
+                        100
+                    )
+                }
+
+                "pixelate" -> {
+                    prepareImage(AdvancedImageProcessor.pixelate(bitmap, pixelSize.toInt()), format, 100)
+                }
+
+                "border" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.addBorder(
+                            bitmap,
+                            borderSize.toInt(),
+                            android.graphics.Color.WHITE
+                        ),
+                        format,
+                        100
+                    )
+                }
+
+                "round" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.roundCorners(bitmap, cornerRadius),
+                        OutputFormat.PNG,
+                        100
+                    )
+                }
+
+                "metadata" -> {
+                    prepareImage(
+                        bitmap,
+                        format,
+                        100
+                    )
+                    status = "Preview ready. Export will re-encode the image and remove common metadata."
+                }
+
+                "details" -> {
+                    val sourceBytes = sourceUri?.let {
+                        withContext(Dispatchers.IO) {
+                            ImageProcessor.sourceBytes(context, it)
+                        }
+                    }
+                    details = buildString {
+                        append("Resolution: ")
+                        append(bitmap.width)
+                        append(" × ")
+                        append(bitmap.height)
+                        append("\nAspect ratio: ")
+                        append("%.3f".format(bitmap.width.toFloat() / bitmap.height))
+                        if (sourceBytes != null) {
+                            append("\nSource size: ")
+                            append(ImageProcessor.humanBytes(sourceBytes))
+                        }
+                    }
+                    previewBitmap = bitmap
+                    status = strings.get("ready")
+                }
+
+                "palette" -> {
+                    palette = withContext(Dispatchers.Default) {
+                        AdvancedImageProcessor.palette(bitmap, 5)
+                    }
+                    previewBitmap = bitmap
+                    status = strings.get("ready")
+                }
+
+                "ocr" -> {
+                    ocrText = withContext(Dispatchers.Default) {
+                        OcrProcessor.recognize(bitmap)
+                    }
+                    previewBitmap = bitmap
+                    status = strings.get("ocr.title")
+                }
+
+                "exif" -> {
+                    exifText = withContext(Dispatchers.IO) {
+                        ExifProcessor.read(
+                            context,
+                            sourceUri ?: error("Select an image first.")
+                        )
+                    }
+                    previewBitmap = bitmap
+                    status = strings.get("exif.title")
+                }
+
+                "background" -> {
+                    val foreground = withContext(Dispatchers.Default) {
+                        BackgroundRemovalProcessor.removeBackground(bitmap)
+                    }
+                    prepareImage(foreground, OutputFormat.PNG, 100)
+                }
+
+                "pdf" -> {
+                    pendingBytes = withContext(Dispatchers.Default) {
+                        AdvancedImageProcessor.pdfBytes(bitmap)
+                    }
+                    pendingFormat = null
+                    pendingPdf = true
+                    previewBitmap = bitmap
+                    status = strings.get("pdf.ready")
+                }
+
+                "collage" -> {
+                    if (pendingBytes == null) {
+                        chooseInput()
+                    }
+                }
+            }
+        } catch (error: Exception) {
+            status = error.message ?: "Could not process the image."
+        } finally {
+            busy = false
+        }
+    }
+
+    fun exportResult() {
+        val bytes = pendingBytes ?: run {
+            status = strings.get("no.result")
+            return
+        }
+        scope.launch {
+            busy = true
+            try {
+                val tree = OutputFolderStore.getTreeUri(context)
+                exportedUri = if (pendingPdf) {
+                    OutputExporter.savePdf(context, bytes, "image-tools", tree)
+                } else {
+                    OutputExporter.saveImage(
+                        context,
+                        bytes,
+                        pendingFormat ?: OutputFormat.JPEG,
+                        tool.id,
+                        previewBitmap?.width ?: 1,
+                        previewBitmap?.height ?: 1,
+                        tree
+                    ).uri
+                }
+                exportedMime = if (pendingPdf) "application/pdf" else pendingFormat?.mime ?: "image/*"
+                status = strings.get("saved")
+            } catch (error: Exception) {
+                status = strings.get("save.error")
+            } finally {
+                busy = false
+            }
+        }
+    }
+
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            ToolHeaderV5(tool, strings, onBack)
+        }
+
+        item {
+            WorkflowStepV5(
+                1,
+                strings.get("choose.image"),
+                strings.toolSubtitle(tool.id)
+            ) {
+                Button(
+                    onClick = { chooseInput() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.AddPhotoAlternate, null)
+                    Spacer(Modifier.width(7.dp))
+                    Text(
+                        if (sourceBitmap == null) strings.get("choose.image")
+                        else strings.get("choose.another")
+                    )
+                }
+            }
+        }
+
+        if (sourceBitmap != null) {
+            item {
+                WorkflowStepV5(
+                    2,
+                    strings.get("config"),
+                    strings.toolSubtitle(tool.id)
+                ) {
+                    ToolControlsV5(
+                        tool = tool,
+                        strings = strings,
+                        width = width,
+                        height = height,
+                        onWidth = { width = it },
+                        onHeight = { height = it },
+                        keepRatio = keepRatio,
+                        onKeepRatio = { keepRatio = it },
+                        quality = quality,
+                        onQuality = { quality = it },
+                        format = format,
+                        onFormat = { format = it },
+                        cropRatio = cropRatio,
+                        onCropRatio = { cropRatio = it },
+                        angle = angle,
+                        onAngle = { angle = it },
+                        flipH = flipH,
+                        onFlipH = { flipH = it },
+                        flipV = flipV,
+                        onFlipV = { flipV = it },
+                        imageFilter = imageFilter,
+                        onFilter = { imageFilter = it },
+                        watermark = watermark,
+                        onWatermark = { watermark = it },
+                        opacity = opacity,
+                        onOpacity = { opacity = it },
+                        position = position,
+                        onPosition = { position = it },
+                        amount = amount,
+                        onAmount = { amount = it },
+                        pixelSize = pixelSize,
+                        onPixelSize = { pixelSize = it },
+                        borderSize = borderSize,
+                        onBorderSize = { borderSize = it },
+                        cornerRadius = cornerRadius,
+                        onCornerRadius = { cornerRadius = it }
+                    )
+                }
+            }
+
+            item {
+                WorkflowStepV5(
+                    3,
+                    strings.get("action"),
+                    strings.get("preview.button")
+                ) {
+                    Button(
+                        onClick = { scope.launch { processAction() } },
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth().height(54.dp),
+                        shape = RoundedCornerShape(17.dp)
+                    ) {
+                        Icon(Icons.Default.PlayArrow, null)
+                        Spacer(Modifier.width(7.dp))
+                        Text(
+                            if (busy) strings.get("processing")
+                            else strings.get("preview.button")
+                        )
+                    }
+                }
+            }
+        }
+
+        if (previewBitmap != null || details != null || ocrText != null || exifText != null || palette.isNotEmpty()) {
+            item {
+                WorkflowStepV5(
+                    4,
+                    strings.get("preview"),
+                    strings.get("ready")
+                ) {
+                    previewBitmap?.let {
+                        Image(
+                            bitmap = it.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 170.dp, max = 330.dp)
+                                .clip(RoundedCornerShape(18.dp)),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+
+                    details?.let {
+                        ResultTextCardV5("Image details", it)
+                    }
+
+                    exifText?.let {
+                        ResultTextCardV5(strings.get("exif.title"), it)
+                    }
+
+                    ocrText?.let {
+                        ResultTextCardV5(
+                            strings.get("ocr.title"),
+                            if (it.isBlank()) strings.get("ocr.empty") else it
+                        )
+                        if (it.isNotBlank()) {
+                            TextButton(
+                                onClick = {
+                                    val clipboard =
+                                        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    clipboard.setPrimaryClip(
+                                        ClipData.newPlainText("Image Tools OCR", it)
+                                    )
+                                    status = strings.get("ocr.copy")
+                                }
+                            ) {
+                                Text(strings.get("ocr.copy"))
+                            }
+                        }
+                    }
+
+                    if (palette.isNotEmpty()) {
+                        Text(strings.get("palette.title"), fontWeight = FontWeight.ExtraBold)
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(7.dp)
+                        ) {
+                            palette.forEach { colorInt ->
+                                Column(
+                                    Modifier.weight(1f),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Box(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .height(54.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(Color(colorInt))
+                                    )
+                                    Text(
+                                        "#%06X".format(colorInt and 0xFFFFFF),
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    status?.let {
+                        Text(
+                            it,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+        }
+
+        if (pendingBytes != null) {
+            item {
+                WorkflowStepV5(
+                    5,
+                    strings.get("export"),
+                    strings.get("ready")
+                ) {
+                    Button(
+                        onClick = { exportResult() },
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Default.Save, null)
+                        Spacer(Modifier.width(7.dp))
+                        Text(strings.get("save"))
+                    }
+                }
+            }
+        }
+
+        exportedUri?.let { uri ->
+            item {
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF5))
+                ) {
+                    Column(
+                        Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(strings.get("saved"), fontWeight = FontWeight.ExtraBold)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = {
+                                    runCatching {
+                                        context.startActivity(
+                                            Intent(Intent.ACTION_VIEW).apply {
+                                                data = uri
+                                                type = exportedMime
+                                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                            }
+                                        )
+                                    }
+                                }
+                            ) {
+                                Text(strings.get("open"))
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    val send = Intent(Intent.ACTION_SEND).apply {
+                                        type = exportedMime
+                                        putExtra(Intent.EXTRA_STREAM, uri)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    context.startActivity(
+                                        Intent.createChooser(send, strings.get("share"))
+                                    )
+                                }
+                            ) {
+                                Text(strings.get("share"))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToolHeaderV5(tool: ToolDef, strings: UiText, onBack: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onBack) {
+            Icon(Icons.Default.ArrowBack, strings.get("back"))
+        }
+        Box(
+            Modifier.size(50.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Brush.linearGradient(listOf(tool.start, tool.end))),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(tool.icon, null, tint = Color.White)
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                strings.toolTitle(tool.id),
+                fontSize = 21.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Text(
+                strings.toolSubtitle(tool.id),
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (tool.premium) {
+            Text(
+                strings.get("pro"),
+                color = Color(0xFF7C3AED),
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 9.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun WorkflowStepV5(
+    number: Int,
+    title: String,
+    subtitle: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(shape = RoundedCornerShape(22.dp)) {
+        Column(
+            Modifier.padding(15.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Text(
+                        number.toString(),
+                        Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+                Spacer(Modifier.width(9.dp))
+                Column {
+                    Text(title, fontWeight = FontWeight.ExtraBold)
+                    Text(
+                        subtitle,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            content()
+        }
+    }
+}
+
+@Composable
+private fun ResultTextCardV5(title: String, text: String) {
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(
+            Modifier.padding(13.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            Text(title, fontWeight = FontWeight.ExtraBold)
+            Text(text, fontSize = 12.sp)
+        }
+    }
+}
+
