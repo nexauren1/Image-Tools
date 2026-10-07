@@ -28,7 +28,12 @@ enum class ImageFilter(val label: String) {
     ORIGINAL("Original"),
     GRAYSCALE("Grayscale"),
     SEPIA("Sepia"),
-    HIGH_CONTRAST("High contrast")
+    HIGH_CONTRAST("High contrast"),
+    VIVID("Vivid"),
+    COOL("Cool"),
+    WARM("Warm"),
+    FADE("Fade"),
+    CINEMATIC("Cinematic")
 }
 
 data class ImageResult(
@@ -109,6 +114,51 @@ object ImageProcessor {
                     )
                 )
             }
+            ImageFilter.VIVID -> ColorMatrix().apply {
+                setSaturation(1.35f)
+                postConcat(
+                    ColorMatrix(
+                        floatArrayOf(
+                            1.05f, 0f, 0f, 0f, -6f,
+                            0f, 1.05f, 0f, 0f, -6f,
+                            0f, 0f, 1.05f, 0f, -6f,
+                            0f, 0f, 0f, 1f, 0f
+                        )
+                    )
+                )
+            }
+            ImageFilter.COOL -> ColorMatrix(
+                floatArrayOf(
+                    0.94f, 0f, 0f, 0f, 0f,
+                    0f, 1.0f, 0f, 0f, 0f,
+                    0f, 0f, 1.10f, 0f, 0f,
+                    0f, 0f, 0f, 1f, 0f
+                )
+            )
+            ImageFilter.WARM -> ColorMatrix(
+                floatArrayOf(
+                    1.10f, 0f, 0f, 0f, 0f,
+                    0f, 1.02f, 0f, 0f, 0f,
+                    0f, 0f, 0.92f, 0f, 0f,
+                    0f, 0f, 0f, 1f, 0f
+                )
+            )
+            ImageFilter.FADE -> ColorMatrix(
+                floatArrayOf(
+                    0.86f, 0f, 0f, 0f, 18f,
+                    0f, 0.86f, 0f, 0f, 18f,
+                    0f, 0f, 0.86f, 0f, 18f,
+                    0f, 0f, 0f, 1f, 0f
+                )
+            )
+            ImageFilter.CINEMATIC -> ColorMatrix(
+                floatArrayOf(
+                    1.10f, 0f, 0f, 0f, -10f,
+                    0f, 1.04f, 0f, 0f, -4f,
+                    0f, 0f, 0.94f, 0f, 8f,
+                    0f, 0f, 0f, 1f, 0f
+                )
+            )
             ImageFilter.ORIGINAL -> ColorMatrix()
         }
         paint.colorFilter = ColorMatrixColorFilter(matrix)
