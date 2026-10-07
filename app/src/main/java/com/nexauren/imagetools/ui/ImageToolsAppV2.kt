@@ -65,12 +65,19 @@ private val tools = listOf(
     Tool("resize", "Resize Image", "Exact dimensions for any workflow", Icons.Default.PhotoSizeSelectLarge, Color(0xFF007CF0), Color(0xFF00DFD8), Color(0xFFE9FBFB)),
     Tool("compress", "Compress", "Reduce file size with control", Icons.Default.Compress, Color(0xFF0BA360), Color(0xFF3CBA92), Color(0xFFEAFBF4)),
     Tool("convert", "Convert Format", "JPEG, PNG and WEBP", Icons.Default.SwapHoriz, Color(0xFF7B2FF7), Color(0xFFF107A3), Color(0xFFF7EEFF)),
-    Tool("crop", "Smart Crop", "Common ratios for social and web", Icons.Default.Crop, Color(0xFFFF8008), Color(0xFFFFC837), Color(0xFFFFF6E7)),
-    Tool("rotate", "Rotate & Flip", "Straighten or mirror instantly", Icons.Default.Rotate90DegreesCw, Color(0xFF4F46E5), Color(0xFFEC4899), Color(0xFFF1EFFF)),
-    Tool("filter", "Quick Filters", "Clean presets for everyday photos", Icons.Default.FilterVintage, Color(0xFF11998E), Color(0xFF38EF7D), Color(0xFFE9FFF4)),
-    Tool("info", "Image Details", "Check dimensions and file size", Icons.Default.Info, Color(0xFF334155), Color(0xFF06B6D4), Color(0xFFEEF7F9)),
-    Tool("watermark", "Smart Watermark", "Brand images with a clean custom mark", Icons.Default.TextFields, Color(0xFF7C3AED), Color(0xFFEC4899), Color(0xFFF7EEFF), premiumOnly = true)
+    Tool("crop", "Smart Crop", "Social ratios, portraits and banners", Icons.Default.Crop, Color(0xFFFF8008), Color(0xFFFFC837), Color(0xFFFFF6E7)),
+    Tool("rotate", "Rotate & Flip", "Straighten, rotate or mirror", Icons.Default.Rotate90DegreesCw, Color(0xFF4F46E5), Color(0xFFEC4899), Color(0xFFF1EFFF)),
+    Tool("filter", "Quick Filters", "Fast looks for everyday photos", Icons.Default.FilterVintage, Color(0xFF11998E), Color(0xFF38EF7D), Color(0xFFE9FFF4)),
+    Tool("info", "Image Details", "Inspect size, format and dimensions", Icons.Default.Info, Color(0xFF334155), Color(0xFF06B6D4), Color(0xFFEEF7F9)),
+    Tool("watermark", "Smart Watermark", "Brand images with a clean custom mark", Icons.Default.TextFields, Color(0xFF7C3AED), Color(0xFFEC4899), Color(0xFFF7EEFF), premiumOnly = true),
+    Tool("adjust", "Adjust", "Tune brightness, contrast and color", Icons.Default.Tune, Color(0xFFFF4D6D), Color(0xFFFF8A5B), Color(0xFFFFEEF1)),
+    Tool("collage", "Collage", "Combine up to six photos", Icons.Default.GridView, Color(0xFF00A6FB), Color(0xFF38D9A9), Color(0xFFEAF9FF)),
+    Tool("frame", "Frame", "Add borders and clean backgrounds", Icons.Default.CropFree, Color(0xFFB36BFF), Color(0xFF6C63FF), Color(0xFFF5F0FF)),
+    Tool("meme", "Meme", "Build a captioned shareable image", Icons.Default.TextFields, Color(0xFFFFB703), Color(0xFFFF6B35), Color(0xFFFFF7DE)),
+    Tool("pixelate", "Pixelate", "Create a controlled pixel effect", Icons.Default.GridOn, Color(0xFF8338EC), Color(0xFF3A86FF), Color(0xFFF1EDFF))
 )
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,6 +89,10 @@ fun ImageToolsAppV2(
     onStartPayment: (String) -> Unit,
     onCancelSubscription: () -> Unit
 ) {
+    val context = LocalContext.current
+    val language = rememberAppLanguage(context)
+    val t = rememberStrings(language.value)
+
     if (auth.currentUser == null) {
         ModernAuthScreen(auth)
         return
@@ -95,71 +106,118 @@ fun ImageToolsAppV2(
     ModalNavigationDrawer(
         drawerState = drawer,
         drawerContent = {
-            ModalDrawerSheet {
-                Spacer(Modifier.height(24.dp))
-                Text("IMAGE TOOLS", Modifier.padding(horizontal = 24.dp), fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp)
-                Text(
-                    if (premium) "Premium workspace" else "Free workspace",
-                    Modifier.padding(start = 24.dp, top = 4.dp, bottom = 18.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    fontSize = 12.sp
-                )
-                DrawerEntry(Icons.Default.Home, "Home") { page = "home"; selectedTool = null; scope.launch { drawer.close() } }
-                DrawerEntry(Icons.Default.Build, "All tools") { page = "tools"; selectedTool = null; scope.launch { drawer.close() } }
-                DrawerEntry(Icons.Default.WorkspacePremium, "Premium") { page = "premium"; selectedTool = null; scope.launch { drawer.close() } }
-                DrawerEntry(Icons.Default.Person, "Account") { page = "account"; selectedTool = null; scope.launch { drawer.close() } }
-                DrawerEntry(Icons.Default.Settings, "Settings") { page = "settings"; selectedTool = null; scope.launch { drawer.close() } }
-                DrawerEntry(Icons.Default.Info, "About") { page = "about"; selectedTool = null; scope.launch { drawer.close() } }
+            ModalDrawerSheet(
+                modifier = Modifier.width(315.dp),
+                drawerContainerColor = MaterialTheme.colorScheme.surface
+            ) {
+                Spacer(Modifier.height(22.dp))
+                Row(
+                    Modifier.padding(horizontal = 22.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        Modifier.size(52.dp).clip(RoundedCornerShape(18.dp)).background(
+                            Brush.linearGradient(listOf(Color(0xFF00C6FF), Color(0xFF7B2FF7), Color(0xFFFF4D6D)))
+                        ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.PhotoLibrary, null, tint = Color.White, modifier = Modifier.size(27.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(t.appName, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
+                        Text(if (premium) t.premium else t.free, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+                Spacer(Modifier.height(22.dp))
+                DrawerEntry(Icons.Default.Home, t.home) { page = "home"; selectedTool = null; scope.launch { drawer.close() } }
+                DrawerEntry(Icons.Default.Build, t.tools) { page = "tools"; selectedTool = null; scope.launch { drawer.close() } }
+                DrawerEntry(Icons.Default.WorkspacePremium, t.premium) { page = "premium"; selectedTool = null; scope.launch { drawer.close() } }
+                DrawerEntry(Icons.Default.Person, t.account) { page = "account"; selectedTool = null; scope.launch { drawer.close() } }
+                DrawerEntry(Icons.Default.Settings, t.settings) { page = "settings"; selectedTool = null; scope.launch { drawer.close() } }
+                DrawerEntry(Icons.Default.Info, t.about) { page = "about"; selectedTool = null; scope.launch { drawer.close() } }
+                Spacer(Modifier.weight(1f))
+                Surface(
+                    Modifier.padding(16.dp).fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = .07f)
+                ) {
+                    Text(
+                        "Local editing • private workflow • mobile first",
+                        Modifier.padding(16.dp),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     ) {
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = {
-                        Column {
-                            Text("Image Tools", fontWeight = FontWeight.ExtraBold)
-                            Text(
-                                if (premium) "Premium workspace" else "Private image workspace",
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                if (selectedTool == null) {
+                    TopAppBar(
+                        title = {
+                            Column {
+                                Text(t.appName, fontWeight = FontWeight.ExtraBold)
+                                Text(
+                                    if (premium) t.premium else t.localProcessing,
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = { scope.launch { drawer.open() } }) {
+                                Icon(Icons.Default.Menu, t.tools)
+                            }
+                        },
+                        actions = {
+                            IconButton(onClick = { page = "settings" }) { Icon(Icons.Default.Settings, t.settings) }
                         }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawer.open() } }) {
-                            Icon(Icons.Default.Menu, "Menu")
+                    )
+                } else {
+                    TopAppBar(
+                        title = { Text(selectedToolTitle(selectedTool ?: "", t), fontWeight = FontWeight.ExtraBold) },
+                        navigationIcon = {
+                            IconButton(onClick = { selectedTool = null }) {
+                                Icon(Icons.Default.ArrowBack, t.home)
+                            }
+                        },
+                        actions = {
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = Color(0xFF10A37F).copy(alpha = .10f)
+                            ) {
+                                Text(
+                                    if (premium && selectedTool == "watermark") t.premium else t.localProcessing,
+                                    Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    color = if (premium && selectedTool == "watermark") Color(0xFF0B8F6B) else MaterialTheme.colorScheme.primary,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
-                    },
-                    actions = {
-                        IconButton(onClick = { page = "premium"; selectedTool = null }) {
-                            Icon(Icons.Default.AutoAwesome, "Premium")
-                        }
-                    }
-                )
+                    )
+                }
             },
             bottomBar = {
-                NavigationBar {
-                    BottomEntry("home", Icons.Default.Home, "Home", page) { page = "home"; selectedTool = null }
-                    BottomEntry("tools", Icons.Default.Build, "Tools", page) { page = "tools"; selectedTool = null }
-                    BottomEntry("account", Icons.Default.Person, "Account", page) { page = "account"; selectedTool = null }
+                if (selectedTool == null) {
+                    NavigationBar {
+                        BottomEntry("home", Icons.Default.Home, t.home, page) { page = "home" }
+                        BottomEntry("tools", Icons.Default.Build, t.tools, page) { page = "tools" }
+                        BottomEntry("account", Icons.Default.Person, t.account, page) { page = "account" }
+                    }
                 }
             }
         ) { padding ->
             Box(Modifier.fillMaxSize().padding(padding)) {
                 AnimatedContent(targetState = selectedTool ?: page, label = "navigation") { target ->
                     when (target) {
-                        "home" -> ModernHome(premium) {
-                            val selected = tools.firstOrNull { tool -> tool.id == it }
-                            if (selected?.premiumOnly == true && !premium) page = "premium" else selectedTool = it
-                        }
-                        "tools" -> ModernTools {
-                            val selected = tools.firstOrNull { tool -> tool.id == it }
-                            if (selected?.premiumOnly == true && !premium) page = "premium" else selectedTool = it
-                        }
+                        "home" -> ModernHome(premium, { selectedTool = it }, t)
+                        "tools" -> ModernTools(premium, { selectedTool = it }, t)
                         "account" -> ModernAccount(auth, premium) { page = "premium" }
                         "premium" -> ModernPremium(auth, premium, onStartPayment, onCancelSubscription)
-                        "settings" -> ModernSettings(darkMode, onDarkModeChange)
+                        "settings" -> ModernSettings(darkMode, onDarkModeChange, language, t)
                         "about" -> ModernAbout()
                         else -> ModernToolWorkspace(target, premium) { selectedTool = null }
                     }
@@ -361,6 +419,25 @@ private fun ModernAuthScreen(auth: AuthRepository) {
 }
 
 private fun authMessage(error: Throwable): String {
+private fun selectedToolTitle(id: String, t: UiStrings): String {
+    return when (id) {
+        "resize" -> t.resize
+        "compress" -> t.compress
+        "convert" -> t.convert
+        "crop" -> t.crop
+        "rotate" -> t.rotate
+        "filter" -> t.filters
+        "info" -> t.details
+        "watermark" -> t.watermark
+        "adjust" -> t.adjust
+        "collage" -> t.collage
+        "frame" -> t.frame
+        "meme" -> t.meme
+        "pixelate" -> t.pixelate
+        else -> id
+    }
+}
+
     val text = error.message?.lowercase().orEmpty()
     return when {
         "already in use" in text -> "This email is already registered. Try signing in."
@@ -373,10 +450,9 @@ private fun authMessage(error: Throwable): String {
 }
 
 @Composable
-private fun ModernHome(premium: Boolean, openTool: (String) -> Unit) {
+private fun ModernHome(premium: Boolean, openTool: (String) -> Unit, t: UiStrings) {
     var query by remember { mutableStateOf("") }
-    val results = tools.filter { (it.title + " " + it.subtitle).contains(query, true) }
-
+    val results = tools.filter { (selectedToolTitle(it.id, t) + " " + it.subtitle).contains(query, true) }
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         modifier = Modifier.fillMaxSize(),
@@ -386,29 +462,26 @@ private fun ModernHome(premium: Boolean, openTool: (String) -> Unit) {
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             Box(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(30.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(Color(0xFF0B1022), Color(0xFF6D28D9), Color(0xFF06B6D4))
-                        )
-                    )
+                Modifier.fillMaxWidth().height(205.dp).clip(RoundedCornerShape(30.dp))
+                    .background(Brush.linearGradient(listOf(Color(0xFF07131D), Color(0xFF0D4156), Color(0xFF7B2FF7))))
                     .padding(22.dp)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    Text("Your creative toolbox", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
-                    Text(
-                        "Fast local editing with a sharper, more visual workflow.",
-                        color = Color.White.copy(alpha = 0.82f)
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Surface(shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.14f)) {
-                            Text("ON-DEVICE", Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Surface(shape = RoundedCornerShape(50), color = Color.White.copy(alpha = .14f)) {
+                            Text(if (premium) t.premium else t.photo, color = Color.White, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
-                        Surface(shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.14f)) {
-                            Text("${tools.size} TOOLS", Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Surface(shape = RoundedCornerShape(50), color = Color.White.copy(alpha = .12f)) {
+                            Text(tools.size.toString() + " tools", color = Color.White, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), fontSize = 10.sp)
                         }
+                    }
+                    Column {
+                        Text(t.imageEditor, color = Color.White, fontSize = 29.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(
+                            "A mobile editing workspace with real processing, previews and export.",
+                            color = Color.White.copy(alpha = .80f),
+                            fontSize = 13.sp
+                        )
                     }
                 }
             }
@@ -425,43 +498,49 @@ private fun ModernHome(premium: Boolean, openTool: (String) -> Unit) {
             )
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                Column {
-                    Text("Tools", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                    Text("Pick a workflow and start editing.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if (premium) {
-                    AssistChip(onClick = {}, label = { Text("PREMIUM ACTIVE") }, leadingIcon = { Icon(Icons.Default.WorkspacePremium, null) })
+            Column {
+                Text(t.quickActions, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    listOf("adjust","crop","compress","collage").forEach { id ->
+                        val tool = tools.first { it.id == id }
+                        Surface(
+                            Modifier.weight(1f).height(92.dp).clickable { openTool(id) },
+                            shape = RoundedCornerShape(20.dp),
+                            color = tool.start.copy(alpha = .10f)
+                        ) {
+                            Column(Modifier.padding(11.dp), verticalArrangement = Arrangement.SpaceBetween) {
+                                Icon(tool.icon, null, tint = tool.start)
+                                Text(selectedToolTitle(id, t), maxLines = 1, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = tool.start)
+                            }
+                        }
+                    }
                 }
             }
+        }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Text(t.tools, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
         }
         if (results.isEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 EmptyCard("No tool found", "Try another search term.")
             }
         } else {
-            gridItems(results) { ToolCard(it, openTool) }
+            gridItems(results) { ToolCard(it, openTool, premium, t) }
         }
         if (!premium) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                Card(
+                Surface(
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5EEFF)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+                    color = Color(0xFFF5EEFF)
                 ) {
-                    Row(Modifier.padding(17.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(
-                                Brush.linearGradient(listOf(Color(0xFF7C3AED), Color(0xFFEC4899)))
-                            ),
-                            contentAlignment = Alignment.Center
-                        ) { Icon(Icons.Default.WorkspacePremium, null, tint = Color.White) }
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.WorkspacePremium, null, tint = Color(0xFF7C3AED))
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("Unlock Smart Watermark", fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                            Text("Brand your images with a polished custom mark.", fontSize = 12.sp, color = Color(0xFF6B7280))
+                            Text("Premium workspace", fontWeight = FontWeight.ExtraBold)
+                            Text("Unlock advanced tools as the library grows.", fontSize = 12.sp, color = Color(0xFF6B7280))
                         }
-                        Text("US$5", fontWeight = FontWeight.ExtraBold, color = Color(0xFF7C3AED))
                     }
                 }
             }
@@ -470,7 +549,7 @@ private fun ModernHome(premium: Boolean, openTool: (String) -> Unit) {
 }
 
 @Composable
-private fun ModernTools(openTool: (String) -> Unit) {
+private fun ModernTools(premium: Boolean, openTool: (String) -> Unit, t: UiStrings) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         modifier = Modifier.fillMaxSize(),
@@ -480,96 +559,66 @@ private fun ModernTools(openTool: (String) -> Unit) {
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text("All tools", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold)
-                Text("Modern image workflows, ready when you are.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                Text(t.tools, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold)
+                Text("Choose a workflow. Each tool has its own editing workspace.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
-        gridItems(tools) { ToolCard(it, openTool) }
+        gridItems(tools) { ToolCard(it, openTool, premium, t) }
     }
 }
 
 @Composable
-private fun ToolCard(tool: Tool, openTool: (String) -> Unit) {
+private fun ToolCard(tool: Tool, openTool: (String) -> Unit, premium: Boolean, t: UiStrings) {
     val accent by animateColorAsState(tool.start, label = "toolAccent")
     val iconScale by animateFloatAsState(1f, animationSpec = spring(stiffness = 500f), label = "iconScale")
-
+    val locked = tool.premiumOnly && !premium
     Card(
         onClick = { openTool(tool.id) },
-        modifier = Modifier.fillMaxWidth().height(184.dp),
-        shape = RoundedCornerShape(28.dp),
+        modifier = Modifier.fillMaxWidth().height(177.dp),
+        shape = RoundedCornerShape(26.dp),
         colors = CardDefaults.cardColors(containerColor = tool.soft),
-        elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
-        Box(Modifier.fillMaxSize()) {
-            Box(
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .offset(x = 18.dp, y = (-22).dp)
-                    .size(96.dp)
-                    .clip(RoundedCornerShape(40.dp))
-                    .background(Brush.linearGradient(listOf(tool.end.copy(alpha = 0.18f), Color.Transparent)))
-            )
-            Column(
-                Modifier.fillMaxSize().padding(14.dp),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
+        Column(Modifier.fillMaxSize().padding(15.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                Box(
+                    Modifier.size(58.dp).clip(RoundedCornerShape(19.dp))
+                        .background(Brush.linearGradient(listOf(tool.start, tool.end))),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        Modifier.size(60.dp).clip(RoundedCornerShape(20.dp))
-                            .background(Brush.linearGradient(listOf(tool.start, tool.end))),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(tool.icon, null, tint = Color.White, modifier = Modifier.size((29 * iconScale).dp))
-                    }
-                    if (tool.premiumOnly) {
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = Color(0xFF171126).copy(alpha = 0.95f)
-                        ) {
-                            Row(
-                                Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Lock, null, tint = Color.White, modifier = Modifier.size(13.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text("PRO", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
-                            }
+                    Icon(tool.icon, null, tint = Color.White, modifier = Modifier.size((28 * iconScale).dp))
+                }
+                if (locked) {
+                    Surface(shape = RoundedCornerShape(50), color = Color(0xFF171126)) {
+                        Row(Modifier.padding(horizontal = 8.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Lock, null, tint = Color.White, modifier = Modifier.size(12.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("PRO", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
                         }
                     }
                 }
-                Column {
-                    Text(tool.title, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
-                    Spacer(Modifier.height(4.dp))
+            }
+            Column {
+                Text(selectedToolTitle(tool.id, t), fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    tool.subtitle,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2
+                )
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Surface(shape = RoundedCornerShape(50), color = accent.copy(alpha = .11f)) {
                     Text(
-                        tool.subtitle,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2
+                        if (tool.premiumOnly) t.premium else t.free,
+                        Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = accent
                     )
                 }
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = accent.copy(alpha = 0.10f)
-                    ) {
-                        Text(
-                            if (tool.premiumOnly) "Premium" else "Free",
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = accent
-                        )
-                    }
-                    Icon(Icons.Default.ArrowForward, null, tint = accent)
-                }
+                Icon(Icons.Default.ArrowForward, null, tint = accent)
             }
         }
     }
@@ -580,606 +629,591 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val tool = tools.firstOrNull { it.id == id } ?: return
+    val t = rememberStrings(rememberAppLanguage(context).value)
+
+    if (tool.premiumOnly && !premium) {
+        LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(30.dp),
+                    color = tool.soft
+                ) {
+                    Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(Modifier.size(76.dp).clip(RoundedCornerShape(24.dp)).background(tool.start), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Lock, null, tint = Color.White, modifier = Modifier.size(34.dp))
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Text(selectedToolTitle(id, t), fontSize = 27.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(t.pro, color = Color(0xFFD81B42), fontWeight = FontWeight.ExtraBold)
+                        Text("This tool is available with Premium.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.height(12.dp))
+                        Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(t.home) }
+                    }
+                }
+            }
+        }
+        return
+    }
 
     var image by remember { mutableStateOf<Bitmap?>(null) }
-    var sourceBytes by remember { mutableStateOf<Long?>(null) }
-    var result by remember { mutableStateOf<com.nexauren.imagetools.media.ImageResult?>(null) }
-    var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
-    var status by remember { mutableStateOf<String?>(null) }
-    var statusTone by remember { mutableStateOf("neutral") }
-    var busy by remember { mutableStateOf(false) }
-
+    var sources by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
+    var preview by remember { mutableStateOf<Bitmap?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     var pendingFormat by remember { mutableStateOf(OutputFormat.JPEG) }
     var pendingWidth by remember { mutableIntStateOf(1) }
     var pendingHeight by remember { mutableIntStateOf(1) }
+    var busy by remember { mutableStateOf(false) }
+    var status by remember { mutableStateOf<String?>(null) }
 
-    var outputFolderUri by remember { mutableStateOf(OutputFolderStore.getTreeUri(context)) }
-    var showFolderGuide by remember { mutableStateOf(false) }
-    var pendingActionAfterFolder by remember { mutableStateOf(false) }
-
-    var width by remember { mutableStateOf("1920") }
+    var width by remember { mutableStateOf("1080") }
     var height by remember { mutableStateOf("1080") }
-    var lockRatio by remember { mutableStateOf(true) }
-    var quality by remember { mutableFloatStateOf(78f) }
+    var keepRatio by remember { mutableStateOf(true) }
+    var quality by remember { mutableFloatStateOf(82f) }
     var format by remember { mutableStateOf(OutputFormat.JPEG) }
-    var compressFormat by remember { mutableStateOf(OutputFormat.WEBP) }
     var cropRatio by remember { mutableStateOf("1:1") }
     var angle by remember { mutableIntStateOf(90) }
-    var mirrorH by remember { mutableStateOf(false) }
-    var mirrorV by remember { mutableStateOf(false) }
+    var flipH by remember { mutableStateOf(false) }
+    var flipV by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf(ImageFilter.ORIGINAL) }
+    var brightness by remember { mutableFloatStateOf(0f) }
+    var contrast by remember { mutableFloatStateOf(0f) }
+    var saturation by remember { mutableFloatStateOf(1f) }
     var watermarkText by remember { mutableStateOf("IMAGE TOOLS") }
     var watermarkOpacity by remember { mutableFloatStateOf(72f) }
     var watermarkPosition by remember { mutableStateOf("Bottom right") }
+    var border by remember { mutableFloatStateOf(24f) }
+    var background by remember { mutableStateOf("White") }
+    var topText by remember { mutableStateOf("") }
+    var bottomText by remember { mutableStateOf("") }
+    var pixelSize by remember { mutableFloatStateOf(12f) }
+    var columns by remember { mutableIntStateOf(2) }
 
-    fun generateResult() {
-        val source = image ?: return
-        busy = true
-        status = null
-        statusTone = "neutral"
-        result = null
+    fun chooseImage() {
+        singlePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
 
+    fun chooseMany() {
+        multiPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+
+    fun processImage(transform: suspend () -> Bitmap, output: OutputFormat = format, outputQuality: Int = quality.toInt()) {
         scope.launch {
+            busy = true
+            status = t.processing
             try {
-                val transformed = withContext(Dispatchers.Default) {
-                    when (id) {
-                        "resize" -> ImageProcessor.resize(
-                            source,
-                            width.toIntOrNull()?.coerceAtLeast(1) ?: source.width,
-                            height.toIntOrNull()?.coerceAtLeast(1) ?: source.height
-                        )
-                        "compress", "convert" -> source
-                        "crop" -> ImageProcessor.cropCenter(source, cropRatio)
-                        "rotate" -> ImageProcessor.rotate(source, angle, mirrorH, mirrorV)
-                        "filter" -> ImageProcessor.filter(source, filter)
-                        "watermark" -> ImageProcessor.watermark(
-                            source,
-                            watermarkText,
-                            watermarkOpacity.toInt(),
-                            watermarkPosition
-                        )
-                        else -> source
-                    }
-                }
-                val outputFormat = if (id == "compress") compressFormat else format
-                val outputQuality = if (outputFormat == OutputFormat.PNG) {
-                    100
-                } else {
-                    quality.toInt().coerceIn(1, 100)
-                }
+                val transformed = withContext(Dispatchers.Default) { transform() }
                 val bytes = withContext(Dispatchers.Default) {
-                    ImageProcessor.encode(transformed, outputFormat, outputQuality)
+                    ImageProcessor.encode(
+                        transformed,
+                        output,
+                        if (output == OutputFormat.PNG) 100 else outputQuality.coerceIn(1, 100)
+                    )
                 }
-                previewBitmap = transformed
+                preview = transformed
                 pendingBytes = bytes
-                pendingFormat = outputFormat
+                pendingFormat = output
                 pendingWidth = transformed.width
                 pendingHeight = transformed.height
-                statusTone = "success"
-                status = "Preview ready. Review it, then tap Save to store the image."
-            } catch (_: Exception) {
-                previewBitmap = null
+                status = t.ready + " • " + transformed.width + " × " + transformed.height
+            } catch (e: Exception) {
+                preview = null
                 pendingBytes = null
-                statusTone = "error"
-                status = "We could not create the result. Try another image or a smaller output."
+                status = t.error
             } finally {
                 busy = false
             }
         }
     }
 
-    val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-        if (uri == null) {
-            pendingActionAfterFolder = false
-            statusTone = "neutral"
-            status = "Folder setup cancelled. Your image was not created."
-            return@rememberLauncherForActivityResult
-        }
-
-        try {
-            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            context.contentResolver.takePersistableUriPermission(uri, flags)
-        } catch (_: Exception) {
-            // Some providers do not expose persistable permissions; the chosen tree can still be used now.
-        }
-
-        OutputFolderStore.saveTreeUri(context, uri)
-        outputFolderUri = uri
-        showFolderGuide = false
-        statusTone = "success"
-        status = "Output folder configured. Your images will only be saved after you tap Save."
-    }
-
-    LaunchedEffect(outputFolderUri, pendingActionAfterFolder) {
-        if (outputFolderUri != null && pendingActionAfterFolder) {
-            pendingActionAfterFolder = false
-            generateResult()
-        }
-    }
-
-    fun requestAction() {
-        if (outputFolderUri == null) {
-            pendingActionAfterFolder = true
-            showFolderGuide = true
-        } else {
-            generateResult()
-        }
-    }
-
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        image = uri?.let { ImageProcessor.decode(context, it) }
-        sourceBytes = uri?.let { ImageProcessor.sourceBytes(context, it) }
-        result = null
-        previewBitmap = null
-        pendingBytes = null
-        status = null
-        statusTone = "neutral"
-        image?.let {
-            if (id == "resize") {
-                width = it.width.toString()
-                height = it.height.toString()
+    fun export() {
+        val bytes = pendingBytes ?: return
+        scope.launch {
+            busy = true
+            status = t.processing
+            try {
+                val saved = withContext(Dispatchers.IO) {
+                    ImageProcessor.saveWithFallback(
+                        context,
+                        OutputFolderStore.getTreeUri(context),
+                        bytes,
+                        pendingFormat,
+                        "image-tools-" + id,
+                        pendingWidth,
+                        pendingHeight
+                    )
+                }
+                status = if (saved.usedDefaultGallery) t.defaultSaved else t.saved
+            } catch (_: Exception) {
+                status = t.saveFailed
+            } finally {
+                busy = false
             }
         }
     }
 
-    if (showFolderGuide) {
-        AlertDialog(
-            onDismissRequest = {
-                showFolderGuide = false
-                pendingActionAfterFolder = false
-            },
-            icon = { Icon(Icons.Default.FolderOpen, null) },
-            title = { Text("Choose your output folder") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Before creating your first result, Image Tools needs one folder for saved images.")
-                    Text("1. Choose the folder you want to use.")
-                    Text("2. Allow access when Android asks.")
-                    Text("3. From then on, every saved image goes there.")
-                    Text("Nothing is saved when you tap Action. You will always see the result preview first.")
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showFolderGuide = false
-                        folderLauncher.launch(null)
-                    }
-                ) {
-                    Text("Choose folder")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showFolderGuide = false
-                        pendingActionAfterFolder = false
-                    }
-                ) {
-                    Text("Not now")
+    val singlePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch(Dispatchers.IO) {
+            val decoded = ImageProcessor.decode(context, uri)
+            withContext(Dispatchers.Main) {
+                image = decoded
+                preview = null
+                pendingBytes = null
+                if (decoded != null) {
+                    width = decoded.width.toString()
+                    height = decoded.height.toString()
+                    status = t.ready
+                } else {
+                    status = t.error
                 }
             }
-        )
+        }
     }
+
+    val multiPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(6)) { uris ->
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        scope.launch(Dispatchers.IO) {
+            val decoded = uris.mapNotNull { ImageProcessor.decode(context, it) }
+            withContext(Dispatchers.Main) {
+                sources = decoded
+                image = decoded.firstOrNull()
+                preview = null
+                pendingBytes = null
+                status = if (decoded.isEmpty()) t.error else t.ready
+            }
+        }
+    }
+
+    val current = preview ?: image
 
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item { WorkspaceHeader(tool, onBack) }
+        item {
+            Surface(shape = RoundedCornerShape(28.dp), color = tool.soft) {
+                Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
+                    Box(Modifier.size(56.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(tool.start, tool.end))), contentAlignment = Alignment.Center) {
+                        Icon(tool.icon, null, tint = Color.White, modifier = Modifier.size(28.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(selectedToolTitle(id, t), fontSize = 21.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(tool.subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (premium && tool.premiumOnly) {
+                        Surface(shape = RoundedCornerShape(50), color = Color(0xFF10A37F).copy(alpha = .12f)) {
+                            Text(t.premium, Modifier.padding(horizontal = 9.dp, vertical = 6.dp), fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0B8F6B))
+                        }
+                    }
+                }
+            }
+        }
 
         item {
-            Card(
-                onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                shape = RoundedCornerShape(30.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF101426)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
-            ) {
-                Column(
-                    Modifier.fillMaxWidth().padding(14.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+            when {
+                current == null && id == "collage" -> {
+                    Surface(
+                        Modifier.fillMaxWidth().height(230.dp).clickable { chooseMany() },
+                        shape = RoundedCornerShape(30.dp),
+                        color = Color(0xFF071C26)
                     ) {
-                        Surface(shape = RoundedCornerShape(50), color = tool.start.copy(alpha = 0.16f)) {
-                            Row(
-                                Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(tool.icon, null, tint = tool.end, modifier = Modifier.size(15.dp))
-                                Spacer(Modifier.width(5.dp))
-                                Text(
-                                    tool.title.uppercase(),
-                                    color = Color.White,
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.ExtraBold
-                                )
+                        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                            Icon(Icons.Default.Collections, null, tint = Color(0xFF00C6FF), modifier = Modifier.size(46.dp))
+                            Spacer(Modifier.height(10.dp))
+                            Text("Pick 2–6 images", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                            Text("Build one layout on the phone", color = Color.White.copy(alpha = .70f), fontSize = 12.sp)
+                            Spacer(Modifier.height(13.dp))
+                            Button(onClick = { chooseMany() }) { Text(t.chooseImages) }
+                        }
+                    }
+                }
+                current == null -> {
+                    Surface(
+                        Modifier.fillMaxWidth().height(230.dp).clickable { chooseImage() },
+                        shape = RoundedCornerShape(30.dp),
+                        color = Color(0xFF0E1426)
+                    ) {
+                        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                            Icon(Icons.Default.AddPhotoAlternate, null, tint = tool.start, modifier = Modifier.size(46.dp))
+                            Spacer(Modifier.height(10.dp))
+                            Text(t.chooseImage, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                            Text("Start with a photo and the editor will appear here.", color = Color.White.copy(alpha = .70f), fontSize = 12.sp)
+                        }
+                    }
+                }
+                else -> {
+                    Surface(
+                        shape = RoundedCornerShape(30.dp),
+                        color = Color(0xFF090E19)
+                    ) {
+                        Box(Modifier.fillMaxWidth().heightIn(min = 250.dp, max = 390.dp).padding(10.dp), contentAlignment = Alignment.Center) {
+                            Image(
+                                current.asImageBitmap(),
+                                null,
+                                Modifier.fillMaxSize().clip(RoundedCornerShape(22.dp)),
+                                contentScale = ContentScale.Fit
+                            )
+                            if (preview != null) {
+                                Surface(
+                                    Modifier.align(Alignment.TopStart).padding(10.dp),
+                                    shape = RoundedCornerShape(50),
+                                    color = Color(0xFF10A37F)
+                                ) {
+                                    Text(t.ready, Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
-                        Text(
-                            "LOCAL",
-                            color = Color.White.copy(alpha = 0.55f),
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold
-                        )
                     }
-                    Spacer(Modifier.height(12.dp))
-                    if (image == null) {
-                        Box(
-                            Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(22.dp))
-                                .background(Brush.linearGradient(listOf(Color(0xFF171D35), Color(0xFF0D1120)))),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Box(
-                                    Modifier.size(72.dp).clip(RoundedCornerShape(24.dp))
-                                        .background(Brush.linearGradient(listOf(tool.start, tool.end))),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(tool.icon, null, tint = Color.White, modifier = Modifier.size(34.dp))
-                                }
-                                Spacer(Modifier.height(12.dp))
-                                Text(
-                                    "Choose an image",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 18.sp
+                }
+            }
+        }
+
+        item {
+            when (id) {
+                "resize" -> ResizeStudio(width, height, keepRatio, { width = it }, { height = it }, { keepRatio = it })
+                "compress" -> CompressStudio(quality, { quality = it })
+                "convert" -> ConvertStudio(format, { format = it })
+                "crop" -> CropStudio(cropRatio, { cropRatio = it })
+                "rotate" -> RotateStudio(angle, { angle = it }, flipH, { flipH = it }, flipV, { flipV = it })
+                "filter" -> FilterStudio(filter, { filter = it })
+                "info" -> DetailsStudio(image, context)
+                "watermark" -> WatermarkStudio(watermarkText, { watermarkText = it }, watermarkOpacity, { watermarkOpacity = it }, watermarkPosition, { watermarkPosition = it })
+                "adjust" -> AdjustStudio(brightness, { brightness = it }, contrast, { contrast = it }, saturation, { saturation = it })
+                "collage" -> CollageStudio(sources.size, columns, { columns = it }, background, { background = it }, { chooseMany() })
+                "frame" -> FrameStudio(border, { border = it }, background, { background = it })
+                "meme" -> MemeStudio(topText, { topText = it }, bottomText, { bottomText = it })
+                "pixelate" -> PixelateStudio(pixelSize, { pixelSize = it })
+            }
+        }
+
+        item {
+            when (id) {
+                "info" -> Unit
+                "collage" -> {
+                    Button(
+                        onClick = {
+                            if (sources.size >= 2) {
+                                processImage(
+                                    { ImageProcessor.collage(sources, columns, background = frameColor(background)) },
+                                    OutputFormat.JPEG,
+                                    92
                                 )
+                            }
+                        },
+                        enabled = sources.size >= 2 && !busy,
+                        modifier = Modifier.fillMaxWidth().height(57.dp),
+                        shape = RoundedCornerShape(19.dp)
+                    ) { Text(if (busy) t.processing else t.apply) }
+                }
+                else -> {
+                    Button(
+                        onClick = {
+                            val source = image
+                            if (source != null) {
+                                when (id) {
+                                    "resize" -> processImage({ ImageProcessor.resize(source, width.toIntOrNull() ?: source.width, height.toIntOrNull() ?: source.height) })
+                                    "compress" -> processImage({ source }, OutputFormat.WEBP, quality.toInt())
+                                    "convert" -> processImage({ source }, format, quality.toInt())
+                                    "crop" -> processImage({ ImageProcessor.cropCenter(source, cropRatio) })
+                                    "rotate" -> processImage({ ImageProcessor.rotate(source, angle, flipH, flipV) })
+                                    "filter" -> processImage({ ImageProcessor.filter(source, filter) })
+                                    "watermark" -> processImage({ ImageProcessor.watermark(source, watermarkText, watermarkOpacity.toInt(), watermarkPosition) })
+                                    "adjust" -> processImage({ ImageProcessor.adjust(source, brightness, contrast, saturation) })
+                                    "frame" -> processImage({ ImageProcessor.frame(source, border.toInt(), frameColor(background)) })
+                                    "meme" -> processImage({ ImageProcessor.meme(source, topText, bottomText) })
+                                    "pixelate" -> processImage({ ImageProcessor.pixelate(source, pixelSize.toInt()) })
+                                }
+                            }
+                        },
+                        enabled = image != null && !busy,
+                        modifier = Modifier.fillMaxWidth().height(57.dp),
+                        shape = RoundedCornerShape(19.dp)
+                    ) {
+                        if (busy) {
+                            CircularProgressIndicator(Modifier.size(19.dp), strokeWidth = 2.dp, color = Color.White)
+                            Spacer(Modifier.width(9.dp))
+                        }
+                        Text(if (busy) t.processing else t.apply)
+                    }
+                }
+            }
+        }
+
+        if (status != null) {
+            item {
+                Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.primary.copy(alpha = .08f)) {
+                    Text(status ?: "", Modifier.fillMaxWidth().padding(14.dp), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+
+        if (preview != null && pendingBytes != null) {
+            item {
+                Surface(shape = RoundedCornerShape(25.dp), color = Color(0xFF0D1716)) {
+                    Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Column {
+                                Text(t.export, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold)
                                 Text(
-                                    "Tap to open your photo picker.",
-                                    color = Color.White.copy(alpha = 0.62f),
+                                    pendingWidth.toString() + " × " + pendingHeight.toString() + " • " + pendingFormat.extension.uppercase(),
+                                    color = Color.White.copy(alpha = .65f),
                                     fontSize = 12.sp
                                 )
                             }
+                            Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF10A37F))
                         }
-                    } else {
-                        Box(
-                            Modifier.fillMaxWidth().height(260.dp).clip(RoundedCornerShape(22.dp))
-                                .background(Color(0xFF080B14)),
-                            contentAlignment = Alignment.Center
+                        Button(
+                            onClick = { export() },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth().height(55.dp),
+                            shape = RoundedCornerShape(18.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10A37F))
                         ) {
-                            Image(
-                                image!!.asImageBitmap(),
-                                "Selected image",
-                                Modifier.fillMaxSize().padding(10.dp),
-                                contentScale = ContentScale.Fit
-                            )
-                            Surface(
-                                Modifier.align(Alignment.BottomStart).padding(12.dp),
-                                shape = RoundedCornerShape(50),
-                                color = Color.Black.copy(alpha = 0.72f)
-                            ) {
-                                Text(
-                                    image!!.width.toString() + " × " + image!!.height,
-                                    Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    color = Color.White,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                            Icon(Icons.Default.SaveAlt, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(t.save, fontWeight = FontWeight.Bold)
                         }
-                        Spacer(Modifier.height(9.dp))
-                        Text(
-                            "Tap the preview to replace the image.",
-                            color = Color.White.copy(alpha = 0.62f),
-                            fontSize = 12.sp
-                        )
                     }
                 }
             }
         }
+    }
+}
 
-        if (id == "info") {
-            item { InfoPanel(image, sourceBytes) }
-        } else {
-            item {
-                when (id) {
-                    "resize" -> ResizePanel(
-                        width,
-                        height,
-                        lockRatio,
-                        onWidth = {
-                            val v = it.filter(Char::isDigit)
-                            width = v
-                            if (lockRatio && image != null && v.isNotBlank()) {
-                                val ratio = image!!.width.toFloat() / image!!.height.toFloat()
-                                height = (v.toInt().coerceAtLeast(1) / ratio).toInt().coerceAtLeast(1).toString()
-                            }
-                        },
-                        onHeight = { height = it.filter(Char::isDigit) },
-                        onLock = { lockRatio = it }
-                    )
-                    "compress" -> CompressPanel(
-                        quality,
-                        compressFormat,
-                        { quality = it },
-                        { compressFormat = it }
-                    )
-                    "convert" -> FormatPanel(format) { format = it }
-                    "crop" -> CropPanel(cropRatio) { cropRatio = it }
-                    "rotate" -> RotatePanel(
-                        angle,
-                        mirrorH,
-                        mirrorV,
-                        { angle = it },
-                        { mirrorH = it },
-                        { mirrorV = it }
-                    )
-                    "filter" -> FilterPanel(filter) { filter = it }
-                    "watermark" -> WatermarkPanel(
-                        watermarkText,
-                        watermarkOpacity,
-                        watermarkPosition,
-                        onText = { watermarkText = it },
-                        onOpacity = { watermarkOpacity = it },
-                        onPosition = { watermarkPosition = it }
+@Composable
+private fun ResizeStudio(width: String, height: String, keep: Boolean, setWidth: (String) -> Unit, setHeight: (String) -> Unit, setKeep: (Boolean) -> Unit) {
+    Surface(shape = RoundedCornerShape(26.dp), color = Color(0xFFEAF7FF)) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text("Canvas size", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF0067A7))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(width, { setWidth(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text("Width") }, singleLine = true)
+                OutlinedTextField(height, { setHeight(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text("Height") }, singleLine = true)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(if (keep) Icons.Default.Link else Icons.Default.LinkOff, null, tint = Color(0xFF007CF0))
+                Spacer(Modifier.width(9.dp))
+                Text("Keep aspect ratio", Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                Switch(keep, setKeep)
+            }
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("720","1080","1440","2048").forEach {
+                    AssistChip(
+                        onClick = { setWidth(it) },
+                        label = { Text(it + "px") }
                     )
                 }
             }
+        }
+    }
+}
 
-            item {
-                Button(
-                    onClick = { requestAction() },
-                    modifier = Modifier.fillMaxWidth().height(54.dp),
-                    enabled = image != null && !busy,
-                    shape = RoundedCornerShape(18.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = tool.start)
-                ) {
-                    if (busy) {
-                        CircularProgressIndicator(
-                            Modifier.size(22.dp),
-                            strokeWidth = 2.dp,
-                            color = Color.White
-                        )
-                    } else {
-                        Text("Apply & preview", fontWeight = FontWeight.Bold)
-                    }
-                }
+@Composable
+private fun CompressStudio(value: Float, setValue: (Float) -> Unit) {
+    Surface(shape = RoundedCornerShape(30.dp), color = Color(0xFFEAFBF4)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                Column { Text("Compression", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF087F5B)); Text("Smaller file, controlled quality", fontSize = 12.sp) }
+                Text(value.toInt().toString() + "%", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF087F5B))
             }
-
-            item {
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = if (outputFolderUri != null) Color(0xFFECFDF5) else Color(0xFFFFF7ED)
-                ) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            if (outputFolderUri != null) Icons.Default.Folder else Icons.Default.FolderOpen,
-                            null,
-                            tint = if (outputFolderUri != null) Color(0xFF059669) else Color(0xFFEA580C)
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                if (outputFolderUri != null) "Output folder ready" else "Output folder not configured",
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                if (outputFolderUri != null) {
-                                    OutputFolderStore.folderName(context, outputFolderUri) ?: "Configured folder"
-                                } else {
-                                    "The first Action will guide you to create it."
-                                },
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
+            Slider(value, setValue, valueRange = 20f..100f)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Smaller file", fontSize = 11.sp)
+                Text("Better quality", fontSize = 11.sp)
             }
+        }
+    }
+}
 
-            pendingBytes?.let { bytes ->
-                previewBitmap?.let { preview ->
-                    item {
-                        Card(
-                            shape = RoundedCornerShape(26.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                        ) {
-                            Column(
-                                Modifier.fillMaxWidth().padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Row(
-                                    Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column {
-                                        Text("Result preview", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
-                                        Text(
-                                            pendingWidth.toString() + " × " + pendingHeight +
-                                                " • " + ImageProcessor.humanBytes(bytes.size.toLong()) +
-                                                " • " + pendingFormat.label,
-                                            fontSize = 12.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    Surface(
-                                        shape = RoundedCornerShape(50),
-                                        color = tool.start.copy(alpha = 0.10f)
-                                    ) {
-                                        Text(
-                                            "NOT SAVED",
-                                            Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                            color = tool.start,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.ExtraBold
-                                        )
-                                    }
-                                }
-                                Box(
-                                    Modifier.fillMaxWidth().height(280.dp)
-                                        .clip(RoundedCornerShape(20.dp))
-                                        .background(Color(0xFF080B14)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Image(
-                                        preview.asImageBitmap(),
-                                        "Result preview",
-                                        Modifier.fillMaxSize().padding(10.dp),
-                                        contentScale = ContentScale.Fit
-                                    )
-                                }
-                                Text(
-                                    "Check the result above. Nothing is stored until you tap Save.",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Button(
-                                        onClick = {
-                                            val folder = outputFolderUri ?: run {
-                                                statusTone = "error"
-                                                status = "Output folder is missing. Please choose it again."
-                                                return@Button
-                                            }
-                                            scope.launch {
-                                                busy = true
-                                                try {
-                                                    result = withContext(Dispatchers.IO) {
-                                                        ImageProcessor.saveToFolder(
-                                                            context,
-                                                            folder,
-                                                            bytes,
-                                                            pendingFormat,
-                                                            id,
-                                                            pendingWidth,
-                                                            pendingHeight
-                                                        )
-                                                    }
-                                                    pendingBytes = null
-                                                    statusTone = "success"
-                                                    status = "Saved to your configured output folder."
-                                                } catch (_: Exception) {
-                                                    statusTone = "error"
-                                                    status = "We could not save there. Please choose a different output folder in Settings."
-                                                } finally {
-                                                    busy = false
-                                                }
-                                            }
-                                        },
-                                        enabled = !busy,
-                                        modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(16.dp)
-                                    ) {
-                                        Icon(Icons.Default.Save, null)
-                                        Spacer(Modifier.width(7.dp))
-                                        Text("Save")
-                                    }
-                                    OutlinedButton(
-                                        onClick = {
-                                            pendingBytes = null
-                                            previewBitmap = null
-                                            statusTone = "neutral"
-                                            status = "Result discarded. Your original image is unchanged."
-                                        },
-                                        enabled = !busy,
-                                        modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(16.dp)
-                                    ) {
-                                        Text("Discard")
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            result?.let { saved ->
-                item {
-                    Card(
-                        shape = RoundedCornerShape(24.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE9FFF4))
-                    ) {
-                        Column(
-                            Modifier.padding(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Text("Saved", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
-                            Text(
-                                saved.width.toString() + " × " + saved.height.toString() +
-                                    " • " + ImageProcessor.humanBytes(saved.bytes) +
-                                    " • " + saved.format.label
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(onClick = {
-                                    val open = Intent(Intent.ACTION_VIEW).apply {
-                                        data = saved.uri
-                                        type = saved.format.mime
-                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                    }
-                                    context.startActivity(open)
-                                }) { Text("Open") }
-                                OutlinedButton(onClick = {
-                                    val share = Intent(Intent.ACTION_SEND).apply {
-                                        type = saved.format.mime
-                                        putExtra(Intent.EXTRA_STREAM, saved.uri)
-                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                    }
-                                    context.startActivity(Intent.createChooser(share, "Share image"))
-                                }) {
-                                    Icon(Icons.Default.Share, null)
-                                    Spacer(Modifier.width(6.dp))
-                                    Text("Share")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            status?.let { text ->
-                item {
+@Composable
+private fun ConvertStudio(format: OutputFormat, setFormat: (OutputFormat) -> Unit) {
+    Surface(shape = RoundedCornerShape(26.dp), color = Color(0xFFF4EEFF)) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Choose output", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF7042C7))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutputFormat.entries.forEach {
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = when (statusTone) {
-                            "success" -> Color(0xFFECFDF5)
-                            "error" -> Color(0xFFFEF2F2)
-                            else -> Color(0xFFF1F5F9)
-                        }
+                        Modifier.weight(1f).height(92.dp).clickable { setFormat(it) },
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (format == it) Color(0xFF7B2FF7) else Color.White
                     ) {
-                        Text(
-                            text,
-                            Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            color = when (statusTone) {
-                                "success" -> Color(0xFF047857)
-                                "error" -> MaterialTheme.colorScheme.error
-                                else -> Color(0xFF475569)
-                            },
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 12.sp
-                        )
-                    }
-                }
-            }
-
-            if (!premium) {
-                item {
-                    Card(
-                        shape = RoundedCornerShape(22.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text("Premium growth", fontWeight = FontWeight.Bold)
-                            Text(
-                                "More batch and advanced workflows can be added as the premium library expands.",
-                                fontSize = 12.sp
-                            )
+                        Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.SpaceBetween) {
+                            Text(it.extension.uppercase(), color = if (format == it) Color.White else Color(0xFF7B2FF7), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                            Text(it.mime.removePrefix("image/"), color = if (format == it) Color.White.copy(alpha = .75f) else Color.Gray, fontSize = 10.sp)
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CropStudio(value: String, setValue: (String) -> Unit) {
+    Surface(shape = RoundedCornerShape(26.dp), color = Color(0xFFFFF3E6)) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+            Text("Crop for the moment", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFD96B00))
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Original","1:1","4:5","3:4","4:3","16:9","9:16").forEach {
+                    FilterChip(it == value, { setValue(it) }, label = { Text(it) })
+                }
+            }
+            Text("1:1 square • 4:5 feed • 9:16 stories • 16:9 landscape", fontSize = 11.sp, color = Color(0xFF8A5A2B))
+        }
+    }
+}
+
+@Composable
+private fun RotateStudio(angle: Int, setAngle: (Int) -> Unit, h: Boolean, setH: (Boolean) -> Unit, v: Boolean, setV: (Boolean) -> Unit) {
+    Surface(shape = RoundedCornerShape(28.dp), color = Color(0xFFEEF0FF)) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Transform", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF4C51BF))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                IconButton(onClick = { setAngle((angle + 90) % 360) }) { Icon(Icons.Default.Rotate90DegreesCw, null) }
+                IconButton(onClick = { setH(!h) }) { Icon(Icons.Default.Flip, null) }
+                IconButton(onClick = { setV(!v) }) { Icon(Icons.Default.SwapVert, null) }
+            }
+            Text("Angle " + angle.toString() + "°", fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun FilterStudio(filter: ImageFilter, setFilter: (ImageFilter) -> Unit) {
+    Surface(shape = RoundedCornerShape(26.dp), color = Color(0xFFE9FFF4)) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+            Text("Looks", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF138A63))
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ImageFilter.entries.forEach {
+                    FilterChip(it == filter, { setFilter(it) }, label = { Text(it.label) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailsStudio(image: Bitmap?, context: android.content.Context) {
+    Surface(shape = RoundedCornerShape(28.dp), color = Color(0xFFF1F8FB)) {
+        Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Image profile", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF236B7D))
+            if (image == null) {
+                Text("Choose an image to inspect it.")
+            } else {
+                Text(image.width.toString() + " × " + image.height.toString(), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                Text((image.width * image.height / 1000000f).toString() + " MP", color = Color(0xFF236B7D))
+                HorizontalDivider()
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Config"); Text(image.config?.name ?: "Unknown", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WatermarkStudio(text: String, setText: (String) -> Unit, opacity: Float, setOpacity: (Float) -> Unit, position: String, setPosition: (String) -> Unit) {
+    Surface(shape = RoundedCornerShape(28.dp), color = Color(0xFFFFEDF2)) {
+        Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Brand mark", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFD6336C))
+            OutlinedTextField(text, setText, Modifier.fillMaxWidth(), label = { Text("Watermark text") }, singleLine = true)
+            Text("Opacity " + opacity.toInt().toString() + "%", fontWeight = FontWeight.Bold)
+            Slider(opacity, setOpacity, valueRange = 15f..100f)
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                listOf("Top left","Top right","Center","Bottom left","Bottom right").forEach {
+                    FilterChip(it == position, { setPosition(it) }, label = { Text(it) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdjustStudio(brightness: Float, setBrightness: (Float) -> Unit, contrast: Float, setContrast: (Float) -> Unit, saturation: Float, setSaturation: (Float) -> Unit) {
+    Surface(shape = RoundedCornerShape(30.dp), color = Color(0xFFFFEEF1)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Tune the image", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFD6405B))
+            AdjustLine("Brightness", brightness, -1f..1f, setBrightness)
+            AdjustLine("Contrast", contrast, -1f..1f, setContrast)
+            AdjustLine("Saturation", saturation, 0f..2f, setSaturation)
+        }
+    }
+}
+
+@Composable
+private fun AdjustLine(label: String, value: Float, range: ClosedFloatingPointRange<Float>, setValue: (Float) -> Unit) {
+    Column {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, fontWeight = FontWeight.Bold)
+            Text("%.2f".format(value))
+        }
+        Slider(value, setValue, valueRange = range)
+    }
+}
+
+@Composable
+private fun CollageStudio(count: Int, columns: Int, setColumns: (Int) -> Unit, background: String, setBackground: (String) -> Unit, chooseMany: () -> Unit) {
+    Surface(shape = RoundedCornerShape(30.dp), color = Color(0xFFEAF9FF)) {
+        Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Collage board", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF0078B7))
+            Text(count.toString() + " images selected", color = Color(0xFF4C6A78))
+            Button(onClick = chooseMany, modifier = Modifier.fillMaxWidth()) { Text("Choose 2–6 photos") }
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                (1..3).forEach { c -> FilterChip(c == columns, { setColumns(c) }, label = { Text(c.toString() + " columns") }) }
+            }
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("White","Black","Soft").forEach { b -> FilterChip(b == background, { setBackground(b) }, label = { Text(b) }) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FrameStudio(border: Float, setBorder: (Float) -> Unit, background: String, setBackground: (String) -> Unit) {
+    Surface(shape = RoundedCornerShape(28.dp), color = Color(0xFFF5F0FF)) {
+        Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Text("Frame maker", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF7752C5))
+            Text("Border " + border.toInt().toString() + " px", fontWeight = FontWeight.Bold)
+            Slider(border, setBorder, valueRange = 4f..120f)
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("White","Black","Soft").forEach { b -> FilterChip(b == background, { setBackground(b) }, label = { Text(b) }) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MemeStudio(top: String, setTop: (String) -> Unit, bottom: String, setBottom: (String) -> Unit) {
+    Surface(shape = RoundedCornerShape(27.dp), color = Color(0xFFFFF7DE)) {
+        Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Text("Meme canvas", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFD38A00))
+            OutlinedTextField(top, setTop, Modifier.fillMaxWidth(), label = { Text("Top text") })
+            OutlinedTextField(bottom, setBottom, Modifier.fillMaxWidth(), label = { Text("Bottom text") })
+            Text("Classic high-contrast caption layout.", fontSize = 11.sp, color = Color(0xFF7A6B49))
+        }
+    }
+}
+
+@Composable
+private fun PixelateStudio(size: Float, setSize: (Float) -> Unit) {
+    Surface(shape = RoundedCornerShape(30.dp), color = Color(0xFFF1EDFF)) {
+        Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Text("Pixel lab", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF7138C6))
+            Text("Block size " + size.toInt().toString(), fontWeight = FontWeight.Bold)
+            Slider(size, setSize, valueRange = 2f..48f)
+            Text("Higher blocks create a stronger pixel-art effect.", fontSize = 11.sp, color = Color(0xFF665E72))
+        }
+    }
+}
+
+private fun frameColor(value: String): Int {
+    return when (value) {
+        "Black" -> android.graphics.Color.BLACK
+        "Soft" -> android.graphics.Color.rgb(245, 245, 250)
+        else -> android.graphics.Color.WHITE
     }
 }
 
@@ -1907,111 +1941,98 @@ private fun PremiumLine(text: String) {
 }
 
 @Composable
-private fun ModernSettings(darkMode: Boolean, onDarkModeChange: (Boolean) -> Unit) {
+private fun ModernSettings(
+    darkMode: Boolean,
+    onDarkModeChange: (Boolean) -> Unit,
+    language: MutableState<AppLanguage>,
+    t: UiStrings
+) {
     val context = LocalContext.current
     var outputFolderUri by remember { mutableStateOf(OutputFolderStore.getTreeUri(context)) }
     val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        try {
-            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            context.contentResolver.takePersistableUriPermission(uri, flags)
-        } catch (_: Exception) {
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+            OutputFolderStore.saveTreeUri(context, uri)
+            outputFolderUri = uri
         }
-        OutputFolderStore.saveTreeUri(context, uri)
-        outputFolderUri = uri
     }
-    val folderName = OutputFolderStore.folderName(context, outputFolderUri)
 
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(18.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item { Text("Settings", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold) }
-
         item {
-            Card(shape = RoundedCornerShape(24.dp)) {
-                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(t.settings, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold)
+            Text("Make the app feel like yours.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        item {
+            Surface(shape = RoundedCornerShape(25.dp), color = Color(0xFFEAF7FF)) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier.size(48.dp).clip(RoundedCornerShape(15.dp))
-                                .background(Brush.linearGradient(listOf(Color(0xFF7B2FF7), Color(0xFF00C6FF)))),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(Modifier.size(50.dp).clip(RoundedCornerShape(17.dp)).background(Brush.linearGradient(listOf(Color(0xFF00C6FF), Color(0xFF7B2FF7)))), contentAlignment = Alignment.Center) {
                             Icon(Icons.Default.FolderSpecial, null, tint = Color.White)
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("Output folder", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                            Text(t.outputFolder, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
                             Text(
-                                if (outputFolderUri != null) {
-                                    folderName ?: "Configured folder"
-                                } else {
-                                    "Choose where created images will be stored."
-                                },
+                                OutputFolderStore.folderName(context, outputFolderUri) ?: t.defaultSaved,
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = if (outputFolderUri != null) Color(0xFFECFDF5) else Color(0xFFFFF7ED)
-                    ) {
-                        Text(
-                            if (outputFolderUri != null) {
-                                "Ready. Images are only written after you tap Save."
-                            } else {
-                                "Not configured. The first Action will guide you through folder setup."
-                            },
-                            Modifier.fillMaxWidth().padding(12.dp),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = if (outputFolderUri != null) Color(0xFF047857) else Color(0xFFC2410C)
-                        )
-                    }
-                    Button(
-                        onClick = {
-                            folderLauncher.launch(outputFolderUri)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
+                    Text(
+                        "Exports automatically fall back to Pictures / Image Tools when a chosen folder is unavailable.",
+                        fontSize = 12.sp,
+                        color = Color(0xFF256B82)
+                    )
+                    Button(onClick = { folderLauncher.launch(outputFolderUri) }, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Default.FolderOpen, null)
                         Spacer(Modifier.width(8.dp))
-                        Text(if (outputFolderUri != null) "Change output folder" else "Choose output folder")
+                        Text(t.changeFolder)
                     }
                 }
             }
         }
-
         item {
-            Card(shape = RoundedCornerShape(22.dp)) {
-                ListItem(
-                    headlineContent = { Text("Dark mode", fontWeight = FontWeight.Bold) },
-                    supportingContent = { Text("Use a darker editing workspace.") },
-                    leadingContent = { Icon(Icons.Default.DarkMode, null) },
-                    trailingContent = { Switch(darkMode, onDarkModeChange) }
-                )
+            Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .55f)) {
+                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.DarkMode, null)
+                    Spacer(Modifier.width(12.dp))
+                    Text(t.darkMode, Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                    Switch(darkMode, onDarkModeChange)
+                }
             }
         }
         item {
-            Card(shape = RoundedCornerShape(22.dp)) {
+            Surface(shape = RoundedCornerShape(22.dp), color = Color(0xFF10A37F).copy(alpha = .08f)) {
                 ListItem(
-                    headlineContent = { Text("Local processing", fontWeight = FontWeight.Bold) },
-                    supportingContent = { Text("Current image editing happens on your device.") },
-                    leadingContent = { Icon(Icons.Default.Security, null) },
-                    trailingContent = { Icon(Icons.Default.VerifiedUser, null, tint = Color(0xFF159A63)) }
+                    headlineContent = { Text(t.localProcessing, fontWeight = FontWeight.Bold) },
+                    supportingContent = { Text("Image transformations run on the device with the current tools.") },
+                    leadingContent = { Icon(Icons.Default.Security, null, tint = Color(0xFF10A37F)) }
                 )
             }
         }
-        item {
-            Card(shape = RoundedCornerShape(22.dp)) {
-                ListItem(
-                    headlineContent = { Text("Account sync", fontWeight = FontWeight.Bold) },
-                    supportingContent = { Text("Profile and plan status sync securely to your account.") },
-                    leadingContent = { Icon(Icons.Default.CloudDone, null) }
-                )
+        item { Text(t.language, fontSize = 21.sp, fontWeight = FontWeight.ExtraBold) }
+        items(AppLanguage.entries.toList()) { item ->
+            Surface(
+                Modifier.fillMaxWidth().clickable { language.value = item },
+                shape = RoundedCornerShape(18.dp),
+                color = if (language.value == item) MaterialTheme.colorScheme.primary.copy(alpha = .10f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .45f)
+            ) {
+                Row(Modifier.padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(item.nativeName, fontWeight = if (language.value == item) FontWeight.ExtraBold else FontWeight.Medium)
+                        Text(languageTag(item), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (language.value == item) Icon(Icons.Default.CheckCircle, null, tint = MaterialTheme.colorScheme.primary)
+                }
             }
         }
     }
@@ -2022,24 +2043,24 @@ private fun ModernAbout() {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Text("About", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold)
-            Text("Image Tools 1.3.1", fontWeight = FontWeight.Bold)
-            Text("A focused image workspace built for fast, private editing.")
+            Text("Image Tools " + BuildConfig.VERSION_NAME, fontWeight = FontWeight.Bold)
+            Text("A mobile-first image workspace with local processing and a safer export flow.")
         }
         item {
             Card(shape = RoundedCornerShape(24.dp)) {
                 ListItem(
-                    headlineContent = { Text("Privacy first", fontWeight = FontWeight.Bold) },
-                    supportingContent = { Text("The current editing tools process images locally.") },
-                    leadingContent = { Icon(Icons.Default.Shield, null) }
+                    headlineContent = { Text("Local processing", fontWeight = FontWeight.Bold) },
+                    supportingContent = { Text("Core transformations are performed on the device.") },
+                    leadingContent = { Icon(Icons.Default.Security, null) }
                 )
             }
         }
         item {
             Card(shape = RoundedCornerShape(24.dp)) {
                 ListItem(
-                    headlineContent = { Text("What is new", fontWeight = FontWeight.Bold) },
-                    supportingContent = { Text("New crop, rotate, filter and image-details workflows plus a redesigned account experience.") },
-                    leadingContent = { Icon(Icons.Default.AutoAwesome, null) }
+                    headlineContent = { Text("Export recovery", fontWeight = FontWeight.Bold) },
+                    supportingContent = { Text("When a custom folder becomes unavailable, the app falls back to Pictures / Image Tools instead of stopping the export.") },
+                    leadingContent = { Icon(Icons.Default.SaveAlt, null) }
                 )
             }
         }
