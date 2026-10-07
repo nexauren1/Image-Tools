@@ -318,10 +318,10 @@ private fun authMessage(e:Throwable):String{val t=e.message?.lowercase().orEmpty
             "convert","metadata"->{Text(if(t.id=="metadata")"Re-encode to strip common metadata." else "Choose the export format.");FormatChips(f,of,OutputFormat.values().toList())}
             "crop"->{Text("Crop ratio");Choices(listOf("Original","1:1","4:5","16:9","9:16"),ratio,oratio)}
             "rotate"->{Choices(listOf("90","180","270"),angle.toString()){oangle(it.toInt())};Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){FilterChip(fh,{ofh(!fh)},label={Text("Mirror H")},modifier=Modifier.weight(1f));FilterChip(fv,{ofv(!fv)},label={Text("Mirror V")},modifier=Modifier.weight(1f))}}
-            "filter"->{Choices(ImageFilter.values().map{it.label},filter.label){ofilter(ImageFilter.values().first{it.label==this})}}
+            "filter"->{Choices(ImageFilter.values().map{it.label},filter.label){selected->ofilter(ImageFilter.values().first{it.label==selected})}}
             "watermark"->{OutlinedTextField(text,otext,Modifier.fillMaxWidth(),label={Text("Watermark text")},singleLine=true);Text("Opacity "+op.toInt()+"%");Slider(op,oop,valueRange=10f..100f);Choices(listOf("Top left","Top right","Center","Bottom left","Bottom right"),pos,opos)}
             "brightness","contrast","saturation","warmth"->{Text("Amount "+amt.toInt(),fontWeight=FontWeight.ExtraBold);Slider(amt,oamt,valueRange=-100f..100f)}
-            "blur","sharpen"->{Text("Strength "+amt.toInt(),fontWeight=FontWeight.ExtraBold);Slider(amt,oamt,valueRange=25f..100f)}
+            "blur","sharpen"->{Text("Strength "+amt.toInt(),fontWeight=FontWeight.ExtraBold);Slider(amt,oamt,valueRange=0f..100f)}
             "pixelate"->{Text("Block size "+px.toInt()+" px",fontWeight=FontWeight.ExtraBold);Slider(px,opx,valueRange=4f..48f)}
             "border"->{Text("Border "+border.toInt()+" px",fontWeight=FontWeight.ExtraBold);Slider(border,ob,valueRange=4f..120f)}
             "round"->{Text("Radius "+radius.toInt()+" px",fontWeight=FontWeight.ExtraBold);Slider(radius,orad,valueRange=8f..160f)}
