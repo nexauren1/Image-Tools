@@ -15,14 +15,6 @@ val hasReleaseSigning = !releaseKeystoreBase64.isNullOrBlank() &&
     !releaseKeyAlias.isNullOrBlank() &&
     !releaseKeyPassword.isNullOrBlank()
 
-val admobAppId = System.getenv("ADMOB_APP_ID")
-    .takeUnless { it.isNullOrBlank() }
-    ?: "ca-app-pub-2381605116846917~1685022220"
-
-val admobBannerAdUnitId = System.getenv("ADMOB_BANNER_AD_UNIT_ID")
-    .takeUnless { it.isNullOrBlank() }
-    ?: "ca-app-pub-2381605116846917/9180368865"
-
 val releaseKeystoreFile = layout.buildDirectory.file("keystores/imagetools-release.jks").get().asFile
 if (hasReleaseSigning) {
     releaseKeystoreFile.parentFile.mkdirs()
@@ -37,14 +29,12 @@ android {
         applicationId = "com.nexauren.imagetools"
         minSdk = 29
         targetSdk = 36
-        versionCode = 16
-        versionName = "1.6.4"
+        versionCode = 17
+        versionName = "1.6.5"
         vectorDrawables { useSupportLibrary = true }
 
         buildConfigField("String", "WORKER_URL", "\"${System.getenv("WORKER_URL") ?: "https://steep-pine-34fe.nexaurenstore.workers.dev"}\"")
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${System.getenv("GOOGLE_WEB_CLIENT_ID") ?: "1062438516387-i2plli4d5mq9gkaauik6q2tf4nb1bqq7.apps.googleusercontent.com"}\"")
-        buildConfigField("String", "ADMOB_BANNER_AD_UNIT_ID", "\"$admobBannerAdUnitId\"")
-        resValue("string", "admob_app_id", admobAppId)
     }
 
     signingConfigs {
@@ -79,7 +69,6 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
-        resValues = true
     }
 
     compileOptions {
@@ -117,7 +106,6 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-analytics")
-    implementation("com.google.android.gms:play-services-ads:25.5.0")
 
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
