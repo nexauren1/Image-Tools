@@ -812,7 +812,6 @@ object ImageProcessor {
             cursor += if (vertical) bitmap.height else bitmap.width
             if (index != fitted.lastIndex) cursor += safeGap
         }
-        fitted.forEach { if (!it.isRecycled) it.recycle() }
         return output
     }
 
