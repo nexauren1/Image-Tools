@@ -120,14 +120,15 @@ object ImageProcessor {
         val safeText = text.trim().ifBlank { "IMAGE TOOLS" }
         val output = bitmap.copy(Bitmap.Config.ARGB_8888, true)
         val canvas = Canvas(output)
+        val watermarkTextSize = (min(bitmap.width, bitmap.height) * 0.065f).coerceIn(28f, 120f)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = android.graphics.Color.WHITE
             alpha = opacity.coerceIn(10, 100) * 255 / 100
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            textSize = (min(bitmap.width, bitmap.height) * 0.065f).coerceIn(28f, 120f)
-            setShadowLayer(textSize * 0.14f, 0f, textSize * 0.08f, android.graphics.Color.BLACK)
+            textSize = watermarkTextSize
+            setShadowLayer(watermarkTextSize * 0.14f, 0f, watermarkTextSize * 0.08f, android.graphics.Color.BLACK)
         }
-        val margin = textSize.toInt()
+        val margin = watermarkTextSize.toInt()
         val width = paint.measureText(safeText)
         val x = when (position) {
             "Top left", "Bottom left" -> margin.toFloat()
