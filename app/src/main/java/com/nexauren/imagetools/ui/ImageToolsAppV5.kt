@@ -220,8 +220,8 @@ fun ImageToolsAppV5(
                     when {
                         selectedTool != null -> {
                             val tool = TOOL_CATALOG.first { it.id == selectedTool }
-                            ToolWorkspaceV5(
-                                tool = tool,
+                            ToolWorkspaceV6(
+                                tool = AnyToolDef(tool.id, tool.icon, tool.start, tool.end, tool.premium),
                                 premium = premium,
                                 onBack = { selectedTool = null },
                                 onNeedPremium = { navigate("premium") }
