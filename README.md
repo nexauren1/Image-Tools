@@ -1,43 +1,125 @@
 # Image Tools
 
-Modern Android image workspace focused on fast, local editing.
+Image Tools is a modern Android toolbox for everyday image jobs, with a local-first workflow and optional Premium features.
 
-## Version 1.1
-- Resize Image with precise dimensions and aspect-ratio lock
-- Compress with JPEG / WEBP quality control
-- Convert between JPEG, PNG and WEBP
-- Smart Crop presets: 1:1, 4:5, 16:9 and 9:16
-- Rotate & Flip
-- Quick Filters: original, grayscale, sepia and high contrast
-- Image Details: resolution and source file size
-- Redesigned tool workspaces with a distinct visual identity per tool
-- Cleaner account and sign-in experience with user-friendly error messages
-- Image processing moved off the UI thread for smoother interaction
+## Current release
+
+- Version: 1.5.0
+- Version code: 10
+- Package: `com.nexauren.imagetools`
+- Minimum Android: 10 (API 29)
+- Target Android: API 36
+- Main processing: on-device
+- Premium payments: PayPal through the Cloudflare Worker
+
+## Tools
+
+### Core tools
+- Resize with aspect-ratio lock
+- Compress with quality control
+- Convert JPEG / PNG / WEBP
+- Crop presets: 1:1, 4:5, 16:9, 9:16
+- Rotate and mirror
+- Grayscale, sepia and high-contrast filters
+- Watermark text
+- Image details
+
+### Additional tools
+- Brightness
+- Contrast
+- Saturation
+- Warmth
+- Negative / invert
+- Blur
+- Sharpen
+- Pixelate
+- Border
+- Rounded corners
+- Remove common embedded metadata by re-encoding
+- Image to PDF
+- Dominant color palette
+- Quick collage for 2–4 images
+
+The expanded toolbox follows common patterns found in modern image utility apps—grouped tools, batch-oriented workflows, privacy/metadata controls, collage/stitching concepts and utility exports—while keeping the implementation lightweight and original.
+
+## Privacy and legal pages
+
+The Cloudflare Worker serves public pages suitable for app-store listings:
+
+- Home: `/\`
+- Privacy Policy: `/privacy`
+- Terms of Service: `/terms`
+- Support and account deletion: `/support`
+
+Production base URL:
+
+`https://steep-pine-34fe.nexaurenstore.workers.dev`
+
+Use the Privacy Policy URL above in APKPure/Uptodown publisher metadata.
+
+## PayPal
+
+The Android app starts Premium checkout through:
+
+`POST /paypal/create-subscription`
+
+and verifies entitlement through:
+
+`GET /paypal/subscription-status`
+
+Cancellation is handled through:
+
+`POST /paypal/cancel-subscription`
+
+The PayPal client secret stays on the Cloudflare Worker. Do not put PayPal credentials in the APK or GitHub source.
+
+The worker supports PayPal live mode when `PAYPAL_ENVIRONMENT=live` is configured.
 
 ## Firebase
-Android package: `com.nexauren.imagetools`.
-Use the shared Firebase project. Enable Google and Email/Password sign-in and Cloud Firestore.
-Register the release certificate SHA-1 and SHA-256 in Firebase before testing Google Sign-In.
 
-## GitHub Actions release signing
-Store these values as **GitHub Actions Secrets**, not public repository variables:
+The app uses Firebase Authentication for Google and email/password sign-in and Firestore for server-managed entitlement state.
 
-- `KEYSTORE_BASE64` — Base64 content of the release keystore
-- `KEYSTORE_PASSWORD` — keystore password
-- `KEY_ALIAS` — release key alias
-- `KEY_PASSWORD` — release key password
+Client writes to the entitlement documents are disabled in Firestore rules.
 
-The workflow uses these secrets only during the release build and creates `app-release.apk`.
-If the secrets are not present, a local release build falls back to the debug signing key instead of exposing credentials.
+## Build and release
 
-Optional build values:
+GitHub Actions builds the signed release APK on pushes to `main` and `v*`.
+
+Required GitHub Actions secrets for signed releases:
+
+- `KEYSTORE_BASE64`
+- `KEYSTORE_PASSWORD`
+- `KEY_ALIAS`
+- `KEY_PASSWORD`
+
+Optional build variables:
+
 - `WORKER_URL`
 - `GOOGLE_WEB_CLIENT_ID`
 
-Never place PayPal client secrets or Firebase service-account private keys inside the APK.
+The Android workflow produces:
 
-## Privacy
-Current image editing workflows run locally on the device. The app UI intentionally avoids exposing internal identifiers, certificate fingerprints, backend URLs, stack traces, or development diagnostics to end users.
+`app/build/outputs/apk/release/app-release.apk`
 
-## Build validation
-Release build validated through GitHub Actions.
+## Publishing checklist
+
+Before submitting to a store:
+
+1. Confirm the Cloudflare Worker is deployed with the latest `cloudflare-worker/src/index.js`.
+2. Confirm PayPal is live and the production plan is active.
+3. Confirm the PayPal webhook points to `/paypal/webhook`.
+4. Build and test the signed release APK.
+5. Test sign-in, Premium checkout, return/deep-link handling, entitlement refresh and cancellation.
+6. Publish the Privacy Policy URL.
+7. Add the application icon, screenshots, short description and full description.
+8. Upload the signed APK to the selected store.
+
+## Security
+
+Never commit:
+
+- PayPal client secrets
+- Firebase service-account private keys
+- Release keystore files or passwords
+- Other production credentials
+
