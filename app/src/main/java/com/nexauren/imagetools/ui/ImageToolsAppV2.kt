@@ -40,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nexauren.imagetools.BuildConfig
 import com.nexauren.imagetools.auth.AuthRepository
-import com.nexauren.imagetools.data.FirestoreRepository
 import com.nexauren.imagetools.data.PaymentException
 import com.nexauren.imagetools.data.PaymentRepository
 import com.nexauren.imagetools.data.OutputFolderStore
@@ -77,7 +76,6 @@ private val tools = listOf(
 @Composable
 fun ImageToolsAppV2(
     auth: AuthRepository,
-    firestore: FirestoreRepository,
     premium: Boolean,
     darkMode: Boolean,
     onDarkModeChange: (Boolean) -> Unit,
@@ -159,7 +157,7 @@ fun ImageToolsAppV2(
                             val selected = tools.firstOrNull { tool -> tool.id == it }
                             if (selected?.premiumOnly == true && !premium) page = "premium" else selectedTool = it
                         }
-                        "account" -> ModernAccount(auth, firestore, premium) { page = "premium" }
+                        "account" -> ModernAccount(auth, premium) { page = "premium" }
                         "premium" -> ModernPremium(auth, premium, onStartPayment, onCancelSubscription)
                         "settings" -> ModernSettings(darkMode, onDarkModeChange)
                         "about" -> ModernAbout()
@@ -214,6 +212,7 @@ private fun ModernAuthScreen(auth: AuthRepository) {
     var password by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var notice by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     Box(
@@ -245,8 +244,10 @@ private fun ModernAuthScreen(auth: AuthRepository) {
                             onClick = {
                                 busy = true
                                 error = null
+                                notice = null
                                 scope.launch {
-                                    auth.signInGoogle(BuildConfig.GOOGLE_WEB_CLIENT_ID).onFailure { error = authMessage(it) }
+                                    auth.signInGoogle(BuildConfig.GOOGLE_WEB_CLIENT_ID)
+                                        .onFailure { error = authMessage(it) }
                                     busy = false
                                 }
                             },
@@ -265,7 +266,14 @@ private fun ModernAuthScreen(auth: AuthRepository) {
                             HorizontalDivider(Modifier.weight(1f))
                         }
                         Spacer(Modifier.height(14.dp))
-                        OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), label = { Text("Email") }, singleLine = true, shape = RoundedCornerShape(16.dp))
+                        OutlinedTextField(
+                            email,
+                            { email = it },
+                            Modifier.fillMaxWidth(),
+                            label = { Text("Email") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(16.dp)
+                        )
                         Spacer(Modifier.height(10.dp))
                         OutlinedTextField(
                             password,
@@ -276,14 +284,46 @@ private fun ModernAuthScreen(auth: AuthRepository) {
                             visualTransformation = PasswordVisualTransformation(),
                             shape = RoundedCornerShape(16.dp)
                         )
-                        Spacer(Modifier.height(14.dp))
+                        if (!create) {
+                            TextButton(
+                                onClick = {
+                                    error = null
+                                    notice = null
+                                    val target = email.trim()
+                                    if (target.isBlank() || !target.contains("@")) {
+                                        error = "Enter your email first."
+                                    } else {
+                                        busy = true
+                                        scope.launch {
+                                            auth.sendPasswordReset(target)
+                                                .onSuccess {
+                                                    notice = "Password reset email sent. Check your inbox."
+                                                }
+                                                .onFailure { error = authMessage(it) }
+                                            busy = false
+                                        }
+                                    }
+                                },
+                                enabled = !busy,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Forgot password?")
+                            }
+                        }
+                        Spacer(Modifier.height(4.dp))
                         Button(
                             onClick = {
                                 busy = true
                                 error = null
+                                notice = null
                                 scope.launch {
-                                    val result = if (create) auth.registerEmail(email, password) else auth.signInEmail(email, password)
-                                    result.onFailure { error = authMessage(it) }
+                                    val result = if (create) {
+                                        auth.registerEmail(email, password)
+                                    } else {
+                                        auth.signInEmail(email, password)
+                                    }
+                                    result
+                                        .onFailure { error = authMessage(it) }
                                     busy = false
                                 }
                             },
@@ -293,10 +333,18 @@ private fun ModernAuthScreen(auth: AuthRepository) {
                         ) {
                             Text(if (create) "Create account" else "Sign in", fontWeight = FontWeight.Bold)
                         }
-                        TextButton(onClick = { create = !create; error = null }, Modifier.fillMaxWidth()) {
+                        TextButton(onClick = {
+                            create = !create
+                            error = null
+                            notice = null
+                        }, Modifier.fillMaxWidth()) {
                             Text(if (create) "Already have an account? Sign in" else "Create a new account")
                         }
                         Text("Your images are processed locally by the current tools.", fontSize = 12.sp, color = Color(0xFF64748B))
+                        if (notice != null) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(notice ?: "", color = Color(0xFF047857), fontSize = 12.sp)
+                        }
                         if (error != null) {
                             Spacer(Modifier.height(8.dp))
                             Text(error ?: "", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
@@ -1546,13 +1594,21 @@ private fun InfoLine(label: String, value: String) {
 }
 
 @Composable
-private fun ModernAccount(auth: AuthRepository, firestore: FirestoreRepository, premium: Boolean, openPremium: () -> Unit) {
+private fun ModernAccount(auth: AuthRepository, premium: Boolean, openPremium: () -> Unit) {
     val user = auth.currentUser ?: return
     var name by remember(user.uid) { mutableStateOf(user.displayName ?: "") }
     var saving by remember { mutableStateOf(false) }
+    var verified by remember(user.uid) { mutableStateOf(user.isEmailVerified) }
+    var busy by remember { mutableStateOf(false) }
+    var status by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val usesPassword = user.providerData.any { it.providerId == "password" }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
         item {
             Text("Account", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold)
             Text("Your profile, plan and security in one place.", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1561,8 +1617,18 @@ private fun ModernAccount(auth: AuthRepository, firestore: FirestoreRepository, 
             Card(shape = RoundedCornerShape(28.dp)) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(64.dp).clip(RoundedCornerShape(22.dp)).background(Brush.linearGradient(listOf(Color(0xFF7B2FF7), Color(0xFF00B9F2)))), contentAlignment = Alignment.Center) {
-                            Text((name.ifBlank { user.email ?: "U" }).first().uppercase(), color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                        Box(
+                            Modifier.size(64.dp)
+                                .clip(RoundedCornerShape(22.dp))
+                                .background(Brush.linearGradient(listOf(Color(0xFF7B2FF7), Color(0xFF00B9F2)))),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                (name.ifBlank { user.email ?: "U" }).first().uppercase(),
+                                color = Color.White,
+                                fontSize = 26.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                         Spacer(Modifier.width(14.dp))
                         Column {
@@ -1570,45 +1636,184 @@ private fun ModernAccount(auth: AuthRepository, firestore: FirestoreRepository, 
                             Text(user.email ?: "", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text("Display name") }, singleLine = true, shape = RoundedCornerShape(16.dp))
+                    OutlinedTextField(
+                        name,
+                        { name = it },
+                        Modifier.fillMaxWidth(),
+                        label = { Text("Display name") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp)
+                    )
                     Button(
                         onClick = {
                             saving = true
-                            firestore.updateDisplayName(name)
-                            scope.launch { kotlinx.coroutines.delay(300); saving = false }
+                            status = null
+                            scope.launch {
+                                auth.updateDisplayName(name)
+                                    .onSuccess { status = "Profile updated." }
+                                    .onFailure { status = authMessage(it) }
+                                saving = false
+                            }
                         },
                         enabled = !saving,
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text(if (saving) "Saving…" else "Save profile") }
+                    ) {
+                        Text(if (saving) "Saving…" else "Save profile")
+                    }
+                    if (status != null) {
+                        Text(
+                            status ?: "",
+                            color = if (status == "Profile updated.") Color(0xFF047857) else MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             }
         }
+
         item {
             Card(shape = RoundedCornerShape(24.dp)) {
                 ListItem(
                     headlineContent = { Text(if (premium) "Premium active" else "Free plan", fontWeight = FontWeight.Bold) },
-                    supportingContent = { Text(if (premium) "Premium is active on this account." else "Upgrade for US$5/month as the premium library grows.") },
+                    supportingContent = {
+                        Text(
+                            if (premium) "Premium is active on this account."
+                            else "Upgrade for US$5/month as the premium library grows."
+                        )
+                    },
                     leadingContent = { Icon(if (premium) Icons.Default.WorkspacePremium else Icons.Default.LockOpen, null) },
-                    trailingContent = { if (!premium) Button(onClick = openPremium) { Text("Upgrade") } }
+                    trailingContent = {
+                        if (!premium) Button(onClick = openPremium) { Text("Upgrade") }
+                    }
                 )
             }
         }
+
+        if (usesPassword) {
+            item {
+                Card(shape = RoundedCornerShape(24.dp)) {
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                if (verified) Icons.Default.MarkEmailRead else Icons.Default.MarkEmailUnread,
+                                null,
+                                tint = if (verified) Color(0xFF159A63) else Color(0xFFC2410C)
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    if (verified) "Email verified" else "Email not verified",
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    if (verified) "Your email address is confirmed."
+                                    else "Confirm your email to keep your account secure.",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        if (!verified) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    onClick = {
+                                        busy = true
+                                        status = null
+                                        scope.launch {
+                                            auth.sendEmailVerification()
+                                                .onSuccess { status = "Verification email sent." }
+                                                .onFailure { status = authMessage(it) }
+                                            busy = false
+                                        }
+                                    },
+                                    enabled = !busy,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(if (busy) "Sending…" else "Send email")
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        busy = true
+                                        scope.launch {
+                                            auth.reloadCurrentUser()
+                                                .onSuccess {
+                                                    verified = auth.currentUser?.isEmailVerified == true
+                                                    status = if (verified) "Email verified." else "Email is still not verified."
+                                                }
+                                                .onFailure { status = authMessage(it) }
+                                            busy = false
+                                        }
+                                    },
+                                    enabled = !busy,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Refresh")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                Card(shape = RoundedCornerShape(24.dp)) {
+                    ListItem(
+                        headlineContent = { Text("Password recovery", fontWeight = FontWeight.Bold) },
+                        supportingContent = { Text("Send a secure password reset link to " + (user.email ?: "your email") + ".") },
+                        leadingContent = { Icon(Icons.Default.Password, null) },
+                        trailingContent = {
+                            TextButton(
+                                onClick = {
+                                    busy = true
+                                    status = null
+                                    scope.launch {
+                                        auth.sendPasswordReset(user.email.orEmpty())
+                                            .onSuccess { status = "Password reset email sent." }
+                                            .onFailure { status = authMessage(it) }
+                                        busy = false
+                                    }
+                                },
+                                enabled = !busy
+                            ) {
+                                Text("Send")
+                            }
+                        }
+                    )
+                }
+            }
+        } else {
+            item {
+                Card(shape = RoundedCornerShape(24.dp)) {
+                    ListItem(
+                        headlineContent = { Text("Google account", fontWeight = FontWeight.Bold) },
+                        supportingContent = { Text("Your identity is managed securely by Google Sign-In.") },
+                        leadingContent = { Icon(Icons.Default.AccountCircle, null) },
+                        trailingContent = { Icon(Icons.Default.VerifiedUser, null, tint = Color(0xFF159A63)) }
+                    )
+                }
+            }
+        }
+
         item {
             Card(shape = RoundedCornerShape(24.dp)) {
                 ListItem(
                     headlineContent = { Text("Account security", fontWeight = FontWeight.Bold) },
-                    supportingContent = { Text("Sign-in is handled securely by your authentication provider.") },
+                    supportingContent = { Text("Authentication is handled securely by Firebase Authentication.") },
                     leadingContent = { Icon(Icons.Default.Security, null) },
                     trailingContent = { Icon(Icons.Default.VerifiedUser, null, tint = Color(0xFF159A63)) }
                 )
             }
         }
+
         item {
             OutlinedButton(
                 onClick = { auth.signOut() },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-            ) { Text("Sign out") }
+            ) {
+                Text("Sign out")
+            }
         }
     }
 }
@@ -1817,7 +2022,7 @@ private fun ModernAbout() {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Text("About", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold)
-            Text("Image Tools 1.3.0", fontWeight = FontWeight.Bold)
+            Text("Image Tools 1.3.1", fontWeight = FontWeight.Bold)
             Text("A focused image workspace built for fast, private editing.")
         }
         item {
