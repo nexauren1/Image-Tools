@@ -239,7 +239,7 @@ fun ImageToolsAppV5(
                         page == "premium" -> PremiumScreenV5(auth, strings, premium, onStartPayment, onCancelSubscription)
                         page == "account" -> AccountScreenV5(auth, strings, premium) { navigate("premium") }
                         page == "history" -> HistoryScreenV5(strings)
-                        page == "recipes" -> RecipesScreenV5(auth, strings)
+                        page == "recipes" -> RecipesScreenV5(auth, premium, strings)
                         page == "settings" -> SettingsScreenV5(
                             strings = strings,
                             darkMode = darkMode,
