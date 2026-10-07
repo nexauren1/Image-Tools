@@ -24,7 +24,11 @@ enum class ImageFilter(val label: String) {
     ORIGINAL("Original"),
     GRAYSCALE("Grayscale"),
     SEPIA("Sepia"),
-    HIGH_CONTRAST("High Contrast")
+    HIGH_CONTRAST("High Contrast"),
+    VIBRANT("Vibrant"),
+    WARM("Warm"),
+    COOL("Cool"),
+    FADE("Fade")
 }
 
 data class ImageResult(
@@ -135,6 +139,10 @@ object ImageProcessor {
                 output
             }
             ImageFilter.HIGH_CONTRAST -> adjust(bitmap, 0f, 0.35f, 1.0f)
+            ImageFilter.VIBRANT -> adjust(bitmap, 0.02f, 0.10f, 1.30f)
+            ImageFilter.WARM -> colorGrade(bitmap, 8f, 1.04f, 0.88f)
+            ImageFilter.COOL -> colorGrade(bitmap, -8f, 0.94f, 1.06f)
+            ImageFilter.FADE -> adjust(bitmap, 0.04f, -0.08f, 0.86f)
             ImageFilter.ORIGINAL -> bitmap
         }
     }
@@ -301,6 +309,129 @@ object ImageProcessor {
         return Bitmap.createBitmap(output, width, height, Bitmap.Config.ARGB_8888)
     }
 
+
+    private fun colorGrade(bitmap: Bitmap, redOffset: Float, redScale: Float, blueScale: Float): Bitmap {
+        val output = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        paint.colorFilter = ColorMatrixColorFilter(
+            ColorMatrix(
+                floatArrayOf(
+                    redScale, 0f, 0f, 0f, redOffset,
+                    0f, 1f, 0f, 0f, 0f,
+                    0f, 0f, blueScale, 0f, -redOffset,
+                    0f, 0f, 0f, 1f, 0f
+                )
+            )
+        )
+        canvas.drawBitmap(bitmap, 0f, 0f, paint)
+        return output
+    }
+
+    fun blur(bitmap: Bitmap, strength: Float): Bitmap {
+        val amount = strength.coerceIn(0.1f, 1f)
+        val scale = (20f - amount * 14f).toInt().coerceIn(5, 18)
+        val small = Bitmap.createScaledBitmap(
+            bitmap,
+            max(1, bitmap.width / scale),
+            max(1, bitmap.height / scale),
+            true
+        )
+        val blurred = Bitmap.createScaledBitmap(small, bitmap.width, bitmap.height, true)
+        small.recycle()
+        return blurred
+    }
+
+    fun negative(bitmap: Bitmap): Bitmap {
+        val output = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        paint.colorFilter = ColorMatrixColorFilter(
+            ColorMatrix(
+                floatArrayOf(
+                    -1f, 0f, 0f, 0f, 255f,
+                    0f, -1f, 0f, 0f, 255f,
+                    0f, 0f, -1f, 0f, 255f,
+                    0f, 0f, 0f, 1f, 0f
+                )
+            )
+        )
+        canvas.drawBitmap(bitmap, 0f, 0f, paint)
+        return output
+    }
+
+    fun duotone(bitmap: Bitmap, shadowColor: Int, highlightColor: Int): Bitmap {
+        val source = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(source, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        val sr = Color.red(shadowColor)
+        val sg = Color.green(shadowColor)
+        val sb = Color.blue(shadowColor)
+        val hr = Color.red(highlightColor)
+        val hg = Color.green(highlightColor)
+        val hb = Color.blue(highlightColor)
+
+        for (i in source.indices) {
+            val c = source[i]
+            val luminance = (
+                0.2126f * Color.red(c) +
+                0.7152f * Color.green(c) +
+                0.0722f * Color.blue(c)
+            ) / 255f
+            source[i] = Color.argb(
+                Color.alpha(c),
+                (sr + (hr - sr) * luminance).toInt().coerceIn(0, 255),
+                (sg + (hg - sg) * luminance).toInt().coerceIn(0, 255),
+                (sb + (hb - sb) * luminance).toInt().coerceIn(0, 255)
+            )
+        }
+        return Bitmap.createBitmap(source, bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+    }
+
+    fun socialCanvas(bitmap: Bitmap, preset: String, backgroundColor: Int): Bitmap {
+        val (targetW, targetH) = when (preset) {
+            "Story 9:16" -> 1080 to 1920
+            "Portrait 4:5" -> 1080 to 1350
+            "Landscape 16:9" -> 1920 to 1080
+            else -> 1080 to 1080
+        }
+        val fit = min(targetW / bitmap.width.toFloat(), targetH / bitmap.height.toFloat())
+        val drawW = (bitmap.width * fit).toInt().coerceAtLeast(1)
+        val drawH = (bitmap.height * fit).toInt().coerceAtLeast(1)
+        val output = Bitmap.createBitmap(targetW, targetH, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        canvas.drawColor(backgroundColor)
+        val left = (targetW - drawW) / 2
+        val top = (targetH - drawH) / 2
+        canvas.drawBitmap(
+            bitmap,
+            null,
+            Rect(left, top, left + drawW, top + drawH),
+            Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+        )
+        return output
+    }
+
+    fun roundedCorners(bitmap: Bitmap, radius: Float): Bitmap {
+        val output = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        val path = Path().apply {
+            addRoundRect(
+                0f,
+                0f,
+                bitmap.width.toFloat(),
+                bitmap.height.toFloat(),
+                radius.coerceAtLeast(0f),
+                radius.coerceAtLeast(0f),
+                Path.Direction.CW
+            )
+        }
+        canvas.save()
+        canvas.clipPath(path)
+        canvas.drawBitmap(bitmap, 0f, 0f, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+        canvas.restore()
+        return output
+    }
+
     fun backgroundCutout(bitmap: Bitmap, tolerance: Int): Bitmap {
         val width = bitmap.width
         val height = bitmap.height
@@ -309,14 +440,18 @@ object ImageProcessor {
         val pixels = IntArray(width * height)
         bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
 
-        fun averageCorner(startX: Int, startY: Int): Int {
+        fun patchAverage(centerX: Int, centerY: Int): Int {
+            val patch = min(18, min(width, height) / 6).coerceAtLeast(2)
             var r = 0L
             var g = 0L
             var b = 0L
             var n = 0
-            val patch = min(12, min(width, height))
-            for (yy in startY until min(height, startY + patch)) {
-                for (xx in startX until min(width, startX + patch)) {
+            val left = (centerX - patch / 2).coerceIn(0, width - 1)
+            val right = (centerX + patch / 2).coerceIn(left + 1, width)
+            val top = (centerY - patch / 2).coerceIn(0, height - 1)
+            val bottom = (centerY + patch / 2).coerceIn(top + 1, height)
+            for (yy in top until bottom) {
+                for (xx in left until right) {
                     val c = pixels[yy * width + xx]
                     r += Color.red(c)
                     g += Color.green(c)
@@ -324,63 +459,106 @@ object ImageProcessor {
                     n++
                 }
             }
-            return Color.rgb((r / max(1, n)).toInt(), (g / max(1, n)).toInt(), (b / max(1, n)).toInt())
+            return Color.rgb(
+                (r / max(1, n)).toInt(),
+                (g / max(1, n)).toInt(),
+                (b / max(1, n)).toInt()
+            )
         }
 
-        val c1 = averageCorner(0, 0)
-        val c2 = averageCorner(max(0, width - 12), 0)
-        val c3 = averageCorner(0, max(0, height - 12))
-        val c4 = averageCorner(max(0, width - 12), max(0, height - 12))
-        val bgR = (Color.red(c1) + Color.red(c2) + Color.red(c3) + Color.red(c4)) / 4
-        val bgG = (Color.green(c1) + Color.green(c2) + Color.green(c3) + Color.green(c4)) / 4
-        val bgB = (Color.blue(c1) + Color.blue(c2) + Color.blue(c3) + Color.blue(c4)) / 4
-        val threshold = tolerance.coerceIn(15, 140)
-        val thresholdSq = threshold * threshold
+        val samplePoints = listOf(
+            0 to 0,
+            width / 2 to 0,
+            width - 1 to 0,
+            0 to height / 2,
+            width - 1 to height / 2,
+            0 to height - 1,
+            width / 2 to height - 1,
+            width - 1 to height - 1
+        )
+        val backgroundSamples = samplePoints.map { patchAverage(it.first, it.second) }
 
-        fun similar(c: Int): Boolean {
-            val dr = Color.red(c) - bgR
-            val dg = Color.green(c) - bgG
-            val db = Color.blue(c) - bgB
-            return dr * dr + dg * dg + db * db <= thresholdSq
+        fun rgbDistance(a: Int, b: Int): Float {
+            val dr = (Color.red(a) - Color.red(b)).toFloat()
+            val dg = (Color.green(a) - Color.green(b)).toFloat()
+            val db = (Color.blue(a) - Color.blue(b)).toFloat()
+            return sqrt(dr * dr + dg * dg + db * db)
         }
 
+        fun backgroundDistance(c: Int): Float =
+            backgroundSamples.minOf { rgbDistance(c, it) }
+
+        val threshold = tolerance.coerceIn(12, 150).toFloat()
+        val localThreshold = (threshold * 0.72f).coerceIn(8f, 95f)
         val visited = BooleanArray(width * height)
         val queue = IntArray(width * height)
         var head = 0
         var tail = 0
 
-        fun enqueue(index: Int) {
-            if (index in 0 until pixels.size && !visited[index] && similar(pixels[index])) {
-                visited[index] = true
-                queue[tail++] = index
-            }
+        fun tryEnqueue(index: Int, parentColor: Int?) {
+            if (index !in pixels.indices || visited[index]) return
+            val color = pixels[index]
+            if (backgroundDistance(color) > threshold) return
+            if (parentColor != null && rgbDistance(color, parentColor) > localThreshold) return
+            visited[index] = true
+            queue[tail++] = index
         }
 
         for (x in 0 until width) {
-            enqueue(x)
-            enqueue((height - 1) * width + x)
+            tryEnqueue(x, null)
+            tryEnqueue((height - 1) * width + x, null)
         }
         for (y in 0 until height) {
-            enqueue(y * width)
-            enqueue(y * width + width - 1)
+            tryEnqueue(y * width, null)
+            tryEnqueue(y * width + width - 1, null)
         }
 
         while (head < tail) {
             val index = queue[head++]
+            val currentColor = pixels[index]
             val x = index % width
             val y = index / width
-            if (x > 0) enqueue(index - 1)
-            if (x < width - 1) enqueue(index + 1)
-            if (y > 0) enqueue(index - width)
-            if (y < height - 1) enqueue(index + width)
+            if (x > 0) tryEnqueue(index - 1, currentColor)
+            if (x < width - 1) tryEnqueue(index + 1, currentColor)
+            if (y > 0) tryEnqueue(index - width, currentColor)
+            if (y < height - 1) tryEnqueue(index + width, currentColor)
         }
 
-        for (i in pixels.indices) {
-            if (visited[i]) {
-                pixels[i] = pixels[i] and 0x00FFFFFF
+        val output = pixels.copyOf()
+        for (index in output.indices) {
+            if (!visited[index]) continue
+            output[index] = output[index] and 0x00FFFFFF
+        }
+
+        // Feather only the cutout boundary, preserving a cleaner subject edge.
+        for (y in 1 until height - 1) {
+            for (x in 1 until width - 1) {
+                val index = y * width + x
+                if (visited[index]) continue
+                var erasedNeighbors = 0
+                for (dy in -1..1) {
+                    for (dx in -1..1) {
+                        if (dx == 0 && dy == 0) continue
+                        if (visited[(y + dy) * width + (x + dx)]) erasedNeighbors++
+                    }
+                }
+                if (erasedNeighbors > 0) {
+                    val alpha = when {
+                        erasedNeighbors >= 5 -> 125
+                        erasedNeighbors >= 3 -> 165
+                        else -> 205
+                    }
+                    output[index] = Color.argb(
+                        min(Color.alpha(output[index]), alpha),
+                        Color.red(output[index]),
+                        Color.green(output[index]),
+                        Color.blue(output[index])
+                    )
+                }
             }
         }
-        return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
+
+        return Bitmap.createBitmap(output, width, height, Bitmap.Config.ARGB_8888)
     }
 
     fun portraitBlur(bitmap: Bitmap, intensity: Float): Bitmap {
