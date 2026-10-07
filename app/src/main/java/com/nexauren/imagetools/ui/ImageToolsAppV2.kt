@@ -2094,8 +2094,41 @@ private fun ModernAccount(auth: AuthRepository, premium: Boolean, openPremium: (
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Text("Account", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold)
-            Text("Your profile, plan and security in one place.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Surface(
+                shape = RoundedCornerShape(30.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 4.dp
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        Modifier.size(56.dp).clip(RoundedCornerShape(18.dp))
+                            .background(Brush.linearGradient(listOf(Color(0xFF5B46F6), Color(0xFF06B6D4)))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Person, null, tint = Color.White, modifier = Modifier.size(28.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Account", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("Profile, plan and security", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(50.dp),
+                        color = if (premium) Color(0xFFDCFCE7) else Color(0xFFEEF2FF)
+                    ) {
+                        Text(
+                            if (premium) "PRO" else "FREE",
+                            Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (premium) Color(0xFF15803D) else Color(0xFF4F46E5)
+                        )
+                    }
+                }
+            }
         }
         item {
             Card(shape = RoundedCornerShape(28.dp)) {
@@ -2317,9 +2350,16 @@ private fun ModernPremium(
         item {
             Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(30.dp)).background(Brush.linearGradient(listOf(Color(0xFF171126), Color(0xFF7B2FF7), Color(0xFFF107A3)))).padding(24.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Premium", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
-                    Text("More power with a simple monthly plan.", color = Color.White.copy(alpha = 0.82f))
-                    Text("US$5 / month", color = Color.White, fontSize = 38.sp, fontWeight = FontWeight.ExtraBold)
+                    Surface(shape = RoundedCornerShape(50.dp), color = Color.White.copy(alpha = .12f)) {
+                        Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.WorkspacePremium, null, tint = Color(0xFFFDE68A), modifier = Modifier.size(15.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("PRO CREATOR LAYER", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
+                    Text("Premium", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("A focused upgrade for advanced creative workflows.", color = Color.White.copy(alpha = 0.82f), fontSize = 13.sp)
+                    Text("US$5 / month", color = Color.White, fontSize = 40.sp, fontWeight = FontWeight.ExtraBold)
                     Text("Recurring subscription • Cancel anytime", color = Color.White.copy(alpha = 0.82f), fontSize = 12.sp)
                 }
             }
@@ -2417,8 +2457,27 @@ private fun ModernSettings(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Text(t.settings, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold)
-            Text("Make the app feel like yours.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Box(
+                Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(30.dp))
+                    .background(Brush.linearGradient(listOf(Color(0xFF0F172A), Color(0xFF1D4ED8), Color(0xFF06B6D4))))
+                    .padding(20.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(52.dp).clip(RoundedCornerShape(16.dp))
+                            .background(Color.White.copy(alpha = .14f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Settings, null, tint = Color.White, modifier = Modifier.size(27.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(t.settings, color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("Controls, appearance and export behavior", color = Color.White.copy(alpha = .72f), fontSize = 12.sp)
+                    }
+                }
+            }
         }
         item {
             Surface(shape = RoundedCornerShape(25.dp), color = Color(0xFFEAF7FF)) {
