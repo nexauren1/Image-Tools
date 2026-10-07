@@ -827,7 +827,7 @@ function privacyPage() {
     "<p><strong>Last updated: October 7, 2026.</strong></p>" +
     "<p>Image Tools is an Android application focused on local image utilities. This policy explains the main data flows used by the app.</p>" +
     "<h2>1. Images and files</h2>" +
-    "<p>The core editing tools process selected images on the device. The app does not upload the image itself to the Image Tools backend merely to resize, compress, convert, crop, rotate, filter, watermark, adjust colors, blur, sharpen, pixelate, add borders, create palettes, create collages or export a PDF. Exported files are saved to the location selected by you.</p>" +
+    "<p>The core image tools process selected files on the device. The app does not upload the image itself to the Image Tools backend merely to resize, compress, convert, crop, rotate, filter, watermark, adjust colors, blur, sharpen, pixelate, add borders, create palettes, create collages, remove backgrounds, recognize text with OCR, read EXIF metadata, blur detected faces, create GIFs, merge PDFs, apply social presets, or export HEIC/AVIF/PDF results. Exported files are saved to the location selected by you.</p>" +
     "<h2>2. Account data</h2>" +
     "<p>When you create or sign in to an account, Image Tools uses Firebase Authentication. Depending on the sign-in method, Firebase may process an email address and account/profile information supplied by you or by the selected identity provider.</p>" +
     "<h2>3. Subscription data</h2>" +
