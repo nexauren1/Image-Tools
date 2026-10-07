@@ -738,7 +738,7 @@ private fun ToolWorkspaceV5(
     var imageFilter by remember { mutableStateOf(ImageFilter.ORIGINAL) }
     var watermark by remember { mutableStateOf("IMAGE TOOLS") }
     var opacity by remember { mutableFloatStateOf(65f) }
-    var position by remember { mutableStateOf("Bottom right") }
+    var position by remember { mutableStateOf("bottom_right") }
     var amount by remember { mutableFloatStateOf(0f) }
     var pixelSize by remember { mutableFloatStateOf(18f) }
     var borderSize by remember { mutableFloatStateOf(24f) }
@@ -888,7 +888,18 @@ private fun ToolWorkspaceV5(
 
                 "watermark" -> {
                     prepareImage(
-                        ImageProcessor.watermark(bitmap, watermark, opacity.toInt(), position),
+                        ImageProcessor.watermark(
+                            bitmap,
+                            watermark,
+                            opacity.toInt(),
+                            when (position) {
+                                "top_left" -> "Top left"
+                                "top_right" -> "Top right"
+                                "center" -> "Center"
+                                "bottom_left" -> "Bottom left"
+                                else -> "Bottom right"
+                            }
+                        ),
                         format,
                         100
                     )
@@ -1288,7 +1299,7 @@ private fun ToolWorkspaceV5(
                     }
 
                     details?.let {
-                        ResultTextCardV5("Image details", it)
+                        ResultTextCardV5(strings.get("details.result"), it)
                     }
 
                     exifText?.let {
@@ -1639,7 +1650,7 @@ private fun ToolControlsV5(
         "filter" -> {
             ChoicesV5(
                 ImageFilter.entries.map { strings.filterTitle(it.name.lowercase()) },
-                imageFilter.label
+                strings.filterTitle(imageFilter.name.lowercase())
             ) { selected ->
                 onFilter(ImageFilter.entries.first { strings.filterTitle(it.name.lowercase()) == selected })
             }
@@ -1655,11 +1666,19 @@ private fun ToolControlsV5(
             )
             Text(strings.get("opacity") + " " + opacity.toInt() + "%")
             Slider(opacity, onOpacity, valueRange = 10f..100f)
-            ChoicesV5(
-                listOf("Top left", "Top right", "Center", "Bottom left", "Bottom right"),
-                position,
-                onPosition
+            val positions = listOf(
+                "top_left" to strings.get("position.top_left"),
+                "top_right" to strings.get("position.top_right"),
+                "center" to strings.get("position.center"),
+                "bottom_left" to strings.get("position.bottom_left"),
+                "bottom_right" to strings.get("position.bottom_right")
             )
+            ChoicesV5(
+                positions.map { it.second },
+                positions.first { it.first == position }.second
+            ) { selected ->
+                onPosition(positions.first { it.second == selected }.first)
+            }
         }
 
         "brightness", "contrast", "saturation", "warmth" -> {
