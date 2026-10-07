@@ -31,7 +31,31 @@ class AuthRepository(private val context: Context) {
     }
 
     suspend fun registerEmail(email: String, password: String): Result<Unit> = runCatching {
-        auth.createUserWithEmailAndPassword(email.trim(), password).await()
+        val result = auth.createUserWithEmailAndPassword(email.trim(), password).await()
+        result.user?.sendEmailVerification()?.await()
+    }
+
+    suspend fun sendPasswordReset(email: String): Result<Unit> = runCatching {
+        auth.sendPasswordResetEmail(email.trim()).await()
+    }
+
+    suspend fun sendEmailVerification(): Result<Unit> = runCatching {
+        auth.currentUser?.sendEmailVerification()?.await()
+            ?: error("No signed-in user.")
+    }
+
+    suspend fun reloadCurrentUser(): Result<Unit> = runCatching {
+        auth.currentUser?.reload()?.await()
+        currentUser = auth.currentUser
+    }
+
+    suspend fun updateDisplayName(name: String): Result<Unit> = runCatching {
+        val user = auth.currentUser ?: error("No signed-in user.")
+        val updates = com.google.firebase.auth.UserProfileChangeRequest.Builder()
+            .setDisplayName(name.trim().ifBlank { null })
+            .build()
+        user.updateProfile(updates).await()
+        currentUser = auth.currentUser
     }
 
     suspend fun signInGoogle(serverClientId: String): Result<Unit> = runCatching {
