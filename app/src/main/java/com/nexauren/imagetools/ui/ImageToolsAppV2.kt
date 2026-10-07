@@ -209,9 +209,6 @@ fun ImageToolsAppV2(
             bottomBar = {
                 if (selectedTool == null) {
                     Column {
-                        if (!premium && (page == "home" || page == "tools")) {
-                            AdMobBanner()
-                        }
                         NavigationBar {
                             BottomEntry("home", Icons.Default.Home, t.home, page) { page = "home" }
                             BottomEntry("tools", Icons.Default.Build, t.tools, page) { page = "tools" }
