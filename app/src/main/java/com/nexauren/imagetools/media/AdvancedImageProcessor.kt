@@ -3,6 +3,7 @@ package com.nexauren.imagetools.media
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.*
+import android.graphics.pdf.PdfDocument
 import android.net.Uri
 import android.os.Environment
 import android.provider.DocumentsContract
