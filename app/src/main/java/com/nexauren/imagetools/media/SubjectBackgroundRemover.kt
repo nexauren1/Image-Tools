@@ -2,11 +2,12 @@ package com.nexauren.imagetools.media
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.os.Build
 import android.graphics.Canvas
 import android.graphics.Paint
 import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.subjectsegmentation.SubjectSegmentation
-import com.google.mlkit.vision.subjectsegmentation.SubjectSegmenterOptions
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
 import kotlinx.coroutines.tasks.await
 import kotlin.math.min
 
@@ -18,6 +19,10 @@ import kotlin.math.min
  */
 object SubjectBackgroundRemover {
     suspend fun remove(context: Context, source: Bitmap): Bitmap? {
+        // The current beta runtime has a known Android 16 native crash report.
+        // Use the safe local fallback on API 36+.
+        if (Build.VERSION.SDK_INT >= 36) return null
+
         return runCatching {
             val inputBitmap = prepareForSegmentation(source)
             val options = SubjectSegmenterOptions.Builder()
