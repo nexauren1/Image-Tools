@@ -794,12 +794,93 @@ async function captureOrder(request, env) {
   return reply({ ok: true, premium: true, orderId: orderId });
 }
 
+
+const SITE = "https://steep-pine-34fe.nexaurenstore.workers.dev";
+
+function htmlPage(title, body) {
+  return new Response("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"theme-color\" content=\"#0b1022\"><title>" +
+    title +
+    " • Image Tools</title><style>" +
+    "body{margin:0;background:#f7f8fc;color:#172033;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.65}" +
+    "main{max-width:820px;margin:0 auto;padding:32px 18px 64px}header{padding:10px 0 24px}h1{font-size:36px;line-height:1.15;margin:0 0 8px}h2{margin-top:30px}a{color:#5b45d6;text-decoration:none;font-weight:700}" +
+    ".brand{display:inline-block;padding:7px 11px;border-radius:999px;background:#ede9fe;color:#6d28d9;font-size:12px;font-weight:800;letter-spacing:.08em}" +
+    ".card{background:white;border:1px solid #e5e7eb;border-radius:22px;padding:22px;margin:14px 0;box-shadow:0 8px 30px rgba(15,23,42,.05)}" +
+    "footer{margin-top:36px;color:#64748b;font-size:13px}li{margin:7px 0}" +
+    "</style></head><body><main><header><span class=\"brand\">IMAGE TOOLS</span><h1>" +
+    title +
+    "</h1></header><div class=\"card\">" + body + "</div><footer><a href=\"" + SITE + "\">Home</a> · <a href=\"" + SITE + "/privacy\">Privacy</a> · <a href=\"" + SITE + "/terms\">Terms</a> · <a href=\"" + SITE + "/support\">Support</a></footer></main></body></html>",
+    {status:200,headers:{"Content-Type":"text/html; charset=utf-8","Cache-Control":"public, max-age=3600"}});
+}
+
+function homePage() {
+  return htmlPage("Image Tools", 
+    "<p>A focused Android image toolbox for resizing, compression, conversion, cropping, filters, privacy cleanup, collage, PDF export and more.</p>" +
+    "<p>Core image editing runs locally on the device. Premium features use a secure PayPal checkout and server-side entitlement verification.</p>" +
+    "<p><strong>Android:</strong> package <code>com.nexauren.imagetools</code> · version 1.5.0</p>" +
+    "<p><a href=\"" + SITE + "/privacy\">Read the Privacy Policy</a></p>" +
+    "<p><a href=\"" + SITE + "/terms\">Read the Terms of Service</a></p>" +
+    "<p><a href=\"" + SITE + "/support\">Support and account deletion requests</a></p>");
+}
+
+function privacyPage() {
+  return htmlPage("Privacy Policy", 
+    "<p><strong>Last updated: October 7, 2026.</strong></p>" +
+    "<p>Image Tools is an Android application focused on local image utilities. This policy explains the main data flows used by the app.</p>" +
+    "<h2>1. Images and files</h2>" +
+    "<p>The core editing tools process selected images on the device. The app does not upload the image itself to the Image Tools backend merely to resize, compress, convert, crop, rotate, filter, watermark, adjust colors, blur, sharpen, pixelate, add borders, create palettes, create collages or export a PDF. Exported files are saved to the location selected by you.</p>" +
+    "<h2>2. Account data</h2>" +
+    "<p>When you create or sign in to an account, Image Tools uses Firebase Authentication. Depending on the sign-in method, Firebase may process an email address and account/profile information supplied by you or by the selected identity provider.</p>" +
+    "<h2>3. Subscription data</h2>" +
+    "<p>If you use Premium, the app sends an authenticated request to our Cloudflare Worker to start, refresh or cancel a subscription. PayPal processes the payment and subscription transaction. The app backend stores a limited entitlement record such as subscription status, the PayPal subscription identifier and the internal Firebase user identifier so Premium access can be verified.</p>" +
+    "<h2>4. Analytics and diagnostics</h2>" +
+    "<p>The Android build includes Firebase Analytics. Firebase may process technical and usage information according to the configuration and policies of that service. We use this capability to understand general app usage and improve reliability.</p>" +
+    "<h2>5. Security</h2>" +
+    "<p>PayPal client secrets and Firebase service-account credentials are kept on the Cloudflare Worker and are not embedded in the APK. Network requests use HTTPS endpoints.</p>" +
+    "<h2>6. Data sharing</h2>" +
+    "<p>Payment information is processed by PayPal. Authentication and related account services are provided by Firebase. The Cloudflare Worker handles authenticated application requests. Each provider's own privacy policy governs the data it processes.</p>" +
+    "<h2>7. Retention and deletion</h2>" +
+    "<p>We keep account and subscription records for as long as reasonably necessary to provide the service, maintain billing records, prevent abuse and meet legal obligations. To request deletion of your Image Tools account and associated server-side account data, use the support page with the email address associated with your account.</p>" +
+    "<h2>8. Children's privacy</h2>" +
+    "<p>Image Tools is not designed to knowingly collect personal information from children who are below the minimum age required by applicable law. Parents or guardians may contact support with privacy questions or deletion requests.</p>" +
+    "<h2>9. Changes</h2>" +
+    "<p>This policy may be updated when the app's data practices change. The latest version is published on this page.</p>" +
+    "<h2>10. Contact</h2>" +
+    "<p>For privacy questions or deletion requests, visit <a href=\"" + SITE + "/support\">" + SITE + "/support</a>.</p>");
+}
+
+function termsPage() {
+  return htmlPage("Terms of Service", 
+    "<p><strong>Last updated: October 7, 2026.</strong></p>" +
+    "<h2>1. Service</h2><p>Image Tools provides image editing and utility features for Android devices. Features may change as the product evolves.</p>" +
+    "<h2>2. Your content</h2><p>You remain responsible for the images and other content you choose to process or export. You must have the rights and permissions required to use that content.</p>" +
+    "<h2>3. Premium</h2><p>Premium features are provided through a recurring PayPal subscription. The exact price, currency and billing cycle shown during checkout are controlled by the active PayPal plan. Subscription status is verified by our backend.</p>" +
+    "<h2>4. Cancellation</h2><p>You can use the cancellation option in the app while signed in. Payment-provider records and billing terms may also apply.</p>" +
+    "<h2>5. Availability</h2><p>We aim to keep the service reliable, but we do not guarantee uninterrupted availability or that every image format will be supported on every device.</p>" +
+    "<h2>6. Acceptable use</h2><p>You may not use the service for unlawful activity, fraud, infringement of another person's rights, or attempts to compromise the service.</p>" +
+    "<h2>7. Changes</h2><p>We may change these terms when the service changes. The current terms are published on this page.</p>" +
+    "<h2>8. Contact</h2><p>Questions about the service can be sent through <a href=\"" + SITE + "/support\">Support</a>.</p>");
+}
+
+function supportPage() {
+  return htmlPage("Support", 
+    "<p>For help with Image Tools, payment status, account access or privacy requests, use the contact channel associated with the developer account or the project's public issue tracker.</p>" +
+    "<h2>Account deletion</h2>" +
+    "<p>To request deletion of your Image Tools account and associated server-side data, include the email address used for the account and a short statement requesting deletion. Do not send passwords or PayPal credentials.</p>" +
+    "<p><a href=\"https://github.com/nexauren1/Image-Tools/issues\">Open the Image Tools support tracker on GitHub</a></p>" +
+    "<p>For payment-provider disputes or billing details, use the transaction information and support options provided by PayPal.</p>");
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") return new Response(null, { headers: HEADERS });
     const url = new URL(request.url);
 
     try {
+      if (request.method === "GET" && url.pathname === "/") return homePage();
+      if (request.method === "GET" && url.pathname === "/privacy") return privacyPage();
+      if (request.method === "GET" && url.pathname === "/terms") return termsPage();
+      if (request.method === "GET" && url.pathname === "/support") return supportPage();
+
       if (request.method === "GET" && url.pathname === "/health") {
         return reply({
           ok: true,
