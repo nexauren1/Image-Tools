@@ -300,7 +300,29 @@ private fun authMessage(e:Throwable):String{val t=e.message?.lowercase().orEmpty
     LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(14.dp),verticalArrangement=Arrangement.spacedBy(11.dp)){
         item{Row(verticalAlignment=Alignment.CenterVertically){IconButton(onBack){Icon(Icons.Default.ArrowBack,"Back")};Box(Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(tool.a,tool.b))),contentAlignment=Alignment.Center){Icon(tool.icon,null,tint=Color.White)};Spacer(Modifier.width(10.dp));Column(Modifier.weight(1f)){Text(tool.title,fontSize=21.sp,fontWeight=FontWeight.ExtraBold);Text(tool.subtitle,fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)};if(tool.pro)Text("PRO",fontSize=9.sp,color=Color(0xFF7C3AED),fontWeight=FontWeight.ExtraBold)}}
         item{Card(shape=RoundedCornerShape(23.dp)){Column(Modifier.padding(15.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){if(preview!=null)Image(preview!!.asImageBitmap(),null,Modifier.fillMaxWidth().heightIn(min=180.dp,max=320.dp).clip(RoundedCornerShape(17.dp)),contentScale=ContentScale.Fit) else Box(Modifier.fillMaxWidth().height(190.dp).clip(RoundedCornerShape(17.dp)).background(MaterialTheme.colorScheme.surfaceVariant),contentAlignment=Alignment.Center){Column(horizontalAlignment=Alignment.CenterHorizontally){Icon(tool.icon,null,tint=MaterialTheme.colorScheme.primary,modifier=Modifier.size(40.dp));Text("Choose an image to start",fontWeight=FontWeight.Bold);Text("Core editing is processed locally.",fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)}};Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Button({choose()},Modifier.weight(1f),shape=RoundedCornerShape(15.dp)){Text(if(src==null)"Choose image" else "Choose another")};if(preview!=null&&tool.id!in listOf("details","palette","pdf"))OutlinedButton({saveNow()},enabled=!busy,shape=RoundedCornerShape(15.dp)){Text("Save")}}}}
-        if(tool.id !in listOf("details","palette","pdf","collage"))item{Controls(tool,width,height,{width=it},{height=it},keep,{keep=it},quality,{quality=it},format,{format=it},ratio,{ratio=it},angle,{angle=it},fh,{fh=it},fv,{fv=it},filter,{filter=it},text,{text=it},opacity,{opacity=it},position,{position=it},amount,{amount=it},px,{px=it},border,{border=it},radius,{radius=it})}
+        if (tool.id !in listOf("details", "palette", "pdf", "collage")) {
+            item {
+                Controls(
+                    tool, width, height,
+                    { width = it }, { height = it },
+                    keep, { keep = it },
+                    quality, { quality = it },
+                    format, { format = it },
+                    ratio, { ratio = it },
+                    angle, { angle = it },
+                    fh, { fh = it },
+                    fv, { fv = it },
+                    filter, { filter = it },
+                    text, { text = it },
+                    opacity, { opacity = it },
+                    position, { position = it },
+                    amount, { amount = it },
+                    px, { px = it },
+                    border, { border = it },
+                    radius, { radius = it }
+                )
+            }
+        }
         if(tool.id=="collage")item{Card(shape=RoundedCornerShape(20.dp)){Column(Modifier.padding(16.dp)){Text("Quick collage",fontWeight=FontWeight.ExtraBold);Text("Choose 2–4 images and the app builds a clean grid.",fontSize=11.sp);Spacer(Modifier.height(8.dp));Button({choose()},Modifier.fillMaxWidth(),shape=RoundedCornerShape(15.dp)){Text("Choose 2–4 images")}}}}
         item{Button({scope.launch{process()}},enabled=!busy,modifier=Modifier.fillMaxWidth().height(52.dp),shape=RoundedCornerShape(17.dp)){Icon(Icons.Default.AutoAwesome,null);Spacer(Modifier.width(8.dp));Text(if(busy) "Working…" else when(tool.id){"pdf"->"Create PDF";"palette"->"Extract palette";"details"->"Read details";else->"Preview result"},fontWeight=FontWeight.ExtraBold)}}
         details?.let{item{Card{Column(Modifier.padding(16.dp)){Text("Image details",fontWeight=FontWeight.ExtraBold);Spacer(Modifier.height(6.dp));Text(it,fontSize=12.sp)}}}}
@@ -329,5 +351,41 @@ private fun authMessage(e:Throwable):String{val t=e.message?.lowercase().orEmpty
         }
     }}
 }
-@Composable private fun FormatChips(sel:OutputFormat,on:(OutputFormat)->Unit,opts:List<OutputFormat>){Row(horizontalArrangement=Arrangement.spacedBy(7.dp)){opts.forEach{FilterChip(sel==it,{on(it)},label={Text(it.extension.uppercase())},modifier=Modifier.weight(1f))}}}
-@Composable private fun Choices(opts:List<String>,sel:String,on:(String)->Unit){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){opts.forEach{FilterChip(sel==it,{on(it)},label={Text(it,fontSize=10.sp)},modifier=Modifier.weight(1f))}}}
+@Composable
+private fun FormatChips(
+    sel: OutputFormat,
+    on: (OutputFormat) -> Unit,
+    opts: List<OutputFormat>
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        opts.forEach { option ->
+            FilterChip(
+                selected = sel == option,
+                onClick = { on(option) },
+                label = { Text(option.extension.uppercase()) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun Choices(
+    opts: List<String>,
+    sel: String,
+    on: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        opts.forEach { value ->
+            FilterChip(
+                selected = sel == value,
+                onClick = { on(value) },
+                label = { Text(value, fontSize = 10.sp) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
