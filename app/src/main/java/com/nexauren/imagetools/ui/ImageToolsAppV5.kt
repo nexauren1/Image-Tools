@@ -1227,3 +1227,529 @@ private fun ResultTextCardV5(title: String, text: String) {
     }
 }
 
+
+
+@Composable
+private fun ToolControlsV5(
+    tool: ToolDef,
+    strings: UiText,
+    width: String,
+    height: String,
+    onWidth: (String) -> Unit,
+    onHeight: (String) -> Unit,
+    keepRatio: Boolean,
+    onKeepRatio: (Boolean) -> Unit,
+    quality: Float,
+    onQuality: (Float) -> Unit,
+    format: OutputFormat,
+    onFormat: (OutputFormat) -> Unit,
+    cropRatio: String,
+    onCropRatio: (String) -> Unit,
+    angle: Int,
+    onAngle: (Int) -> Unit,
+    flipH: Boolean,
+    onFlipH: (Boolean) -> Unit,
+    flipV: Boolean,
+    onFlipV: (Boolean) -> Unit,
+    imageFilter: ImageFilter,
+    onFilter: (ImageFilter) -> Unit,
+    watermark: String,
+    onWatermark: (String) -> Unit,
+    opacity: Float,
+    onOpacity: (Float) -> Unit,
+    position: String,
+    onPosition: (String) -> Unit,
+    amount: Float,
+    onAmount: (Float) -> Unit,
+    pixelSize: Float,
+    onPixelSize: (Float) -> Unit,
+    borderSize: Float,
+    onBorderSize: (Float) -> Unit,
+    cornerRadius: Float,
+    onCornerRadius: (Float) -> Unit
+) {
+    when (tool.id) {
+        "resize" -> {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = width,
+                    onValueChange = { onWidth(it.filter(Char::isDigit)) },
+                    modifier = Modifier.weight(1f),
+                    label = { Text(strings.get("width")) },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = height,
+                    onValueChange = { onHeight(it.filter(Char::isDigit)) },
+                    modifier = Modifier.weight(1f),
+                    label = { Text(strings.get("height")) },
+                    singleLine = true
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(strings.get("aspect"), Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                Switch(keepRatio, onKeepRatio)
+            }
+        }
+
+        "compress" -> {
+            Text(
+                strings.get("quality") + " " + quality.toInt() + "%",
+                fontWeight = FontWeight.ExtraBold
+            )
+            Slider(quality, onQuality, valueRange = 10f..100f)
+            FormatChipsV5(format, onFormat, listOf(OutputFormat.JPEG, OutputFormat.WEBP))
+        }
+
+        "convert", "metadata" -> {
+            Text(strings.get("format"), fontWeight = FontWeight.Bold)
+            FormatChipsV5(format, onFormat, OutputFormat.entries.toList())
+        }
+
+        "crop" -> {
+            ChoicesV5(
+                listOf("Original", "1:1", "4:5", "16:9", "9:16"),
+                cropRatio,
+                onCropRatio
+            )
+        }
+
+        "rotate" -> {
+            ChoicesV5(listOf("90", "180", "270"), angle.toString()) {
+                onAngle(it.toInt())
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    flipH,
+                    { onFlipH(!flipH) },
+                    label = { Text(strings.get("mirror.h")) },
+                    modifier = Modifier.weight(1f)
+                )
+                FilterChip(
+                    flipV,
+                    { onFlipV(!flipV) },
+                    label = { Text(strings.get("mirror.v")) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        "filter" -> {
+            ChoicesV5(
+                ImageFilter.entries.map { it.label },
+                imageFilter.label
+            ) { selected ->
+                onFilter(ImageFilter.entries.first { it.label == selected })
+            }
+        }
+
+        "watermark" -> {
+            OutlinedTextField(
+                value = watermark,
+                onValueChange = onWatermark,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(strings.get("text")) },
+                singleLine = true
+            )
+            Text(strings.get("opacity") + " " + opacity.toInt() + "%")
+            Slider(opacity, onOpacity, valueRange = 10f..100f)
+            ChoicesV5(
+                listOf("Top left", "Top right", "Center", "Bottom left", "Bottom right"),
+                position,
+                onPosition
+            )
+        }
+
+        "brightness", "contrast", "saturation", "warmth" -> {
+            Text(strings.get("strength") + " " + amount.toInt())
+            Slider(amount, onAmount, valueRange = -100f..100f)
+        }
+
+        "blur", "sharpen" -> {
+            Text(strings.get("strength") + " " + amount.toInt())
+            Slider(amount, onAmount, valueRange = 0f..100f)
+        }
+
+        "pixelate" -> {
+            Text(strings.get("strength") + " " + pixelSize.toInt() + " px")
+            Slider(pixelSize, onPixelSize, valueRange = 4f..48f)
+        }
+
+        "border" -> {
+            Text(strings.get("strength") + " " + borderSize.toInt() + " px")
+            Slider(borderSize, onBorderSize, valueRange = 4f..120f)
+        }
+
+        "round" -> {
+            Text(strings.get("strength") + " " + cornerRadius.toInt() + " px")
+            Slider(cornerRadius, onCornerRadius, valueRange = 8f..160f)
+        }
+
+        else -> {
+            Text(strings.toolSubtitle(tool.id), fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun FormatChipsV5(
+    selected: OutputFormat,
+    onSelected: (OutputFormat) -> Unit,
+    options: List<OutputFormat>
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        options.forEach { option ->
+            FilterChip(
+                selected = selected == option,
+                onClick = { onSelected(option) },
+                label = { Text(option.extension.uppercase()) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChoicesV5(
+    options: List<String>,
+    selected: String,
+    onSelected: (String) -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        options.forEach { option ->
+            FilterChip(
+                selected = selected == option,
+                onClick = { onSelected(option) },
+                label = { Text(option, fontSize = 10.sp) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PremiumScreenV5(
+    auth: AuthRepository,
+    strings: UiText,
+    premium: Boolean,
+    onStartPayment: (String) -> Unit,
+    onCancelSubscription: () -> Unit
+) {
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Card(shape = RoundedCornerShape(30.dp)) {
+                Box(
+                    Modifier.fillMaxWidth()
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color(0xFF17102D), Color(0xFF6D28D9), Color(0xFF0E7490))
+                            )
+                        )
+                        .padding(24.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Text(
+                            "IMAGE TOOLS PRO",
+                            color = Color.White.copy(alpha = .72f),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text(
+                            if (premium) "PRO active" else "Unlock advanced image tools",
+                            color = Color.White,
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text(
+                            strings.get("paypal"),
+                            color = Color.White.copy(alpha = .82f),
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            FeatureCardV5(
+                Icons.Default.CheckCircle,
+                strings.get("pro"),
+                "Batch, filters, blur, sharpen, background removal, PDF, collage, OCR and EXIF."
+            )
+        }
+
+        item {
+            if (!premium) {
+                Button(
+                    onClick = {
+                        busy = true
+                        error = null
+                        scope.launch {
+                            val token = auth.idToken()
+                            if (token.isNullOrBlank()) {
+                                error = "Please sign in again."
+                            } else {
+                                PaymentRepository.createSubscription(token)
+                                    .onSuccess { onStartPayment(it.approveUrl) }
+                                    .onFailure {
+                                        error = if (it is PaymentException) {
+                                            it.message
+                                        } else {
+                                            "Could not start PayPal checkout."
+                                        }
+                                    }
+                            }
+                            busy = false
+                        }
+                    },
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    shape = RoundedCornerShape(17.dp)
+                ) {
+                    Icon(Icons.Default.Payment, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (busy) strings.get("working") else strings.get("paypal"),
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            } else {
+                OutlinedButton(
+                    onClick = onCancelSubscription,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(17.dp)
+                ) {
+                    Text("Cancel subscription")
+                }
+            }
+        }
+
+        error?.let {
+            item {
+                Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountScreenV5(
+    auth: AuthRepository,
+    strings: UiText,
+    premium: Boolean,
+    openPremium: () -> Unit
+) {
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Card(shape = RoundedCornerShape(24.dp)) {
+                Column(
+                    Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(strings.get("account"), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(
+                        auth.currentUser?.email.orEmpty(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(if (premium) strings.get("pro") else strings.get("free"))
+                }
+            }
+        }
+        item {
+            Button(
+                onClick = openPremium,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text(strings.get("premium"))
+            }
+        }
+        item {
+            OutlinedButton(
+                onClick = { auth.signOut() },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text("Sign out")
+            }
+        }
+        item {
+            FeatureCardV5(
+                Icons.Default.Info,
+                strings.get("settings.legal"),
+                "Privacy Policy • Terms • Support"
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsScreenV5(
+    strings: UiText,
+    darkMode: Boolean,
+    language: AppLanguage,
+    onDarkModeChange: (Boolean) -> Unit,
+    onLanguageChange: (AppLanguage) -> Unit
+) {
+    val context = LocalContext.current
+    var folder by remember { mutableStateOf(OutputFolderStore.folderName(context)) }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            }
+            OutputFolderStore.saveTreeUri(context, uri)
+            folder = OutputFolderStore.folderName(context, uri)
+        }
+    }
+
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            SectionTitleV5(strings.get("settings"), strings.get("language.help"))
+        }
+
+        item {
+            Card(shape = RoundedCornerShape(20.dp)) {
+                Column(
+                    Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(strings.get("language"), fontWeight = FontWeight.Bold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        AppLanguage.entries.forEach { option ->
+                            FilterChip(
+                                selected = option == language,
+                                onClick = { onLanguageChange(option) },
+                                label = { Text(option.label, fontSize = 9.sp) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            SettingRowV5(
+                strings.get("settings.dark"),
+                "Use a darker workspace",
+                Icons.Default.DarkMode
+            ) {
+                Switch(darkMode, onDarkModeChange)
+            }
+        }
+
+        item {
+            SettingRowV5(
+                strings.get("settings.output"),
+                folder ?: "Pictures/Image Tools",
+                Icons.Default.Folder
+            ) {
+                TextButton(onClick = { picker.launch(null) }) {
+                    Text(strings.get("choose.image"))
+                }
+            }
+        }
+
+        item {
+            LegalLinkV5("Privacy Policy", PRIVACY, Icons.Default.PrivacyTip)
+        }
+        item {
+            LegalLinkV5("Terms of Service", TERMS, Icons.Default.Gavel)
+        }
+        item {
+            LegalLinkV5("Support & account deletion", SUPPORT, Icons.Default.SupportAgent)
+        }
+    }
+}
+
+@Composable
+private fun SettingRowV5(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    content: @Composable () -> Unit
+) {
+    Card(shape = RoundedCornerShape(20.dp)) {
+        Row(
+            Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(11.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.Bold)
+                Text(subtitle, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            content()
+        }
+    }
+}
+
+@Composable
+private fun LegalLinkV5(title: String, url: String, icon: ImageVector) {
+    val context = LocalContext.current
+    Card(
+        onClick = {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        },
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        ListItem(
+            leadingContent = { Icon(icon, null, tint = MaterialTheme.colorScheme.primary) },
+            headlineContent = { Text(title, fontWeight = FontWeight.Bold) },
+            trailingContent = { Icon(Icons.Default.OpenInNew, null) }
+        )
+    }
+}
+
+@Composable
+private fun AboutScreenV5(strings: UiText) {
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Card(shape = RoundedCornerShape(26.dp)) {
+                Column(
+                    Modifier.padding(22.dp),
+                    verticalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
+                    Text(strings.get("about"), fontSize = 25.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(strings.get("about.text"))
+                    Text(
+                        "Image Tools 1.5.0",
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        "Input → Configure → Action → Preview → Export",
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
+    }
+}
