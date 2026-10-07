@@ -143,6 +143,34 @@ object AdvancedImageProcessor {
         return output.toByteArray()
     }
 
+    fun savePdf(context: Context, bitmap: Bitmap, treeUri: Uri?, prefix: String): PdfResult {
+        val bytes = pdfBytes(bitmap)
+        val name = prefix + "_" + System.currentTimeMillis() + ".pdf"
+        val uri = if (treeUri != null) {
+            DocumentsContract.createDocument(context.contentResolver, treeUri, "application/pdf", name)
+                ?: error("Could not create PDF")
+        } else {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, name)
+                put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
+                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Image Tools")
+                put(MediaStore.Downloads.IS_PENDING, 1)
+            }
+            context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: error("Could not create PDF")
+        }
+        context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) } ?: error("Could not write PDF")
+        if (treeUri == null && Build.VERSION.SDK_INT >= 29) {
+            context.contentResolver.update(
+                uri,
+                ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) },
+                null,
+                null
+            )
+        }
+        return PdfResult(uri, bytes.size.toLong())
+    }
+
     private fun drawWithMatrix(bitmap: Bitmap, matrix: ColorMatrix): Bitmap {
         val out = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
         val c = Canvas(out)
