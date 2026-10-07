@@ -17,6 +17,7 @@ enum class AppLanguage(val code: String, val nativeName: String) {
 }
 
 data class UiStrings(
+    val appName: String,
     val home: String,
     val tools: String,
     val settings: String,
@@ -60,6 +61,7 @@ data class UiStrings(
 )
 
 private val EN = UiStrings(
+    appName = "Image Tools",
     home = "Home",
     tools = "Tools",
     settings = "Settings",
