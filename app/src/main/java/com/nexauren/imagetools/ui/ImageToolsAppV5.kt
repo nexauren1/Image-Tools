@@ -245,7 +245,7 @@ private fun DrawerEntryV5(icon: ImageVector, label: String, onClick: () -> Unit)
 }
 
 @Composable
-private fun BottomTabV5(
+private fun RowScope.BottomTabV5(
     selected: Boolean,
     onClick: () -> Unit,
     icon: ImageVector,
