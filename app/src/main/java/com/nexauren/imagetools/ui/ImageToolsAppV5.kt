@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -171,9 +170,26 @@ fun ImageToolsAppV5(
                 },
                 bottomBar = {
                     NavigationBar {
-                        BottomNavV5(page == "home", { navigate("home") }, Icons.Default.Home, strings.get("home"))
-                        BottomNavV5(page == "tools", { navigate("tools") }, Icons.Default.Build, strings.get("tools"))
-                        BottomNavV5(page == "batch", { navigate("batch") }, Icons.Default.DynamicFeed, strings.get("batch"))
+                        Row(Modifier.fillMaxWidth()) {
+                            BottomTabV5(
+                                page == "home",
+                                { navigate("home") },
+                                Icons.Default.Home,
+                                strings.get("home")
+                            )
+                            BottomTabV5(
+                                page == "tools",
+                                { navigate("tools") },
+                                Icons.Default.Build,
+                                strings.get("tools")
+                            )
+                            BottomTabV5(
+                                page == "batch",
+                                { navigate("batch") },
+                                Icons.Default.DynamicFeed,
+                                strings.get("batch")
+                            )
+                        }
                     }
                 }
             ) { padding ->
@@ -229,13 +245,33 @@ private fun DrawerEntryV5(icon: ImageVector, label: String, onClick: () -> Unit)
 }
 
 @Composable
-private fun BottomNavV5(selected: Boolean, onClick: () -> Unit, icon: ImageVector, label: String) {
-    NavigationBarItem(
-        selected = selected,
-        onClick = onClick,
-        icon = { Icon(icon, null) },
-        label = { Text(label) }
-    )
+private fun BottomTabV5(
+    selected: Boolean,
+    onClick: () -> Unit,
+    icon: ImageVector,
+    label: String
+) {
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .clickable(onClick = onClick)
+            .padding(vertical = 7.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            icon,
+            null,
+            tint = if (selected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            label,
+            fontSize = 10.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            color = if (selected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
 }
 
 @Composable
