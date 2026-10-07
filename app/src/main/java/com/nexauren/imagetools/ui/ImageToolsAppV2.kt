@@ -72,7 +72,7 @@ private val tools = listOf(
     Tool("rotate", "Rotate & Flip", "Straighten, rotate or mirror", Icons.Default.Rotate90DegreesCw, Color(0xFF4F46E5), Color(0xFFEC4899), Color(0xFFF1EFFF)),
     Tool("filter", "Quick Filters", "Fast looks for everyday photos", Icons.Default.FilterVintage, Color(0xFF11998E), Color(0xFF38EF7D), Color(0xFFE9FFF4)),
     Tool("info", "Image Details", "Inspect size, format and dimensions", Icons.Default.Info, Color(0xFF334155), Color(0xFF06B6D4), Color(0xFFEEF7F9)),
-    Tool("cutout", "Background Cutout", "Remove plain backgrounds with adjustable tolerance", Icons.Default.AutoFixHigh, Color(0xFF00A896), Color(0xFF02C39A), Color(0xFFE8FFFB)),
+    Tool("cutout", "AI Background Cutout", "AI subject segmentation with local fallback", Icons.Default.AutoFixHigh, Color(0xFF00A896), Color(0xFF02C39A), Color(0xFFE8FFFB)),
     Tool("portraitBlur", "Portrait Blur", "Create depth with a focused subject area", Icons.Default.BlurOn, Color(0xFF3A0CA3), Color(0xFF7209B7), Color(0xFFF1EBFF)),
     Tool("autoEnhance", "Auto Enhance", "One-tap light, contrast and color correction", Icons.Default.AutoAwesome, Color(0xFFFF8C00), Color(0xFFFFC300), Color(0xFFFFF4DD)),
     Tool("sharpen", "Sharpen", "Recover edge clarity and fine detail", Icons.Default.FilterCenterFocus, Color(0xFF0077B6), Color(0xFF00B4D8), Color(0xFFE8F8FF)),
@@ -1405,8 +1405,8 @@ private fun CutoutStudio(value: Float, setValue: (Float) -> Unit) {
                 }
                 Spacer(Modifier.width(11.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Background Cutout", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF007F73))
-                    Text("Adaptive edge-guided background removal", fontSize = 11.sp, color = Color(0xFF46756F))
+                    Text("AI Background Cutout", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF007F73))
+                    Text("Subject segmentation with a local fallback", fontSize = 11.sp, color = Color(0xFF46756F))
                 }
             }
             Text(
