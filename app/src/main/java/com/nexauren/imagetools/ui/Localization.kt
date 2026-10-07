@@ -1,6 +1,7 @@
 package com.nexauren.imagetools.ui
 
 import android.content.Context
+import androidx.compose.runtime.compositionLocalOf
 
 enum class AppLanguage(val code: String, val label: String) {
     PT("pt", "Português"),
@@ -326,3 +327,5 @@ class UiText(private val language: AppLanguage) {
         )
     }
 }
+
+val LocalUiText = compositionLocalOf { UiText(AppLanguage.PT) }
