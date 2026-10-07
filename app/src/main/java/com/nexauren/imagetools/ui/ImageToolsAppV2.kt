@@ -787,14 +787,25 @@ private fun ToolCard(tool: Tool, openTool: (String) -> Unit, premium: Boolean, t
                 )
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = RoundedCornerShape(50), color = accent.copy(alpha = .11f)) {
-                    Text(
-                        if (tool.premiumOnly) t.premium else t.free,
-                        Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = accent
-                    )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(shape = RoundedCornerShape(50), color = accent.copy(alpha = .11f)) {
+                        Text(
+                            if (tool.premiumOnly) t.premium else t.free,
+                            Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = accent
+                        )
+                    }
+                    Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surface.copy(alpha = .65f)) {
+                        Text(
+                            toolCategory(tool.id),
+                            Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
                 Icon(Icons.Default.ArrowForward, null, tint = accent)
             }
@@ -2551,27 +2562,74 @@ private fun ModernSettings(
 private fun ModernAbout() {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
-            Text("About", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold)
-            Text("Image Tools " + BuildConfig.VERSION_NAME, fontWeight = FontWeight.Bold)
-            Text("A mobile-first image workspace with local processing and a safer export flow.")
+            Box(
+                Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(30.dp))
+                    .background(Brush.linearGradient(listOf(Color(0xFF08111F), Color(0xFF312E81), Color(0xFF0891B2))))
+                    .padding(22.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Surface(shape = RoundedCornerShape(50.dp), color = Color.White.copy(alpha = .12f)) {
+                        Text("IMAGE TOOLS • LOCAL EDITING", Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+                    Text("Image Tools", color = Color.White, fontSize = 31.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("Version " + BuildConfig.VERSION_NAME, color = Color(0xFFBAE6FD), fontWeight = FontWeight.Bold)
+                    Text(
+                        "A mobile-first image studio built around fast local processing, polished previews and focused workflows.",
+                        color = Color.White.copy(alpha = .76f),
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
+                    )
+                }
+            }
         }
         item {
-            Card(shape = RoundedCornerShape(24.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                AboutStat(tools.size.toString(), "TOOLS", Modifier.weight(1f))
+                AboutStat("PNG", "ALPHA", Modifier.weight(1f))
+                AboutStat("LOCAL", "ENGINE", Modifier.weight(1f))
+            }
+        }
+        item {
+            Card(shape = RoundedCornerShape(26.dp)) {
                 ListItem(
                     headlineContent = { Text("Local processing", fontWeight = FontWeight.Bold) },
-                    supportingContent = { Text("Core transformations are performed on the device.") },
-                    leadingContent = { Icon(Icons.Default.Security, null) }
+                    supportingContent = { Text("Core transformations run on the device with no ad SDK dependency.") },
+                    leadingContent = { Icon(Icons.Default.Security, null, tint = Color(0xFF10B981)) },
+                    trailingContent = { Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF10B981)) }
                 )
             }
         }
         item {
-            Card(shape = RoundedCornerShape(24.dp)) {
+            Card(shape = RoundedCornerShape(26.dp)) {
                 ListItem(
-                    headlineContent = { Text("Export recovery", fontWeight = FontWeight.Bold) },
-                    supportingContent = { Text("When a custom folder becomes unavailable, the app falls back to Pictures / Image Tools instead of stopping the export.") },
-                    leadingContent = { Icon(Icons.Default.SaveAlt, null) }
+                    headlineContent = { Text("Professional export flow", fontWeight = FontWeight.Bold) },
+                    supportingContent = { Text("Transparent edits stay PNG, while normal exports use the chosen local output folder with recovery.") },
+                    leadingContent = { Icon(Icons.Default.SaveAlt, null, tint = Color(0xFF5B46F6)) }
                 )
             }
+        }
+        item {
+            Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .58f)) {
+                Row(Modifier.fillMaxWidth().padding(17.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.AutoAwesome, null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text("Designed for creators", fontWeight = FontWeight.ExtraBold)
+                        Text("Fast controls, visual feedback and focused mobile workflows.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AboutStat(value: String, label: String, modifier: Modifier) {
+    Surface(modifier = modifier, shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 3.dp) {
+        Column(Modifier.padding(14.dp)) {
+            Text(value, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+            Text(label, fontSize = 8.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
