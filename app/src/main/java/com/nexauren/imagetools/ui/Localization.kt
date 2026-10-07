@@ -65,6 +65,16 @@ data class UiStrings(
     val negative: String,
     val duotone: String,
     val rounded: String,
+    val vignette: String,
+    val grain: String,
+    val posterize: String,
+    val edgeDetect: String,
+    val tint: String,
+    val exposure: String,
+    val gamma: String,
+    val rgbBalance: String,
+    val highlightsShadows: String,
+    val photoStrip: String,
     val about: String,
     val error: String
 )
@@ -118,6 +128,16 @@ private val EN = UiStrings(
     negative = "Negative",
     duotone = "DuoTone",
     rounded = "Rounded Corners",
+    vignette = "Vignette",
+    grain = "Film Grain",
+    posterize = "Posterize",
+    edgeDetect = "Edge Detect",
+    tint = "Color Tint",
+    exposure = "Exposure",
+    gamma = "Gamma",
+    rgbBalance = "RGB Balance",
+    highlightsShadows = "Highlights & Shadows",
+    photoStrip = "Photo Strip",
     about = "About",
     error = "Something went wrong"
 )
