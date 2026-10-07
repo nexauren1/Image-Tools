@@ -854,6 +854,7 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
     var pendingHeight by remember { mutableIntStateOf(1) }
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<String?>(null) }
+    var showOriginal by remember { mutableStateOf(false) }
 
     var width by remember { mutableStateOf("1080") }
     var height by remember { mutableStateOf("1080") }
@@ -974,7 +975,7 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
         }
     }
 
-    val current = preview ?: image
+    val current = if (showOriginal) image else (preview ?: image)
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -1069,6 +1070,27 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                                     fontWeight = FontWeight.ExtraBold
                                 )
                             }
+                            if (preview != null) {
+                                Row(
+                                    Modifier.align(Alignment.TopEnd).padding(10.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(7.dp)
+                                ) {
+                                    FilledTonalButton(
+                                        onClick = { showOriginal = !showOriginal },
+                                        contentPadding = PaddingValues(horizontal = 11.dp, vertical = 0.dp),
+                                        modifier = Modifier.height(36.dp),
+                                        shape = RoundedCornerShape(50.dp)
+                                    ) {
+                                        Icon(
+                                            if (showOriginal) Icons.Default.VisibilityOff else Icons.Default.Compare,
+                                            null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(Modifier.width(5.dp))
+                                        Text(if (showOriginal) "Result" else "Compare", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
                             if (id == "cutout" || id == "rounded") {
                                 Surface(
                                     Modifier.align(Alignment.BottomStart).padding(10.dp),
@@ -1092,7 +1114,30 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
 
         item {
             when (id) {
-                "resize" -> ResizeStudio(width, height, keepRatio, { width = it }, { height = it }, { keepRatio = it })
+                "resize" -> ResizeStudio(
+                    width,
+                    height,
+                    keepRatio,
+                    {
+                        value ->
+                        val newWidth = value.toIntOrNull()
+                        if (newWidth != null && newWidth > 0 && keepRatio && image != null) {
+                            val ratio = image!!.height.toFloat() / image!!.width.coerceAtLeast(1)
+                            height = (newWidth * ratio).toInt().coerceAtLeast(1).toString()
+                        }
+                        width = value
+                    },
+                    {
+                        value ->
+                        val newHeight = value.toIntOrNull()
+                        if (newHeight != null && newHeight > 0 && keepRatio && image != null) {
+                            val ratio = image!!.width.toFloat() / image!!.height.coerceAtLeast(1)
+                            width = (newHeight * ratio).toInt().coerceAtLeast(1).toString()
+                        }
+                        height = value
+                    },
+                    { keepRatio = it }
+                )
                 "compress" -> CompressStudio(quality, { quality = it })
                 "convert" -> ConvertStudio(format, { format = it })
                 "crop" -> CropStudio(cropRatio, { cropRatio = it })
@@ -1183,6 +1228,37 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
             item {
                 Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.primary.copy(alpha = .08f)) {
                     Text(status ?: "", Modifier.fillMaxWidth().padding(14.dp), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+
+        if (preview != null && pendingBytes != null) {
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            showOriginal = false
+                            preview = null
+                            pendingBytes = null
+                            status = t.ready
+                        },
+                        modifier = Modifier.weight(1f),
+                        enabled = !busy,
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Icon(Icons.Default.RestartAlt, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Reset")
+                    }
+                    if (showOriginal) {
+                        FilledTonalButton(
+                            onClick = { showOriginal = false },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(18.dp)
+                        ) {
+                            Text("Show result")
+                        }
+                    }
                 }
             }
         }
