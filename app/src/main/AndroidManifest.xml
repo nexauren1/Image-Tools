@@ -9,9 +9,10 @@
         android:theme="@style/Theme.ImageTools"
         android:supportsRtl="true">
 
+        <!-- Google-provided sample App ID for controlled AdMob startup testing. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-2381605116846917~1685022220" />
+            android:value="ca-app-pub-3940256099942544~3347511713" />
         <meta-data
             android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
             android:value="true" />
