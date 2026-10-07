@@ -408,6 +408,7 @@ private fun SettingsScreen(
 @Composable private fun ToolWorkspace(tool:Tool,premium:Boolean,onBack:()->Unit,onNeedPremium:()->Unit){
     val c=LocalContext.current; val scope=rememberCoroutineScope()
     var src by remember{mutableStateOf<Uri?>(null)}; var bmp by remember{mutableStateOf<Bitmap?>(null)}; var preview by remember{mutableStateOf<Bitmap?>(null)}
+    var pendingBytes by remember{mutableStateOf<ByteArray?>(null)}; var pendingFormat by remember{mutableStateOf<OutputFormat?>(null)}; var pendingPdf by remember{mutableStateOf(false)}
     var outUri by remember{mutableStateOf<Uri?>(null)}; var outMime by remember{mutableStateOf("image/*")}; var busy by remember{mutableStateOf(false)}
     var status by remember{mutableStateOf<String?>(null)}; var details by remember{mutableStateOf<String?>(null)}; var palette by remember{mutableStateOf(emptyList<Int>())}
     var width by remember{mutableStateOf("")}; var height by remember{mutableStateOf("")}; var keep by remember{mutableStateOf(true)}; var quality by remember{mutableFloatStateOf(82f)}
@@ -420,7 +421,13 @@ private fun SettingsScreen(
     val multi=rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(4)){us->if(us.isNotEmpty())scope.launch{busy=true;val bs=withContext(Dispatchers.IO){us.mapNotNull{ImageProcessor.decode(c,it)}};if(bs.size>=2){val x=withContext(Dispatchers.Default){AdvancedImageProcessor.collage(bs)};bmp=bs.first();src=us.first();preview=x;status="Collage ready. Tap Save."}else status="Select at least two images.";busy=false}}
 
     fun choose(){if(tool.pro&&!premium){onNeedPremium();return};if(tool.id=="collage")multi.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) else pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))}
-    suspend fun saveBitmap(b:Bitmap,prefix:String,out:OutputFormat=if(tool.id=="round")OutputFormat.PNG else format,q:Int=if(tool.id=="compress")quality.toInt() else 100){val bytes=withContext(Dispatchers.Default){ImageProcessor.encode(b,out,q)};val tree=OutputFolderStore.getTreeUri(c);val r=withContext(Dispatchers.IO){if(tree!=null)ImageProcessor.saveToFolder(c,tree,bytes,out,prefix,b.width,b.height)else ImageProcessor.save(c,bytes,out,prefix,b.width,b.height)};outUri=r.uri;outMime=r.format.mime;status="Saved "+ImageProcessor.humanBytes(r.bytes)+" • "+r.width+"×"+r.height}
+    suspend fun prepareBitmap(b:Bitmap,out:OutputFormat=if(tool.id=="round" || tool.id=="background")OutputFormat.PNG else format,q:Int=if(tool.id=="compress")quality.toInt() else 100){
+        pendingBytes=withContext(Dispatchers.Default){ImageProcessor.encode(b,out,q)}
+        pendingFormat=out
+        pendingPdf=false
+        preview=b
+        status="Preview ready."
+    }
     suspend fun process(){
         if(tool.pro&&!premium){onNeedPremium();return}
         val b=bmp?:run{choose();return}
@@ -429,11 +436,11 @@ private fun SettingsScreen(
             when(tool.id){
                 "details"->{val n=src?.let{withContext(Dispatchers.IO){ImageProcessor.sourceBytes(c,it)}};details="Resolution: "+b.width+" × "+b.height+"\\nAspect ratio: "+String.format("%.3f",b.width.toFloat()/b.height)+"\\n"+(if(n!=null)"Source size: "+ImageProcessor.humanBytes(n) else "Source size: unavailable");preview=b}
                 "palette"->{palette=withContext(Dispatchers.Default){AdvancedImageProcessor.palette(b,5)};preview=b}
-                "pdf"->{val p=withContext(Dispatchers.IO){AdvancedImageProcessor.savePdf(c,b,OutputFolderStore.getTreeUri(c),"image-tools")};outUri=p.uri;outMime="application/pdf";status="PDF saved • "+ImageProcessor.humanBytes(p.bytes)}
-                "metadata"->{saveBitmap(b,"clean",format,100);status="Metadata removed by re-encoding."}
+                "pdf"->{pendingBytes=withContext(Dispatchers.Default){AdvancedImageProcessor.pdfBytes(b)};pendingFormat=null;pendingPdf=true;preview=b;status="PDF preview ready."}
+                "metadata"->{prepareBitmap(b,format,100);status="Preview ready. Exporting re-encodes the image and strips common metadata."}
                 "resize"->{val w=width.toIntOrNull()?.coerceAtLeast(1)?:b.width;val h=if(keep)(b.height*(w.toFloat()/b.width)).toInt().coerceAtLeast(1) else height.toIntOrNull()?.coerceAtLeast(1)?:b.height;preview=ImageProcessor.resize(b,w,h)}
-                "compress"->{preview=b;saveBitmap(b,"compressed",format,quality.toInt())}
-                "convert"->{preview=b;saveBitmap(b,"converted",format,95)}
+                "compress"->{prepareBitmap(b,format,quality.toInt())}
+                "convert"->{prepareBitmap(b,format,95)}
                 "crop"->{preview=ImageProcessor.cropCenter(b,ratio)}
                 "rotate"->{preview=ImageProcessor.rotate(b,angle,fh,fv)}
                 "filter"->{preview=ImageProcessor.filter(b,filter)}
@@ -448,12 +455,32 @@ private fun SettingsScreen(
                 "pixelate"->{preview=AdvancedImageProcessor.pixelate(b,px.toInt())}
                 "border"->{preview=AdvancedImageProcessor.addBorder(b,border.toInt(),android.graphics.Color.WHITE)}
                 "round"->{preview=AdvancedImageProcessor.roundCorners(b,radius)}
+                "ocr"->{ocr=withContext(Dispatchers.Default){OcrProcessor.recognize(b)};preview=b;status="OCR ready."}
+                "exif"->{exif=withContext(Dispatchers.IO){ExifProcessor.read(c,src ?: error("Select an image first."))};preview=b;status="EXIF ready."}
+                "background"->{val fg=withContext(Dispatchers.Default){BackgroundRemovalProcessor.removeBackground(b)};prepareBitmap(fg,OutputFormat.PNG,100)}
                 "collage"->{status=status?: "Collage ready."}
             }
             if(tool.id in listOf("resize","crop","rotate","filter","watermark","brightness","contrast","saturation","warmth","negative","blur","sharpen","pixelate","border","round"))status="Preview ready. Tap Save."
         }catch(e:Exception){status="Could not process this image: "+(e.message?:"unknown error")}finally{busy=false}
     }
-    fun saveNow(){val p=preview?:return;scope.launch{busy=true;runCatching{saveBitmap(p,tool.id)}.onFailure{status="Could not save the result."};busy=false}}
+    fun exportPending(){
+        val bytes=pendingBytes ?: return
+        scope.launch {
+            busy=true
+            try{
+                val tree=OutputFolderStore.getTreeUri(c)
+                outUri=if(pendingPdf){
+                    OutputExporter.savePdf(c,bytes,"image-tools",tree)
+                }else{
+                    OutputExporter.saveImage(c,bytes,pendingFormat ?: format,tool.id,preview?.width ?: 1,preview?.height ?: 1,tree).uri
+                }
+                outMime=if(pendingPdf)"application/pdf" else pendingFormat?.mime ?: "image/*"
+                status="Saved successfully."
+            }catch(e:Exception){
+                status="Could not save the result."
+            }finally{busy=false}
+        }
+    }
 
     LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(14.dp),verticalArrangement=Arrangement.spacedBy(11.dp)){
         item{Row(verticalAlignment=Alignment.CenterVertically){IconButton(onBack){Icon(Icons.Default.ArrowBack,"Back")};Box(Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(tool.a,tool.b))),contentAlignment=Alignment.Center){Icon(tool.icon,null,tint=Color.White)};Spacer(Modifier.width(10.dp));Column(Modifier.weight(1f)){Text(tool.title,fontSize=21.sp,fontWeight=FontWeight.ExtraBold);Text(tool.subtitle,fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)};if(tool.pro)Text("PRO",fontSize=9.sp,color=Color(0xFF7C3AED),fontWeight=FontWeight.ExtraBold)}}
