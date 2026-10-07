@@ -17,11 +17,11 @@ val hasReleaseSigning = !releaseKeystoreBase64.isNullOrBlank() &&
 
 val admobAppId = System.getenv("ADMOB_APP_ID")
     .takeUnless { it.isNullOrBlank() }
-    ?: "ca-app-pub-3940256099942544~3347511713"
+    ?: "ca-app-pub-2381605116846917~1685022220"
 
 val admobBannerAdUnitId = System.getenv("ADMOB_BANNER_AD_UNIT_ID")
     .takeUnless { it.isNullOrBlank() }
-    ?: "ca-app-pub-3940256099942544/9214589741"
+    ?: "ca-app-pub-2381605116846917/9180368865"
 
 val releaseKeystoreFile = layout.buildDirectory.file("keystores/imagetools-release.jks").get().asFile
 if (hasReleaseSigning) {
