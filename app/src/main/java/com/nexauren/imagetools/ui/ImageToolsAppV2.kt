@@ -71,6 +71,10 @@ private val tools = listOf(
     Tool("rotate", "Rotate & Flip", "Straighten, rotate or mirror", Icons.Default.Rotate90DegreesCw, Color(0xFF4F46E5), Color(0xFFEC4899), Color(0xFFF1EFFF)),
     Tool("filter", "Quick Filters", "Fast looks for everyday photos", Icons.Default.FilterVintage, Color(0xFF11998E), Color(0xFF38EF7D), Color(0xFFE9FFF4)),
     Tool("info", "Image Details", "Inspect size, format and dimensions", Icons.Default.Info, Color(0xFF334155), Color(0xFF06B6D4), Color(0xFFEEF7F9)),
+    Tool("cutout", "Background Cutout", "Remove plain backgrounds with adjustable tolerance", Icons.Default.AutoFixHigh, Color(0xFF00A896), Color(0xFF02C39A), Color(0xFFE8FFFB)),
+    Tool("portraitBlur", "Portrait Blur", "Create depth with a focused subject area", Icons.Default.BlurOn, Color(0xFF3A0CA3), Color(0xFF7209B7), Color(0xFFF1EBFF)),
+    Tool("autoEnhance", "Auto Enhance", "One-tap light, contrast and color correction", Icons.Default.AutoAwesome, Color(0xFFFF8C00), Color(0xFFFFC300), Color(0xFFFFF4DD)),
+    Tool("sharpen", "Sharpen", "Recover edge clarity and fine detail", Icons.Default.FilterCenterFocus, Color(0xFF0077B6), Color(0xFF00B4D8), Color(0xFFE8F8FF)),
     Tool("watermark", "Smart Watermark", "Brand images with a clean custom mark", Icons.Default.TextFields, Color(0xFF7C3AED), Color(0xFFEC4899), Color(0xFFF7EEFF), premiumOnly = true),
     Tool("adjust", "Adjust", "Tune brightness, contrast and color", Icons.Default.Tune, Color(0xFFFF4D6D), Color(0xFFFF8A5B), Color(0xFFFFEEF1)),
     Tool("collage", "Collage", "Combine up to six photos", Icons.Default.GridView, Color(0xFF00A6FB), Color(0xFF38D9A9), Color(0xFFEAF9FF)),
@@ -441,6 +445,10 @@ private fun selectedToolTitle(id: String, t: UiStrings): String {
         "rotate" -> t.rotate
         "filter" -> t.filters
         "info" -> t.details
+        "cutout" -> t.cutout
+        "portraitBlur" -> t.portraitBlur
+        "autoEnhance" -> t.autoEnhance
+        "sharpen" -> t.sharpen
         "watermark" -> t.watermark
         "adjust" -> t.adjust
         "collage" -> t.collage
@@ -690,6 +698,9 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
     var bottomText by remember { mutableStateOf("") }
     var pixelSize by remember { mutableFloatStateOf(12f) }
     var columns by remember { mutableIntStateOf(2) }
+    var cutoutTolerance by remember { mutableFloatStateOf(58f) }
+    var blurIntensity by remember { mutableFloatStateOf(0.72f) }
+    var sharpenAmount by remember { mutableFloatStateOf(0.55f) }
 
     fun processImage(transform: suspend () -> Bitmap, output: OutputFormat = format, outputQuality: Int = quality.toInt()) {
         scope.launch {
@@ -875,6 +886,10 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                 "rotate" -> RotateStudio(angle, { angle = it }, flipH, { flipH = it }, flipV, { flipV = it })
                 "filter" -> FilterStudio(filter, { filter = it })
                 "info" -> DetailsStudio(image, context)
+                "cutout" -> CutoutStudio(cutoutTolerance, { cutoutTolerance = it })
+                "portraitBlur" -> PortraitBlurStudio(blurIntensity, { blurIntensity = it })
+                "autoEnhance" -> AutoEnhanceStudio()
+                "sharpen" -> SharpenStudio(sharpenAmount, { sharpenAmount = it })
                 "watermark" -> WatermarkStudio(watermarkText, { watermarkText = it }, watermarkOpacity, { watermarkOpacity = it }, watermarkPosition, { watermarkPosition = it })
                 "adjust" -> AdjustStudio(brightness, { brightness = it }, contrast, { contrast = it }, saturation, { saturation = it })
                 "collage" -> CollageStudio(sources.size, columns, { columns = it }, background, { background = it }, { multiPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) })
@@ -915,6 +930,10 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                                     "crop" -> processImage({ ImageProcessor.cropCenter(source, cropRatio) })
                                     "rotate" -> processImage({ ImageProcessor.rotate(source, angle, flipH, flipV) })
                                     "filter" -> processImage({ ImageProcessor.filter(source, filter) })
+                                    "cutout" -> processImage({ ImageProcessor.backgroundCutout(source, cutoutTolerance.toInt()) }, OutputFormat.PNG, 100)
+                                    "portraitBlur" -> processImage({ ImageProcessor.portraitBlur(source, blurIntensity) })
+                                    "autoEnhance" -> processImage({ ImageProcessor.autoEnhance(source) })
+                                    "sharpen" -> processImage({ ImageProcessor.sharpen(source, sharpenAmount) })
                                     "watermark" -> processImage({ ImageProcessor.watermark(source, watermarkText, watermarkOpacity.toInt(), watermarkPosition) })
                                     "adjust" -> processImage({ ImageProcessor.adjust(source, brightness, contrast, saturation) })
                                     "frame" -> processImage({ ImageProcessor.frame(source, border.toInt(), frameColor(background)) })
@@ -974,6 +993,72 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CutoutStudio(value: Float, setValue: (Float) -> Unit) {
+    Surface(shape = RoundedCornerShape(30.dp), color = Color(0xFFE8FFFB)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Background cutout", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF007F73))
+            Text("Best for clean or plain-color backgrounds.", fontSize = 12.sp, color = Color(0xFF46756F))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Tolerance", fontWeight = FontWeight.Bold)
+                Text(value.toInt().toString())
+            }
+            Slider(value, setValue, valueRange = 20f..120f)
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(35, 55, 75, 100).forEach { n ->
+                    FilterChip(n == value.toInt(), { setValue(n.toFloat()) }, label = { Text(n.toString()) })
+                }
+            }
+            Text("The result is exported as transparent PNG.", fontSize = 11.sp, color = Color(0xFF46756F))
+        }
+    }
+}
+
+@Composable
+private fun PortraitBlurStudio(value: Float, setValue: (Float) -> Unit) {
+    Surface(shape = RoundedCornerShape(30.dp), color = Color(0xFFF1EBFF)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Focus blur", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF5A189A))
+            Text("Keeps the center area clearer and softens the outside.", fontSize = 12.sp, color = Color(0xFF6E5A7E))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Intensity", fontWeight = FontWeight.Bold)
+                Text((value * 100).toInt().toString() + "%")
+            }
+            Slider(value, setValue, valueRange = 0.2f..1f)
+        }
+    }
+}
+
+@Composable
+private fun AutoEnhanceStudio() {
+    Surface(shape = RoundedCornerShape(30.dp), color = Color(0xFFFFF4DD)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("One-tap enhancement", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFB55A00))
+            Text("Balances light, contrast and color automatically from the image itself.", fontSize = 12.sp, color = Color(0xFF76552E))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AssistChip(onClick = {}, label = { Text("Light") })
+                AssistChip(onClick = {}, label = { Text("Color") })
+                AssistChip(onClick = {}, label = { Text("Contrast") })
+            }
+        }
+    }
+}
+
+@Composable
+private fun SharpenStudio(value: Float, setValue: (Float) -> Unit) {
+    Surface(shape = RoundedCornerShape(30.dp), color = Color(0xFFE8F8FF)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Detail recovery", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF006494))
+            Text("Increase edge definition without changing the canvas size.", fontSize = 12.sp, color = Color(0xFF496D7C))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Strength", fontWeight = FontWeight.Bold)
+                Text((value * 100).toInt().toString() + "%")
+            }
+            Slider(value, setValue, valueRange = 0.15f..1f)
         }
     }
 }
