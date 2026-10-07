@@ -80,7 +80,12 @@ private val tools = listOf(
     Tool("collage", "Collage", "Combine up to six photos", Icons.Default.GridView, Color(0xFF00A6FB), Color(0xFF38D9A9), Color(0xFFEAF9FF)),
     Tool("frame", "Frame", "Add borders and clean backgrounds", Icons.Default.CropFree, Color(0xFFB36BFF), Color(0xFF6C63FF), Color(0xFFF5F0FF)),
     Tool("meme", "Meme", "Build a captioned shareable image", Icons.Default.TextFields, Color(0xFFFFB703), Color(0xFFFF6B35), Color(0xFFFFF7DE)),
-    Tool("pixelate", "Pixelate", "Create a controlled pixel effect", Icons.Default.GridOn, Color(0xFF8338EC), Color(0xFF3A86FF), Color(0xFFF1EDFF))
+    Tool("pixelate", "Pixelate", "Create a controlled pixel effect", Icons.Default.GridOn, Color(0xFF8338EC), Color(0xFF3A86FF), Color(0xFFF1EDFF)),
+    Tool("blur", "Blur Studio", "Soften backgrounds or create a full-image blur", Icons.Default.BlurOn, Color(0xFF2563EB), Color(0xFF38BDF8), Color(0xFFEAF4FF)),
+    Tool("socialCanvas", "Social Canvas", "Ready-made sizes for posts, stories and banners", Icons.Default.Crop, Color(0xFF0F766E), Color(0xFF14B8A6), Color(0xFFE7FFFB)),
+    Tool("negative", "Negative", "Invert light and color for an expressive look", Icons.Default.InvertColors, Color(0xFF334155), Color(0xFF8B5CF6), Color(0xFFF1F0FF)),
+    Tool("duotone", "DuoTone", "Turn photos into cinematic two-color art", Icons.Default.Palette, Color(0xFF7C3AED), Color(0xFFEC4899), Color(0xFFF8EEFF), premiumOnly = true),
+    Tool("rounded", "Rounded Corners", "Create clean transparent card-style corners", Icons.Default.CropFree, Color(0xFFF97316), Color(0xFFFB7185), Color(0xFFFFF0F2), premiumOnly = true)
 )
 
 
@@ -457,6 +462,11 @@ private fun selectedToolTitle(id: String, t: UiStrings): String {
         "frame" -> t.frame
         "meme" -> t.meme
         "pixelate" -> t.pixelate
+        "blur" -> t.blur
+        "socialCanvas" -> t.socialCanvas
+        "negative" -> t.negative
+        "duotone" -> t.duotone
+        "rounded" -> t.rounded
         else -> id
     }
 }
@@ -703,6 +713,11 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
     var cutoutTolerance by remember { mutableFloatStateOf(58f) }
     var blurIntensity by remember { mutableFloatStateOf(0.72f) }
     var sharpenAmount by remember { mutableFloatStateOf(0.55f) }
+    var blurAmount by remember { mutableFloatStateOf(0.65f) }
+    var socialPreset by remember { mutableStateOf("Square 1:1") }
+    var socialBackground by remember { mutableStateOf("White") }
+    var duotoneStyle by remember { mutableStateOf("Violet") }
+    var cornerRadius by remember { mutableFloatStateOf(72f) }
 
     fun processImage(transform: suspend () -> Bitmap, output: OutputFormat = format, outputQuality: Int = quality.toInt()) {
         scope.launch {
@@ -898,6 +913,11 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                 "frame" -> FrameStudio(border, { border = it }, background, { background = it })
                 "meme" -> MemeStudio(topText, { topText = it }, bottomText, { bottomText = it })
                 "pixelate" -> PixelateStudio(pixelSize, { pixelSize = it })
+                "blur" -> BlurStudio(blurAmount, { blurAmount = it })
+                "socialCanvas" -> SocialCanvasStudio(socialPreset, { socialPreset = it }, socialBackground, { socialBackground = it })
+                "negative" -> NegativeStudio()
+                "duotone" -> DuotoneStudio(duotoneStyle, { duotoneStyle = it })
+                "rounded" -> RoundedStudio(cornerRadius, { cornerRadius = it })
             }
         }
 
@@ -941,6 +961,11 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                                     "frame" -> processImage({ ImageProcessor.frame(source, border.toInt(), frameColor(background)) })
                                     "meme" -> processImage({ ImageProcessor.meme(source, topText, bottomText) })
                                     "pixelate" -> processImage({ ImageProcessor.pixelate(source, pixelSize.toInt()) })
+                                    "blur" -> processImage({ ImageProcessor.blur(source, blurAmount) })
+                                    "socialCanvas" -> processImage({ ImageProcessor.socialCanvas(source, socialPreset, frameColor(socialBackground)) }, OutputFormat.JPEG, 94)
+                                    "negative" -> processImage({ ImageProcessor.negative(source) }, OutputFormat.PNG, 100)
+                                    "duotone" -> processImage({ ImageProcessor.duotone(source, duotoneShadow(duotoneStyle), duotoneHighlight(duotoneStyle)) }, OutputFormat.PNG, 100)
+                                    "rounded" -> processImage({ ImageProcessor.roundedCorners(source, cornerRadius) }, OutputFormat.PNG, 100)
                                 }
                             }
                         },
