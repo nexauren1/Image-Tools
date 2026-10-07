@@ -9,6 +9,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -1027,20 +1028,49 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                         shape = RoundedCornerShape(30.dp),
                         color = Color(0xFF090E19)
                     ) {
-                        Box(Modifier.fillMaxWidth().heightIn(min = 250.dp, max = 390.dp).padding(10.dp), contentAlignment = Alignment.Center) {
-                            Image(
-                                current.asImageBitmap(),
-                                null,
-                                Modifier.fillMaxSize().clip(RoundedCornerShape(22.dp)),
-                                contentScale = ContentScale.Fit
-                            )
-                            if (preview != null) {
+                        Box(
+                            Modifier.fillMaxWidth().heightIn(min = 250.dp, max = 390.dp).padding(10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(Modifier.fillMaxSize().clip(RoundedCornerShape(22.dp))) {
+                                if (id == "cutout" || id == "rounded") {
+                                    TransparencyGrid(Modifier.fillMaxSize())
+                                } else {
+                                    Box(Modifier.fillMaxSize().background(Color(0xFF111827)))
+                                }
+                                Image(
+                                    current.asImageBitmap(),
+                                    null,
+                                    Modifier.fillMaxSize().clip(RoundedCornerShape(22.dp)),
+                                    contentScale = ContentScale.Fit
+                                )
+                            }
+                            Surface(
+                                Modifier.align(Alignment.TopStart).padding(10.dp),
+                                shape = RoundedCornerShape(50),
+                                color = if (preview != null) Color(0xFF10B981) else Color.Black.copy(alpha = .38f)
+                            ) {
+                                Text(
+                                    if (preview != null) t.ready else "ORIGINAL",
+                                    Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    color = Color.White,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            }
+                            if (id == "cutout" || id == "rounded") {
                                 Surface(
-                                    Modifier.align(Alignment.TopStart).padding(10.dp),
+                                    Modifier.align(Alignment.BottomStart).padding(10.dp),
                                     shape = RoundedCornerShape(50),
-                                    color = Color(0xFF10A37F)
+                                    color = Color.Black.copy(alpha = .42f)
                                 ) {
-                                    Text(t.ready, Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        "TRANSPARENT PNG",
+                                        Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        color = Color.White,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
                                 }
                             }
                         }
@@ -1182,20 +1212,44 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
 @Composable
 private fun CutoutStudio(value: Float, setValue: (Float) -> Unit) {
     Surface(shape = RoundedCornerShape(30.dp), color = Color(0xFFE8FFFB)) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Background cutout", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF007F73))
-            Text("Best for clean or plain-color backgrounds.", fontSize = 12.sp, color = Color(0xFF46756F))
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(46.dp).clip(RoundedCornerShape(14.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF00A896), Color(0xFF14B8A6)))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.AutoFixHigh, null, tint = Color.White)
+                }
+                Spacer(Modifier.width(11.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Background Cutout", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF007F73))
+                    Text("Adaptive edge-guided background removal", fontSize = 11.sp, color = Color(0xFF46756F))
+                }
+            }
+            Text(
+                "Best results come from a subject separated from a fairly continuous background. The engine follows connected background pixels and softens the final edge.",
+                fontSize = 12.sp,
+                color = Color(0xFF46756F),
+                lineHeight = 17.sp
+            )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Tolerance", fontWeight = FontWeight.Bold)
-                Text(value.toInt().toString())
+                Text(value.toInt().toString(), color = Color(0xFF00897B), fontWeight = FontWeight.ExtraBold)
             }
-            Slider(value, setValue, valueRange = 20f..120f)
+            Slider(value, setValue, valueRange = 18f..135f)
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(35, 55, 75, 100).forEach { n ->
+                listOf(32, 52, 72, 96, 120).forEach { n ->
                     FilterChip(n == value.toInt(), { setValue(n.toFloat()) }, label = { Text(n.toString()) })
                 }
             }
-            Text("The result is exported as transparent PNG.", fontSize = 11.sp, color = Color(0xFF46756F))
+            Surface(shape = RoundedCornerShape(16.dp), color = Color.White.copy(alpha = .72f)) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF0F9D77), modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Export is always PNG so transparency is preserved.", fontSize = 11.sp)
+                }
+            }
         }
     }
 }
@@ -1579,6 +1633,26 @@ private fun duotoneHighlight(style: String): Int = when (style) {
     "Sunset" -> android.graphics.Color.rgb(255, 173, 102)
     "Mono" -> android.graphics.Color.WHITE
     else -> android.graphics.Color.rgb(237, 233, 254)
+}
+
+@Composable
+private fun TransparencyGrid(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val cell = 18.dp.toPx()
+        val cols = (size.width / cell).toInt() + 1
+        val rows = (size.height / cell).toInt() + 1
+        for (row in 0..rows) {
+            for (col in 0..cols) {
+                val left = col * cell
+                val top = row * cell
+                drawRect(
+                    color = if ((row + col) % 2 == 0) Color(0xFFE5E7EB) else Color(0xFFF8FAFC),
+                    topLeft = androidx.compose.ui.geometry.Offset(left, top),
+                    size = androidx.compose.ui.geometry.Size(cell, cell)
+                )
+            }
+        }
+    }
 }
 
 private fun frameColor(value: String): Int {
