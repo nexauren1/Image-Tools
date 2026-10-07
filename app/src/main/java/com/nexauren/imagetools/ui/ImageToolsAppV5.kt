@@ -414,7 +414,7 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
     val filtered = TOOL_CATALOG.filter {
         (strings.toolTitle(it.id) + " " + strings.toolSubtitle(it.id)).contains(query, true)
     }
-    val popularIds = listOf("resize", "compress", "convert", "crop", "ocr", "background")
+    val popularIds = listOf("resize", "compress", "auto_enhance", "background", "ocr", "collage")
     val popular = popularIds.mapNotNull { id -> filtered.firstOrNull { it.id == id } }
 
     LazyColumn(
@@ -426,15 +426,57 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
             Card(shape = RoundedCornerShape(30.dp)) {
                 Box(
                     Modifier.fillMaxWidth()
-                        .background(Brush.linearGradient(listOf(Color(0xFF0B1022), Color(0xFF4C1D95), Color(0xFF0891B2))))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    Color(0xFF0B1022),
+                                    Color(0xFF4C1D95),
+                                    Color(0xFF0891B2)
+                                )
+                            )
+                        )
                         .padding(22.dp)
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(if (premium) strings.get("pro") else "IMAGE TOOLBOX", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp)
-                        Text(strings.get("home"), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
-                        Text(strings.get("home.subtitle"), color = Color.White.copy(alpha = .82f), fontSize = 12.sp)
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    if (premium) strings.get("pro") else "IMAGE TOOLBOX",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 10.sp
+                                )
+                                Text(
+                                    strings.get("home"),
+                                    color = Color.White,
+                                    fontSize = 28.sp,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            }
+                            Box(
+                                Modifier.size(54.dp)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(Color.White.copy(alpha = .12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    if (premium) Icons.Default.WorkspacePremium else Icons.Default.AutoAwesome,
+                                    null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            strings.get("home.subtitle"),
+                            color = Color.White.copy(alpha = .82f),
+                            fontSize = 12.sp
+                        )
                         Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                            MiniPillV5(TOOL_CATALOG.size.toString() + "+", strings.get("tools"))
+                            MiniPillV5(
+                                TOOL_CATALOG.size.toString() + "+",
+                                strings.get("tools")
+                            )
                             MiniPillV5(strings.get("local"), strings.get("processing"))
                             MiniPillV5("PRO", "optional")
                         }
@@ -453,22 +495,152 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
                 shape = RoundedCornerShape(18.dp)
             )
         }
-        item { SectionTitleV5(strings.get("popular"), strings.get("home.subtitle")) }
+        item {
+            SectionTitleV5(strings.get("popular"), strings.get("home.subtitle"))
+        }
         items(popular) { tool -> ToolRowV5(tool, strings, openTool) }
-        item { SectionTitleV5(strings.get("all.tools"), filtered.size.toString()) }
-        items(filtered) { tool -> ToolRowV5(tool, strings, openTool) }
-        item { FeatureCardV5(Icons.Default.Lock, strings.get("local"), strings.get("private")) }
+        item {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SectionTitleV5(strings.get("all.tools"), filtered.size.toString())
+                if (premium) {
+                    AssistChip(
+                        onClick = {},
+                        label = { Text(strings.get("pro")) },
+                        leadingIcon = { Icon(Icons.Default.WorkspacePremium, null) }
+                    )
+                }
+            }
+        }
+        items(filtered.take(10)) { tool -> ToolRowV5(tool, strings, openTool) }
+        item {
+            FeatureCardV5(
+                if (premium) Icons.Default.Verified else Icons.Default.Lock,
+                if (premium) strings.get("premium.active") else strings.get("local"),
+                if (premium) "Advanced tools are unlocked." else strings.get("private")
+            )
+        }
     }
 }
 
 @Composable
 private fun ToolsScreenV5(strings: UiText, openTool: (String) -> Unit) {
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+    var query by remember { mutableStateOf("") }
+    val filtered = TOOL_CATALOG.filter {
+        (strings.toolTitle(it.id) + " " + strings.toolSubtitle(it.id)).contains(query, true)
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        Surface(
+            tonalElevation = 2.dp,
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Build, null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(strings.get("tools"), fontWeight = FontWeight.ExtraBold)
+                    Text(
+                        filtered.size.toString() + " tools",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (filtered.any { it.premium }) {
+                    Text(
+                        strings.get("pro"),
+                        color = Color(0xFF7C3AED),
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 10.sp
+                    )
+                }
+            }
+        }
+
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            modifier = Modifier.padding(horizontal = 14.dp).fillMaxWidth(),
+            placeholder = { Text(strings.get("search")) },
+            leadingIcon = { Icon(Icons.Default.Search, null) },
+            singleLine = true,
+            shape = RoundedCornerShape(18.dp)
+        )
+
+        Spacer(Modifier.height(10.dp))
+
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            gridItems(filtered) { tool ->
+                ToolGridCardV5(tool, strings, openTool)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToolGridCardV5(tool: ToolDef, strings: UiText, openTool: (String) -> Unit) {
+    Card(
+        onClick = { openTool(tool.id) },
+        shape = RoundedCornerShape(24.dp)
     ) {
-        items(TOOL_CATALOG) { tool -> ToolRowV5(tool, strings, openTool) }
+        Column(
+            Modifier.padding(13.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    Modifier.size(44.dp)
+                        .clip(RoundedCornerShape(15.dp))
+                        .background(Brush.linearGradient(listOf(tool.start, tool.end))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(tool.icon, null, tint = Color.White)
+                }
+                Spacer(Modifier.weight(1f))
+                if (tool.premium) {
+                    Surface(
+                        shape = RoundedCornerShape(9.dp),
+                        color = Color(0xFFEDE9FE)
+                    ) {
+                        Text(
+                            strings.get("pro"),
+                            color = Color(0xFF6D28D9),
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 8.sp,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+            }
+            Text(
+                strings.toolTitle(tool.id),
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1
+            )
+            Text(
+                strings.toolSubtitle(tool.id),
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                minLines = 2
+            )
+        }
     }
 }
 
