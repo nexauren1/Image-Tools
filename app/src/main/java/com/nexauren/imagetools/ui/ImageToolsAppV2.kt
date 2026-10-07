@@ -904,7 +904,7 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            if (outputFolderUri != null) Icons.Default.FolderDone else Icons.Default.FolderOpen,
+                            if (outputFolderUri != null) Icons.Default.Folder else Icons.Default.FolderOpen,
                             null,
                             tint = if (outputFolderUri != null) Color(0xFF059669) else Color(0xFFEA580C)
                         )
