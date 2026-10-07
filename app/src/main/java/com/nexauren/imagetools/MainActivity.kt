@@ -11,6 +11,7 @@ import com.nexauren.imagetools.data.FirestoreRepository
 import com.nexauren.imagetools.data.PaymentRepository
 import com.nexauren.imagetools.ui.ImageToolsAppV2
 import com.nexauren.imagetools.ui.theme.ImageToolsTheme
+import com.google.android.gms.ads.MobileAds
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -21,6 +22,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handleIntent(intent)
+
+        MobileAds.initialize(this)
 
         setContent {
             val auth = remember { AuthRepository(this@MainActivity) }
