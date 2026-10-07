@@ -3,76 +3,18 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /*
-     * CENTRAL USER ACCOUNT
-     * Shared by current and future Nexauren apps.
-     *
-     * Client apps may manage only normal profile fields.
-     * Subscription, payment, entitlement and billing fields are
-     * server-managed by the trusted backend (Cloudflare Worker/Admin SDK).
-     */
     match /users/{userId} {
-      allow read: if isOwner(userId);
+      allow read: if request.auth != null
+        && request.auth.uid == userId;
 
-      allow create: if isOwner(userId)
-        && request.resource.data.keys().hasOnly([
-          'displayName',
-          'email',
-          'photoUrl',
-          'plan',
-          'premium',
-          'createdAt',
-          'updatedAt'
-        ])
-        && request.resource.data.displayName is string
-        && request.resource.data.email is string
-        && request.resource.data.photoUrl is string
-        && request.resource.data.plan == 'free'
-        && request.resource.data.premium == false
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time
-        && request.resource.data.email == request.auth.token.email;
+      allow write: if false;
 
-      allow update: if isOwner(userId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'displayName',
-          'email',
-          'photoUrl',
-          'updatedAt'
-        ])
-        && request.resource.data.displayName is string
-        && request.resource.data.email is string
-        && request.resource.data.photoUrl is string
-        && request.resource.data.email == request.auth.token.email
-        && request.resource.data.updatedAt == request.time;
+      match /entitlement/premium {
+        allow read: if request.auth != null
+          && request.auth.uid == userId;
 
-      allow delete: if false;
-    }
-
-    /*
-     * USER-OWNED APP DATA
-     * Reserved structure for current and future apps:
-     * users/{uid}/apps/{appId}/...
-     *
-     * Each app gets isolation under its own appId.
-     * Clients can access only their own data.
-     * This does not expose or modify billing/account entitlements.
-     */
-    match /users/{userId}/apps/{appId}/{document=**} {
-      allow read, write: if isOwner(userId);
-    }
-
-    /*
-     * Explicit deny for everything else.
-     * New shared/public collections must receive their own narrowly
-     * scoped rule before a client can access them.
-     */
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+        allow write: if false;
+      }
     }
   }
 }
