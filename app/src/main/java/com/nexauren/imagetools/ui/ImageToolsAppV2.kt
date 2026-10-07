@@ -27,6 +27,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -534,6 +535,7 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
     var sourceBytes by remember { mutableStateOf<Long?>(null) }
     var result by remember { mutableStateOf<com.nexauren.imagetools.media.ImageResult?>(null) }
     var status by remember { mutableStateOf<String?>(null) }
+    var statusTone by remember { mutableStateOf("neutral") }
     var busy by remember { mutableStateOf(false) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     var pendingFormat by remember { mutableStateOf(OutputFormat.JPEG) }
@@ -560,6 +562,7 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
         val bytes = pendingBytes
         if (uri == null || bytes == null) {
             pendingBytes = null
+            statusTone = "neutral"
             status = "Save cancelled. Your image was not changed."
             return@rememberLauncherForActivityResult
         }
@@ -568,8 +571,10 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                 result = withContext(Dispatchers.IO) {
                     ImageProcessor.saveToUri(context, uri, bytes, pendingFormat, pendingWidth, pendingHeight)
                 }
+                statusTone = "success"
                 status = "Saved successfully. You chose where the file goes."
             } catch (_: Exception) {
+                statusTone = "error"
                 status = "We could not save the file. Please choose another location."
             } finally {
                 pendingBytes = null
@@ -582,6 +587,7 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
         sourceBytes = uri?.let { ImageProcessor.sourceBytes(context, it) }
         result = null
         status = null
+        statusTone = "neutral"
         image?.let {
             if (id == "resize") {
                 width = it.width.toString()
@@ -702,6 +708,7 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                         val source = image ?: return@Button
                         busy = true
                         status = null
+                        statusTone = "neutral"
                         scope.launch {
                             try {
                                 val transformed = withContext(Dispatchers.Default) {
@@ -723,9 +730,11 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                                 pendingWidth = transformed.width
                                 pendingHeight = transformed.height
                                 pendingPrefix = id
+                                statusTone = "success"
                                 status = "Choose where to save your result."
                                 saveLauncher.launch(id + "_" + System.currentTimeMillis() + "." + outputFormat.extension)
                             } catch (_: Exception) {
+                                statusTone = "error"
                                 status = "We could not create the result. Try another image or a smaller output."
                             } finally {
                                 busy = false
@@ -778,7 +787,26 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
             }
             status?.let { text ->
                 item {
-                    Text(text, color = if (result != null) Color(0xFF159A63) else MaterialTheme.colorScheme.error, fontWeight = FontWeight.Medium)
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = when (statusTone) {
+                            "success" -> Color(0xFFECFDF5)
+                            "error" -> Color(0xFFFEF2F2)
+                            else -> Color(0xFFF1F5F9)
+                        }
+                    ) {
+                        Text(
+                            text,
+                            Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            color = when (statusTone) {
+                                "success" -> Color(0xFF047857)
+                                "error" -> MaterialTheme.colorScheme.error
+                                else -> Color(0xFF475569)
+                            },
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             }
             if (!premium) {
@@ -1083,7 +1111,7 @@ private fun RotatePanel(
                 Modifier.size(92.dp).clip(RoundedCornerShape(24.dp)).background(Color(0xFFF1F5F9)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Image, null, modifier = Modifier.size(50.dp), tint = Color(0xFF4F46E5))
+                Icon(Icons.Default.Image, null, modifier = Modifier.size(50.dp).rotate(angle.toFloat()), tint = Color(0xFF4F46E5))
                 Text(angle.toString() + "°", Modifier.align(Alignment.BottomCenter).padding(bottom = 9.dp), fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF4F46E5))
             }
         }
