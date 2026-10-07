@@ -43,6 +43,7 @@ import com.nexauren.imagetools.auth.AuthRepository
 import com.nexauren.imagetools.data.FirestoreRepository
 import com.nexauren.imagetools.data.PaymentException
 import com.nexauren.imagetools.data.PaymentRepository
+import com.nexauren.imagetools.data.OutputFolderStore
 import com.nexauren.imagetools.media.ImageFilter
 import com.nexauren.imagetools.media.ImageProcessor
 import com.nexauren.imagetools.media.OutputFormat
@@ -531,17 +532,23 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val tool = tools.firstOrNull { it.id == id } ?: return
+
     var image by remember { mutableStateOf<Bitmap?>(null) }
     var sourceBytes by remember { mutableStateOf<Long?>(null) }
     var result by remember { mutableStateOf<com.nexauren.imagetools.media.ImageResult?>(null) }
+    var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var status by remember { mutableStateOf<String?>(null) }
     var statusTone by remember { mutableStateOf("neutral") }
     var busy by remember { mutableStateOf(false) }
+
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     var pendingFormat by remember { mutableStateOf(OutputFormat.JPEG) }
     var pendingWidth by remember { mutableIntStateOf(1) }
     var pendingHeight by remember { mutableIntStateOf(1) }
-    var pendingPrefix by remember { mutableStateOf("image-tools") }
+
+    var outputFolderUri by remember { mutableStateOf(OutputFolderStore.getTreeUri(context)) }
+    var showFolderGuide by remember { mutableStateOf(false) }
+    var pendingActionAfterFolder by remember { mutableStateOf(false) }
 
     var width by remember { mutableStateOf("1920") }
     var height by remember { mutableStateOf("1080") }
@@ -558,27 +565,97 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
     var watermarkOpacity by remember { mutableFloatStateOf(72f) }
     var watermarkPosition by remember { mutableStateOf("Bottom right") }
 
-    val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument()) { uri ->
-        val bytes = pendingBytes
-        if (uri == null || bytes == null) {
-            pendingBytes = null
-            statusTone = "neutral"
-            status = "Save cancelled. Your image was not changed."
-            return@rememberLauncherForActivityResult
-        }
+    fun generateResult() {
+        val source = image ?: return
+        busy = true
+        status = null
+        statusTone = "neutral"
+        result = null
+
         scope.launch {
             try {
-                result = withContext(Dispatchers.IO) {
-                    ImageProcessor.saveToUri(context, uri, bytes, pendingFormat, pendingWidth, pendingHeight)
+                val transformed = withContext(Dispatchers.Default) {
+                    when (id) {
+                        "resize" -> ImageProcessor.resize(
+                            source,
+                            width.toIntOrNull()?.coerceAtLeast(1) ?: source.width,
+                            height.toIntOrNull()?.coerceAtLeast(1) ?: source.height
+                        )
+                        "compress", "convert" -> source
+                        "crop" -> ImageProcessor.cropCenter(source, cropRatio)
+                        "rotate" -> ImageProcessor.rotate(source, angle, mirrorH, mirrorV)
+                        "filter" -> ImageProcessor.filter(source, filter)
+                        "watermark" -> ImageProcessor.watermark(
+                            source,
+                            watermarkText,
+                            watermarkOpacity.toInt(),
+                            watermarkPosition
+                        )
+                        else -> source
+                    }
                 }
+                val outputFormat = if (id == "compress") compressFormat else format
+                val outputQuality = if (outputFormat == OutputFormat.PNG) {
+                    100
+                } else {
+                    quality.toInt().coerceIn(1, 100)
+                }
+                val bytes = withContext(Dispatchers.Default) {
+                    ImageProcessor.encode(transformed, outputFormat, outputQuality)
+                }
+                previewBitmap = transformed
+                pendingBytes = bytes
+                pendingFormat = outputFormat
+                pendingWidth = transformed.width
+                pendingHeight = transformed.height
                 statusTone = "success"
-                status = "Saved successfully. You chose where the file goes."
+                status = "Preview ready. Review it, then tap Save to store the image."
             } catch (_: Exception) {
-                statusTone = "error"
-                status = "We could not save the file. Please choose another location."
-            } finally {
+                previewBitmap = null
                 pendingBytes = null
+                statusTone = "error"
+                status = "We could not create the result. Try another image or a smaller output."
+            } finally {
+                busy = false
             }
+        }
+    }
+
+    val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri == null) {
+            pendingActionAfterFolder = false
+            statusTone = "neutral"
+            status = "Folder setup cancelled. Your image was not created."
+            return@rememberLauncherForActivityResult
+        }
+
+        try {
+            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            context.contentResolver.takePersistableUriPermission(uri, flags)
+        } catch (_: Exception) {
+            // Some providers do not expose persistable permissions; the chosen tree can still be used now.
+        }
+
+        OutputFolderStore.saveTreeUri(context, uri)
+        outputFolderUri = uri
+        showFolderGuide = false
+        statusTone = "success"
+        status = "Output folder configured. Your images will only be saved after you tap Save."
+    }
+
+    LaunchedEffect(outputFolderUri, pendingActionAfterFolder) {
+        if (outputFolderUri != null && pendingActionAfterFolder) {
+            pendingActionAfterFolder = false
+            generateResult()
+        }
+    }
+
+    fun requestAction() {
+        if (outputFolderUri == null) {
+            pendingActionAfterFolder = true
+            showFolderGuide = true
+        } else {
+            generateResult()
         }
     }
 
@@ -586,6 +663,8 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
         image = uri?.let { ImageProcessor.decode(context, it) }
         sourceBytes = uri?.let { ImageProcessor.sourceBytes(context, it) }
         result = null
+        previewBitmap = null
+        pendingBytes = null
         status = null
         statusTone = "neutral"
         image?.let {
@@ -596,10 +675,53 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
         }
     }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item {
-            WorkspaceHeader(tool, onBack)
-        }
+    if (showFolderGuide) {
+        AlertDialog(
+            onDismissRequest = {
+                showFolderGuide = false
+                pendingActionAfterFolder = false
+            },
+            icon = { Icon(Icons.Default.FolderOpen, null) },
+            title = { Text("Choose your output folder") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Before creating your first result, Image Tools needs one folder for saved images.")
+                    Text("1. Choose the folder you want to use.")
+                    Text("2. Allow access when Android asks.")
+                    Text("3. From then on, every saved image goes there.")
+                    Text("Nothing is saved when you tap Action. You will always see the result preview first.")
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showFolderGuide = false
+                        folderLauncher.launch(null)
+                    }
+                ) {
+                    Text("Choose folder")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showFolderGuide = false
+                        pendingActionAfterFolder = false
+                    }
+                ) {
+                    Text("Not now")
+                }
+            }
+        )
+    }
+
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item { WorkspaceHeader(tool, onBack) }
+
         item {
             Card(
                 onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
@@ -607,16 +729,36 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF101426)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
             ) {
-                Column(Modifier.fillMaxWidth().padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column(
+                    Modifier.fillMaxWidth().padding(14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Surface(shape = RoundedCornerShape(50), color = tool.start.copy(alpha = 0.16f)) {
-                            Row(Modifier.padding(horizontal = 9.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Icon(tool.icon, null, tint = tool.end, modifier = Modifier.size(15.dp))
                                 Spacer(Modifier.width(5.dp))
-                                Text(tool.title.uppercase(), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                Text(
+                                    tool.title.uppercase(),
+                                    color = Color.White,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
                             }
                         }
-                        Text("LOCAL", color = Color.White.copy(alpha = 0.55f), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            "LOCAL",
+                            color = Color.White.copy(alpha = 0.55f),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                     Spacer(Modifier.height(12.dp))
                     if (image == null) {
@@ -634,8 +776,17 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                                     Icon(tool.icon, null, tint = Color.White, modifier = Modifier.size(34.dp))
                                 }
                                 Spacer(Modifier.height(12.dp))
-                                Text("Choose an image", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
-                                Text("Tap to open your photo picker.", color = Color.White.copy(alpha = 0.62f), fontSize = 12.sp)
+                                Text(
+                                    "Choose an image",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 18.sp
+                                )
+                                Text(
+                                    "Tap to open your photo picker.",
+                                    color = Color.White.copy(alpha = 0.62f),
+                                    fontSize = 12.sp
+                                )
                             }
                         }
                     } else {
@@ -665,20 +816,25 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                             }
                         }
                         Spacer(Modifier.height(9.dp))
-                        Text("Tap the preview to replace the image.", color = Color.White.copy(alpha = 0.62f), fontSize = 12.sp)
+                        Text(
+                            "Tap the preview to replace the image.",
+                            color = Color.White.copy(alpha = 0.62f),
+                            fontSize = 12.sp
+                        )
                     }
                 }
             }
         }
 
         if (id == "info") {
-            item {
-                InfoPanel(image, sourceBytes)
-            }
+            item { InfoPanel(image, sourceBytes) }
         } else {
             item {
                 when (id) {
-                    "resize" -> ResizePanel(width, height, lockRatio,
+                    "resize" -> ResizePanel(
+                        width,
+                        height,
+                        lockRatio,
                         onWidth = {
                             val v = it.filter(Char::isDigit)
                             width = v
@@ -690,75 +846,223 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                         onHeight = { height = it.filter(Char::isDigit) },
                         onLock = { lockRatio = it }
                     )
-                    "compress" -> CompressPanel(quality, compressFormat, { quality = it }, { compressFormat = it })
+                    "compress" -> CompressPanel(
+                        quality,
+                        compressFormat,
+                        { quality = it },
+                        { compressFormat = it }
+                    )
                     "convert" -> FormatPanel(format) { format = it }
                     "crop" -> CropPanel(cropRatio) { cropRatio = it }
-                    "rotate" -> RotatePanel(angle, mirrorH, mirrorV, { angle = it }, { mirrorH = it }, { mirrorV = it })
+                    "rotate" -> RotatePanel(
+                        angle,
+                        mirrorH,
+                        mirrorV,
+                        { angle = it },
+                        { mirrorH = it },
+                        { mirrorV = it }
+                    )
                     "filter" -> FilterPanel(filter) { filter = it }
-                    "watermark" -> WatermarkPanel(watermarkText, watermarkOpacity, watermarkPosition,
+                    "watermark" -> WatermarkPanel(
+                        watermarkText,
+                        watermarkOpacity,
+                        watermarkPosition,
                         onText = { watermarkText = it },
                         onOpacity = { watermarkOpacity = it },
                         onPosition = { watermarkPosition = it }
                     )
                 }
             }
+
             item {
                 Button(
-                    onClick = {
-                        val source = image ?: return@Button
-                        busy = true
-                        status = null
-                        statusTone = "neutral"
-                        scope.launch {
-                            try {
-                                val transformed = withContext(Dispatchers.Default) {
-                                    when (id) {
-                                        "resize" -> ImageProcessor.resize(source, width.toIntOrNull()?.coerceAtLeast(1) ?: source.width, height.toIntOrNull()?.coerceAtLeast(1) ?: source.height)
-                                        "compress", "convert" -> source
-                                        "crop" -> ImageProcessor.cropCenter(source, cropRatio)
-                                        "rotate" -> ImageProcessor.rotate(source, angle, mirrorH, mirrorV)
-                                        "filter" -> ImageProcessor.filter(source, filter)
-                                        "watermark" -> ImageProcessor.watermark(source, watermarkText, watermarkOpacity.toInt(), watermarkPosition)
-                                        else -> source
-                                    }
-                                }
-                                val outputFormat = if (id == "compress") compressFormat else format
-                                val outputQuality = if (outputFormat == OutputFormat.PNG) 100 else quality.toInt().coerceIn(1, 100)
-                                val bytes = withContext(Dispatchers.Default) { ImageProcessor.encode(transformed, outputFormat, outputQuality) }
-                                pendingBytes = bytes
-                                pendingFormat = outputFormat
-                                pendingWidth = transformed.width
-                                pendingHeight = transformed.height
-                                pendingPrefix = id
-                                statusTone = "success"
-                                status = "Choose where to save your result."
-                                saveLauncher.launch(id + "_" + System.currentTimeMillis() + "." + outputFormat.extension)
-                            } catch (_: Exception) {
-                                statusTone = "error"
-                                status = "We could not create the result. Try another image or a smaller output."
-                            } finally {
-                                busy = false
-                            }
-                        }
-                    },
+                    onClick = { requestAction() },
                     modifier = Modifier.fillMaxWidth().height(54.dp),
                     enabled = image != null && !busy,
                     shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = tool.start)
                 ) {
                     if (busy) {
-                        CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = Color.White)
+                        CircularProgressIndicator(
+                            Modifier.size(22.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White
+                        )
                     } else {
-                        Text("Create & save…", fontWeight = FontWeight.Bold)
+                        Text("Apply & preview", fontWeight = FontWeight.Bold)
                     }
                 }
             }
+
+            item {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = if (outputFolderUri != null) Color(0xFFECFDF5) else Color(0xFFFFF7ED)
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            if (outputFolderUri != null) Icons.Default.FolderDone else Icons.Default.FolderOpen,
+                            null,
+                            tint = if (outputFolderUri != null) Color(0xFF059669) else Color(0xFFEA580C)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                if (outputFolderUri != null) "Output folder ready" else "Output folder not configured",
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                if (outputFolderUri != null) {
+                                    OutputFolderStore.folderName(context, outputFolderUri) ?: "Configured folder"
+                                } else {
+                                    "The first Action will guide you to create it."
+                                },
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            pendingBytes?.let { bytes ->
+                previewBitmap?.let { preview ->
+                    item {
+                        Card(
+                            shape = RoundedCornerShape(26.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        ) {
+                            Column(
+                                Modifier.fillMaxWidth().padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text("Result preview", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                                        Text(
+                                            pendingWidth.toString() + " × " + pendingHeight +
+                                                " • " + ImageProcessor.humanBytes(bytes.size.toLong()) +
+                                                " • " + pendingFormat.label,
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = tool.start.copy(alpha = 0.10f)
+                                    ) {
+                                        Text(
+                                            "NOT SAVED",
+                                            Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                            color = tool.start,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.ExtraBold
+                                        )
+                                    }
+                                }
+                                Box(
+                                    Modifier.fillMaxWidth().height(280.dp)
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(Color(0xFF080B14)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Image(
+                                        preview.asImageBitmap(),
+                                        "Result preview",
+                                        Modifier.fillMaxSize().padding(10.dp),
+                                        contentScale = ContentScale.Fit
+                                    )
+                                }
+                                Text(
+                                    "Check the result above. Nothing is stored until you tap Save.",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Button(
+                                        onClick = {
+                                            val folder = outputFolderUri ?: run {
+                                                statusTone = "error"
+                                                status = "Output folder is missing. Please choose it again."
+                                                return@Button
+                                            }
+                                            scope.launch {
+                                                busy = true
+                                                try {
+                                                    result = withContext(Dispatchers.IO) {
+                                                        ImageProcessor.saveToFolder(
+                                                            context,
+                                                            folder,
+                                                            bytes,
+                                                            pendingFormat,
+                                                            id,
+                                                            pendingWidth,
+                                                            pendingHeight
+                                                        )
+                                                    }
+                                                    pendingBytes = null
+                                                    statusTone = "success"
+                                                    status = "Saved to your configured output folder."
+                                                } catch (_: Exception) {
+                                                    statusTone = "error"
+                                                    status = "We could not save there. Please choose a different output folder in Settings."
+                                                } finally {
+                                                    busy = false
+                                                }
+                                            }
+                                        },
+                                        enabled = !busy,
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(16.dp)
+                                    ) {
+                                        Icon(Icons.Default.Save, null)
+                                        Spacer(Modifier.width(7.dp))
+                                        Text("Save")
+                                    }
+                                    OutlinedButton(
+                                        onClick = {
+                                            pendingBytes = null
+                                            previewBitmap = null
+                                            statusTone = "neutral"
+                                            status = "Result discarded. Your original image is unchanged."
+                                        },
+                                        enabled = !busy,
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(16.dp)
+                                    ) {
+                                        Text("Discard")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             result?.let { saved ->
                 item {
-                    Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFE9FFF4))) {
-                        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text("Ready", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
-                            Text(saved.width.toString() + " × " + saved.height.toString() + " • " + ImageProcessor.humanBytes(saved.bytes) + " • " + saved.format.label)
+                    Card(
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE9FFF4))
+                    ) {
+                        Column(
+                            Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text("Saved", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                            Text(
+                                saved.width.toString() + " × " + saved.height.toString() +
+                                    " • " + ImageProcessor.humanBytes(saved.bytes) +
+                                    " • " + saved.format.label
+                            )
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(onClick = {
                                     val open = Intent(Intent.ACTION_VIEW).apply {
@@ -785,6 +1089,7 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                     }
                 }
             }
+
             status?.let { text ->
                 item {
                     Surface(
@@ -809,12 +1114,19 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                     }
                 }
             }
+
             if (!premium) {
                 item {
-                    Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Card(
+                        shape = RoundedCornerShape(22.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
                         Column(Modifier.padding(16.dp)) {
                             Text("Premium growth", fontWeight = FontWeight.Bold)
-                            Text("More batch and advanced workflows can be added as the premium library expands.", fontSize = 12.sp)
+                            Text(
+                                "More batch and advanced workflows can be added as the premium library expands.",
+                                fontSize = 12.sp
+                            )
                         }
                     }
                 }
@@ -822,7 +1134,6 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
         }
     }
 }
-
 
 @Composable
 private fun WorkspaceHeader(tool: Tool, onBack: () -> Unit) {
