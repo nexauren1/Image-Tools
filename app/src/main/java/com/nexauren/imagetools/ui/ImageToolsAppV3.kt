@@ -226,6 +226,7 @@ private fun authMessage(e:Throwable):String{val t=e.message?.lowercase().orEmpty
         item{OutlinedButton({auth.signOut()},Modifier.fillMaxWidth(),shape=RoundedCornerShape(16.dp)){Text("Sign out")}}
         item{Feature("Account deletion","Use Support in Settings to request deletion of your account and associated server-side account data.","Info")}}
     }
+}
 
 @Composable private fun SettingsScreen(dark:Boolean,toggle:(Boolean)->Unit){
     val c=LocalContext.current
