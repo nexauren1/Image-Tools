@@ -1238,7 +1238,9 @@ private fun ToolWorkspaceV5(
                         borderSize = borderSize,
                         onBorderSize = { borderSize = it },
                         cornerRadius = cornerRadius,
-                        onCornerRadius = { cornerRadius = it }
+                        onCornerRadius = { cornerRadius = it },
+                        duotonePreset = duotonePreset,
+                        onDuotonePreset = { duotonePreset = it }
                     )
                 }
             }
@@ -1421,6 +1423,13 @@ private fun ToolWorkspaceV5(
             }
         }
     }
+
+    if (busy) {
+        ProcessingGearDialog(
+            title = strings.get("processing.title"),
+            subtitle = strings.get("processing.subtitle")
+        )
+    }
 }
 
 @Composable
@@ -1557,7 +1566,9 @@ private fun ToolControlsV5(
     borderSize: Float,
     onBorderSize: (Float) -> Unit,
     cornerRadius: Float,
-    onCornerRadius: (Float) -> Unit
+    onCornerRadius: (Float) -> Unit,
+    duotonePreset: String,
+    onDuotonePreset: (String) -> Unit
 ) {
     when (tool.id) {
         "resize" -> {
