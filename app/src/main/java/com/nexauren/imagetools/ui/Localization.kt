@@ -306,7 +306,7 @@ class UiText(private val language: AppLanguage) {
             "processing.subtitle" to "A engrenagem indica que o processamento está em curso.",
             "duotone.ocean" to "Oceano",
             "duotone.sunset" to "Pôr do sol",
-            "duotone.ink" to "Tinta"
+            "duotone.ink" to "Tinta",
             "filter.original" to "Original",
             "filter.grayscale" to "Escala de cinza",
             "filter.sepia" to "Sépia",
@@ -451,7 +451,7 @@ class UiText(private val language: AppLanguage) {
             "processing.subtitle" to "The gear shows that processing is in progress.",
             "duotone.ocean" to "Ocean",
             "duotone.sunset" to "Sunset",
-            "duotone.ink" to "Ink"
+            "duotone.ink" to "Ink",
             "filter.original" to "Original",
             "filter.grayscale" to "Grayscale",
             "filter.sepia" to "Sepia",
