@@ -88,6 +88,7 @@ private fun HistoryCardV5(entry: HistoryEntry) {
 @Composable
 fun RecipesScreenV5(
     auth: AuthRepository,
+    premium: Boolean,
     strings: UiText
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -109,6 +110,13 @@ fun RecipesScreenV5(
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(strings.get("recipes"), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
                     Text(strings.get("premium.unlock"), fontSize = 12.sp)
+                    if (!premium) {
+                        Text(
+                            strings.get("premium.unlock"),
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
@@ -132,7 +140,8 @@ fun RecipesScreenV5(
                                 name = ""
                             }
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = premium
                     ) {
                         Icon(Icons.Default.Save, null)
                         Spacer(Modifier.width(6.dp))
