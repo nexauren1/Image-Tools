@@ -1510,6 +1510,11 @@ private fun FilterPanel(filter: ImageFilter, onFilter: (ImageFilter) -> Unit) {
                                             ImageFilter.GRAYSCALE -> Color(0xFF64748B)
                                             ImageFilter.SEPIA -> Color(0xFFB7791F)
                                             ImageFilter.HIGH_CONTRAST -> Color(0xFF111827)
+                                            ImageFilter.VIVID -> Color(0xFFDB2777)
+                                            ImageFilter.COOL -> Color(0xFF0EA5E9)
+                                            ImageFilter.WARM -> Color(0xFFF97316)
+                                            ImageFilter.FADE -> Color(0xFFA8A29E)
+                                            ImageFilter.CINEMATIC -> Color(0xFF4C1D95)
                                         }
                                     )
                             )
