@@ -36,9 +36,9 @@ class MainActivity : ComponentActivity() {
 
         adMobScope.launch {
             runCatching {
-                MobileAds.initialize(applicationContext) {}
-            }.onSuccess {
-                runOnUiThread { adMobReady.value = true }
+                MobileAds.initialize(applicationContext) {
+                    runOnUiThread { adMobReady.value = true }
+                }
             }
         }
 
