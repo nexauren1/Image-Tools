@@ -47,5 +47,6 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: Image Tools ${{ github.ref_name }}
+          target_commitish: ${{ github.sha }}
           generate_release_notes: true
           files: app/build/outputs/apk/release/app-release.apk
