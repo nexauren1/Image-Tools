@@ -123,3 +123,12 @@ Never commit:
 - Release keystore files or passwords
 - Other production credentials
 
+
+
+## Image Tools 1.9.0
+
+- Refined visual system with a denser tool grid and stronger dashboard cards.
+- Added animated gear processing state for image and batch operations.
+- Expanded account dashboard with plan, usage, security, support and deletion controls.
+- Added eight image tools, including auto enhance, exposure, tint, vignette, posterize, duotone, mirror and denoise.
+- Expanded PRO presentation and localized the new controls across supported languages.
