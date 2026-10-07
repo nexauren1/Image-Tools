@@ -163,7 +163,7 @@ object ImageProcessor {
         val textSize = (bitmap.width * 0.085f).coerceIn(34f, 110f)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
-            textSize = textSize
+            this.textSize = textSize
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             textAlign = Paint.Align.CENTER
             style = Paint.Style.FILL
