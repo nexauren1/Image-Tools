@@ -7,7 +7,7 @@
         android:icon="@drawable/ic_launcher"
         android:roundIcon="@drawable/ic_launcher"
         android:theme="@style/Theme.ImageTools"
-        android:supportsRtl="true">
+        android:supportsRtl="true">\n\n        <meta-data\n            android:name="com.google.android.gms.ads.APPLICATION_ID"\n            android:value="@string/admob_app_id" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
