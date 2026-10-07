@@ -315,7 +315,7 @@ private fun AuthScreenV5(auth: AuthRepository) {
                                 busy = true
                                 scope.launch {
                                     auth.signInGoogle(BuildConfig.GOOGLE_WEB_CLIENT_ID)
-                                        .onFailure { error = authMessageV5(it) }
+                                        .onFailure { error = authMessageV5(it, strings) }
                                     busy = false
                                 }
                             },
@@ -349,7 +349,7 @@ private fun AuthScreenV5(auth: AuthRepository) {
                                 error = null
                                 scope.launch {
                                     val result = if (create) auth.registerEmail(email, password) else auth.signInEmail(email, password)
-                                    result.onFailure { error = authMessageV5(it) }
+                                    result.onFailure { error = authMessageV5(it, strings) }
                                     busy = false
                                 }
                             },
@@ -385,14 +385,14 @@ private fun AuthScreenV5(auth: AuthRepository) {
     }
 }
 
-private fun authMessageV5(error: Throwable): String {
+private fun authMessageV5(error: Throwable, strings: UiText): String {
     val text = error.message?.lowercase().orEmpty()
     return when {
-        "already in use" in text -> "This email is already registered."
-        "invalid email" in text || "badly formatted" in text -> "Please enter a valid email address."
-        "wrong-password" in text || "invalid-credential" in text -> "The email or password is incorrect."
-        "network" in text -> "Connection failed. Check your internet."
-        else -> "We could not complete sign-in. Please try again."
+        "already in use" in text -> strings.get("auth.exists")
+        "invalid email" in text || "badly formatted" in text -> strings.get("auth.invalid")
+        "wrong-password" in text || "invalid-credential" in text -> strings.get("auth.generic")
+        "network" in text -> strings.get("auth.network")
+        else -> strings.get("auth.generic")
     }
 }
 
@@ -423,7 +423,7 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
                         Text(strings.get("home.subtitle"), color = Color.White.copy(alpha = .82f), fontSize = 12.sp)
                         Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                             MiniPillV5("25+", strings.get("tools"))
-                            MiniPillV5("Local", "processing")
+                            MiniPillV5(strings.get("local"), strings.get("processing"))
                             MiniPillV5("PRO", "optional")
                         }
                     }
@@ -1690,7 +1690,7 @@ private fun SettingsScreenV5(
         item {
             SettingRowV5(
                 strings.get("settings.dark"),
-                "Use a darker workspace",
+                strings.get("settings.dark.help"),
                 Icons.Default.DarkMode
             ) {
                 Switch(darkMode, onDarkModeChange)
