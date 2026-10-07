@@ -6,7 +6,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
-import com.google.android.gms.ads.MobileAds
 import com.nexauren.imagetools.auth.AuthRepository
 import com.nexauren.imagetools.data.FirestoreRepository
 import com.nexauren.imagetools.data.PaymentRepository
@@ -24,11 +23,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         handleIntent(intent)
 
-        runCatching {
-            MobileAds.initialize(this) {
-                adMobReady.value = true
-            }
-        }
+        // GMA Legacy SDK auto-initializes through its manifest provider.
+        // Keep startup free of an explicit MobileAds.initialize() call for isolation.
 
         setContent {
             val auth = remember { AuthRepository(this@MainActivity) }
