@@ -13,6 +13,9 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -35,6 +38,7 @@ import com.nexauren.imagetools.BuildConfig
 import com.nexauren.imagetools.auth.AuthRepository
 import com.nexauren.imagetools.data.OutputFolderStore
 import com.nexauren.imagetools.data.PaymentException
+import com.nexauren.imagetools.data.ProcessingStatsStore
 import com.nexauren.imagetools.data.PaymentRepository
 import com.nexauren.imagetools.media.*
 import kotlinx.coroutines.Dispatchers
@@ -79,7 +83,15 @@ private val TOOL_CATALOG = listOf(
     ToolDef("collage", Icons.Default.Collections, Color(0xFFDB2777), Color(0xFFF97316), true),
     ToolDef("ocr", Icons.Default.TextSnippet, Color(0xFF2563EB), Color(0xFF8B5CF6)),
     ToolDef("background", Icons.Default.AutoFixNormal, Color(0xFF0EA5E9), Color(0xFF14B8A6), true),
-    ToolDef("exif", Icons.Default.DataObject, Color(0xFF475569), Color(0xFF06B6D4))
+    ToolDef("exif", Icons.Default.DataObject, Color(0xFF475569), Color(0xFF06B6D4)),
+    ToolDef("auto_enhance", Icons.Default.AutoAwesome, Color(0xFF7C3AED), Color(0xFF06B6D4), true),
+    ToolDef("exposure", Icons.Default.Exposure, Color(0xFFF59E0B), Color(0xFFEF4444)),
+    ToolDef("tint", Icons.Default.Tune, Color(0xFF14B8A6), Color(0xFF3B82F6)),
+    ToolDef("vignette", Icons.Default.BlurOn, Color(0xFF111827), Color(0xFF7C3AED), true),
+    ToolDef("posterize", Icons.Default.Palette, Color(0xFFEC4899), Color(0xFF8B5CF6)),
+    ToolDef("duotone", Icons.Default.ColorLens, Color(0xFF0F766E), Color(0xFFEA580C), true),
+    ToolDef("mirror", Icons.Default.Flip, Color(0xFF2563EB), Color(0xFF14B8A6)),
+    ToolDef("noise_reduction", Icons.Default.AutoFixHigh, Color(0xFF6366F1), Color(0xFF0EA5E9), true)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -422,7 +434,7 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
                         Text(strings.get("home"), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
                         Text(strings.get("home.subtitle"), color = Color.White.copy(alpha = .82f), fontSize = 12.sp)
                         Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                            MiniPillV5("25+", strings.get("tools"))
+                            MiniPillV5(TOOL_CATALOG.size.toString() + "+", strings.get("tools"))
                             MiniPillV5(strings.get("local"), strings.get("processing"))
                             MiniPillV5("PRO", "optional")
                         }
