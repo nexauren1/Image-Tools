@@ -208,10 +208,15 @@ fun ImageToolsAppV2(
             },
             bottomBar = {
                 if (selectedTool == null) {
-                    NavigationBar {
-                        BottomEntry("home", Icons.Default.Home, t.home, page) { page = "home" }
-                        BottomEntry("tools", Icons.Default.Build, t.tools, page) { page = "tools" }
-                        BottomEntry("account", Icons.Default.Person, t.account, page) { page = "account" }
+                    Column {
+                        if (!premium && (page == "home" || page == "tools")) {
+                            AdMobBanner()
+                        }
+                        NavigationBar {
+                            BottomEntry("home", Icons.Default.Home, t.home, page) { page = "home" }
+                            BottomEntry("tools", Icons.Default.Build, t.tools, page) { page = "tools" }
+                            BottomEntry("account", Icons.Default.Person, t.account, page) { page = "account" }
+                        }
                     }
                 }
             }
