@@ -107,6 +107,7 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.android.gms:play-services-ads:25.5.0")
+    implementation("com.google.android.gms:play-services-ads:25.5.0")
 
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
