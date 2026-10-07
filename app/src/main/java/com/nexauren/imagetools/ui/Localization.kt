@@ -57,7 +57,9 @@ class UiText(private val language: AppLanguage) {
             "process.error" to "Não foi possível processar a imagem.",
             "settings.dark.help" to "Usar um espaço de trabalho mais escuro",
             "batch.selected" to "selecionadas",
-            "batch.results" to "resultados"
+            "batch.results" to "resultados",
+            "batch.image" to "Imagen",
+            "batch.image" to "Imagem"
         )
         AppLanguage.EN -> mapOf(
             "auth.google" to "Continue with Google",
@@ -79,7 +81,8 @@ class UiText(private val language: AppLanguage) {
             "process.error" to "Could not process the image.",
             "settings.dark.help" to "Use a darker workspace",
             "batch.selected" to "selected",
-            "batch.results" to "results"
+            "batch.results" to "results",
+            "batch.image" to "Image"
         )
         AppLanguage.ES -> mapOf(
             "auth.google" to "Continuar con Google",
@@ -123,7 +126,8 @@ class UiText(private val language: AppLanguage) {
             "process.error" to "Impossible de traiter l’image.",
             "settings.dark.help" to "Utiliser un espace plus sombre",
             "batch.selected" to "sélectionnées",
-            "batch.results" to "résultats"
+            "batch.results" to "résultats",
+            "batch.image" to "Image"
         )
     }
 
