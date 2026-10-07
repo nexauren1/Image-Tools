@@ -1,63 +1,55 @@
 package com.nexauren.imagetools.data
 
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.SetOptions
 
 class FirestoreRepository {
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
     private var listener: ListenerRegistration? = null
 
+    /*
+     * Firestore client rules intentionally make users/{uid} read-only.
+     * Account profile and entitlement writes are handled by the trusted backend.
+     *
+     * Keep this method for compatibility with existing call sites, but it no
+     * longer performs a client-side write.
+     */
     fun syncUser() {
-        val user = auth.currentUser ?: return
-        val ref = db.collection("users").document(user.uid)
-        ref.get().addOnSuccessListener { snapshot ->
-            if (snapshot.exists()) {
-                ref.set(
-                    mapOf(
-                        "displayName" to (user.displayName ?: ""),
-                        "email" to (user.email ?: ""),
-                        "photoUrl" to (user.photoUrl?.toString() ?: ""),
-                        "updatedAt" to FieldValue.serverTimestamp()
-                    ),
-                    SetOptions.merge()
-                )
-            } else {
-                ref.set(
-                    mapOf(
-                        "displayName" to (user.displayName ?: ""),
-                        "email" to (user.email ?: ""),
-                        "photoUrl" to (user.photoUrl?.toString() ?: ""),
-                        "plan" to "free",
-                        "premium" to false,
-                        "createdAt" to FieldValue.serverTimestamp(),
-                        "updatedAt" to FieldValue.serverTimestamp()
-                    )
-                )
-            }
-        }
+        // User account data is managed by the backend.
     }
 
+    /*
+     * Premium entitlement is exposed at:
+     * users/{uid}/entitlement/premium
+     *
+     * The client may read this document but cannot write it.
+     */
     fun observePremium(callback: (Boolean) -> Unit) {
         listener?.remove()
+
         val user = auth.currentUser
         if (user == null) {
             callback(false)
             return
         }
-        listener = db.collection("users").document(user.uid).addSnapshotListener { snap, _ ->
-            callback(snap?.getBoolean("premium") == true)
-        }
+
+        listener = db.collection("users")
+            .document(user.uid)
+            .collection("entitlement")
+            .document("premium")
+            .addSnapshotListener { snapshot, _ ->
+                callback(snapshot?.getBoolean("premium") == true)
+            }
     }
 
+    /*
+     * Profile changes are server-managed under the current Firestore rules.
+     * Keep the method for compatibility with existing UI call sites.
+     */
     fun updateDisplayName(name: String) {
-        val user = auth.currentUser ?: return
-        db.collection("users").document(user.uid).update(
-            mapOf("displayName" to name, "updatedAt" to FieldValue.serverTimestamp())
-        )
+        // Profile updates are managed by the backend.
     }
 
     fun stop() {
