@@ -471,10 +471,27 @@ private fun selectedToolTitle(id: String, t: UiStrings): String {
     }
 }
 
+private fun toolCategory(id: String): String = when (id) {
+    "resize", "compress", "convert", "crop", "rotate", "adjust", "info" -> "Essential"
+    "filter", "frame", "meme", "pixelate", "blur", "negative", "socialCanvas" -> "Creative"
+    "cutout", "portraitBlur", "autoEnhance", "sharpen" -> "Retouch"
+    "watermark", "duotone", "rounded" -> "PRO"
+    else -> "Essential"
+}
+
 @Composable
 private fun ModernHome(premium: Boolean, openTool: (String) -> Unit, t: UiStrings) {
     var query by remember { mutableStateOf("") }
-    val results = tools.filter { (selectedToolTitle(it.id, t) + " " + it.subtitle).contains(query, true) }
+    var category by remember { mutableStateOf("All") }
+    val categories = listOf("All", "Essential", "Creative", "Retouch", "PRO")
+    val filtered = tools.filter {
+        val matchesText = (selectedToolTitle(it.id, t) + " " + it.subtitle).contains(query, true)
+        val matchesCategory = category == "All" || toolCategory(it.id) == category
+        matchesText && matchesCategory
+    }
+    val featuredIds = listOf("cutout", "autoEnhance", "socialCanvas", "duotone")
+    val featured = featuredIds.mapNotNull { id -> tools.firstOrNull { it.id == id } }
+
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         modifier = Modifier.fillMaxSize(),
@@ -484,85 +501,162 @@ private fun ModernHome(premium: Boolean, openTool: (String) -> Unit, t: UiString
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             Box(
-                Modifier.fillMaxWidth().height(205.dp).clip(RoundedCornerShape(30.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFF07131D), Color(0xFF0D4156), Color(0xFF7B2FF7))))
+                Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(32.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                Color(0xFF07111F),
+                                Color(0xFF132A57),
+                                Color(0xFF5B21B6),
+                                Color(0xFF0E7490)
+                            )
+                        )
+                    )
                     .padding(22.dp)
             ) {
-                Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Surface(shape = RoundedCornerShape(50), color = Color.White.copy(alpha = .14f)) {
-                            Text(if (premium) t.premium else t.photo, color = Color.White, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Column(verticalArrangement = Arrangement.spacedBy(15.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(shape = RoundedCornerShape(50), color = Color.White.copy(alpha = .13f)) {
+                            Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.AutoAwesome, null, tint = Color(0xFF7DD3FC), modifier = Modifier.size(15.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("CREATIVE WORKSPACE", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                            }
                         }
-                        Surface(shape = RoundedCornerShape(50), color = Color.White.copy(alpha = .12f)) {
-                            Text(tools.size.toString() + " tools", color = Color.White, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), fontSize = 10.sp)
+                        Surface(shape = RoundedCornerShape(50), color = Color(0xFF34D399).copy(alpha = .18f)) {
+                            Text(
+                                if (premium) "PRO ACTIVE" else "LOCAL • PRIVATE",
+                                color = Color(0xFFA7F3D0),
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
                         }
                     }
+
                     Column {
-                        Text(t.imageEditor, color = Color.White, fontSize = 29.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("Create without limits.", color = Color.White, fontSize = 31.sp, fontWeight = FontWeight.ExtraBold)
+                        Spacer(Modifier.height(5.dp))
                         Text(
-                            "A mobile editing workspace with real processing, previews and export.",
-                            color = Color.White.copy(alpha = .80f),
-                            fontSize = 13.sp
+                            "A fast mobile image workspace with serious controls, clean previews and local processing.",
+                            color = Color.White.copy(alpha = .74f),
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp
                         )
+                    }
+
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DashboardStat(tools.size.toString(), "TOOLS", Modifier.weight(1f))
+                        DashboardStat("100%", "LOCAL", Modifier.weight(1f))
+                        DashboardStat(if (premium) "PRO" else "FREE", "PLAN", Modifier.weight(1f))
                     }
                 }
             }
         }
+
         item(span = { GridItemSpan(maxLineSpan) }) {
             OutlinedTextField(
-                query,
-                { query = it },
-                Modifier.fillMaxWidth(),
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(20.dp),
                 leadingIcon = { Icon(Icons.Default.Search, null) },
-                placeholder = { Text("Search tools") }
+                trailingIcon = {
+                    if (query.isNotBlank()) {
+                        IconButton(onClick = { query = "" }) { Icon(Icons.Default.Close, "Clear search") }
+                    }
+                },
+                placeholder = { Text("Search tools, effects and workflows") }
             )
         }
+
         item(span = { GridItemSpan(maxLineSpan) }) {
-            Column {
-                Text(t.quickActions, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                Spacer(Modifier.height(8.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    listOf("adjust","crop","compress","collage").forEach { id ->
-                        val tool = tools.first { it.id == id }
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                categories.forEach {
+                    FilterChip(selected = category == it, onClick = { category = it }, label = { Text(it) })
+                }
+            }
+        }
+
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Featured workflows", fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("High-value tools to start with", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text(featured.size.toString(), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.ExtraBold)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    featured.take(3).forEach { item ->
                         Surface(
-                            Modifier.weight(1f).height(92.dp).clickable { openTool(id) },
-                            shape = RoundedCornerShape(20.dp),
-                            color = tool.start.copy(alpha = .10f)
+                            onClick = { openTool(item.id) },
+                            modifier = Modifier.weight(1f).height(122.dp),
+                            shape = RoundedCornerShape(22.dp),
+                            color = item.soft
                         ) {
-                            Column(Modifier.padding(11.dp), verticalArrangement = Arrangement.SpaceBetween) {
-                                Icon(tool.icon, null, tint = tool.start)
-                                Text(selectedToolTitle(id, t), maxLines = 1, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = tool.start)
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.SpaceBetween) {
+                                Box(
+                                    Modifier.size(40.dp).clip(RoundedCornerShape(13.dp))
+                                        .background(Brush.linearGradient(listOf(item.start, item.end))),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(item.icon, null, tint = Color.White, modifier = Modifier.size(21.dp))
+                                }
+                                Column {
+                                    Text(selectedToolTitle(item.id, t), fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+                                    Text(if (item.premiumOnly && !premium) "PRO" else "Ready", fontSize = 10.sp, color = item.start, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
                 }
             }
         }
+
         item(span = { GridItemSpan(maxLineSpan) }) {
-            Text(t.tools, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+                Column(Modifier.weight(1f)) {
+                    Text("Explore tools", fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(filtered.size.toString() + " workflows available", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         }
-        if (results.isEmpty()) {
+
+        if (filtered.isEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                EmptyCard("No tool found", "Try another search term.")
+                EmptyCard("No tool found", "Try a different search or category.")
             }
         } else {
-            gridItems(results) { ToolCard(it, openTool, premium, t) }
+            gridItems(filtered) { ToolCard(it, openTool, premium, t) }
         }
+
         if (!premium) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = Color(0xFFF5EEFF)
-                ) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.WorkspacePremium, null, tint = Color(0xFF7C3AED))
+                Surface(shape = RoundedCornerShape(28.dp), color = Color(0xFF111827)) {
+                    Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier.size(50.dp).clip(RoundedCornerShape(16.dp))
+                                .background(Brush.linearGradient(listOf(Color(0xFF7C3AED), Color(0xFFEC4899)))),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.WorkspacePremium, null, tint = Color.White)
+                        }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("Premium workspace", fontWeight = FontWeight.ExtraBold)
-                            Text("Unlock advanced tools as the library grows.", fontSize = 12.sp, color = Color(0xFF6B7280))
+                            Text("Unlock the PRO layer", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
+                            Text("Advanced creative tools, polished exports and a growing studio.", color = Color.White.copy(alpha = .68f), fontSize = 11.sp)
                         }
+                        Icon(Icons.Default.ArrowForward, null, tint = Color.White)
                     }
                 }
             }
@@ -571,7 +665,26 @@ private fun ModernHome(premium: Boolean, openTool: (String) -> Unit, t: UiString
 }
 
 @Composable
+private fun DashboardStat(value: String, label: String, modifier: Modifier) {
+    Surface(modifier = modifier, shape = RoundedCornerShape(16.dp), color = Color.White.copy(alpha = .10f)) {
+        Column(Modifier.padding(10.dp)) {
+            Text(value, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+            Text(label, color = Color.White.copy(alpha = .60f), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
 private fun ModernTools(premium: Boolean, openTool: (String) -> Unit, t: UiStrings) {
+    var query by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("All") }
+    val categories = listOf("All", "Essential", "Creative", "Retouch", "PRO")
+    val filtered = tools.filter {
+        val matchesText = (selectedToolTitle(it.id, t) + " " + it.subtitle).contains(query, true)
+        val matchesCategory = category == "All" || toolCategory(it.id) == category
+        matchesText && matchesCategory
+    }
+
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         modifier = Modifier.fillMaxSize(),
@@ -580,12 +693,54 @@ private fun ModernTools(premium: Boolean, openTool: (String) -> Unit, t: UiStrin
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text(t.tools, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold)
-                Text("Choose a workflow. Each tool has its own editing workspace.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+            Surface(shape = RoundedCornerShape(30.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 5.dp) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier.size(54.dp).clip(RoundedCornerShape(18.dp))
+                                .background(Brush.linearGradient(listOf(Color(0xFF5B46F6), Color(0xFF06B6D4)))),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Build, null, tint = Color.White)
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Tool Library", fontSize = 25.sp, fontWeight = FontWeight.ExtraBold)
+                            Text(tools.size.toString() + " workflows • image editing on device", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                        }
+                        Surface(shape = RoundedCornerShape(50), color = Color(0xFF5B46F6).copy(alpha = .10f)) {
+                            Text(if (premium) "PRO" else "FREE", Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = Color(0xFF5B46F6), fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
+                    OutlinedTextField(
+                        query,
+                        { query = it },
+                        Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(18.dp),
+                        leadingIcon = { Icon(Icons.Default.Search, null) },
+                        placeholder = { Text("Search the library") }
+                    )
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        categories.forEach {
+                            FilterChip(selected = category == it, onClick = { category = it }, label = { Text(it) })
+                        }
+                    }
+                }
             }
         }
-        gridItems(tools) { ToolCard(it, openTool, premium, t) }
+
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Text("Showing " + filtered.size.toString() + " tools", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+        }
+
+        if (filtered.isEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                EmptyCard("Nothing here yet", "Change the search or category filter.")
+            }
+        } else {
+            gridItems(filtered) { ToolCard(it, openTool, premium, t) }
+        }
     }
 }
 
