@@ -136,10 +136,10 @@ object ImageProcessor {
             else -> bitmap.width - width - margin
         }
         val y = when (position) {
-            "Top left" -> margin + watermarkTextSize
-            "Center" -> (bitmap.height + watermarkTextSize) / 2f
-            "Bottom left" -> bitmap.height - margin
-            else -> bitmap.height - margin
+            "Top left" -> margin.toFloat() + watermarkTextSize
+            "Center" -> (bitmap.height.toFloat() + watermarkTextSize) / 2f
+            "Bottom left" -> bitmap.height.toFloat() - margin
+            else -> bitmap.height.toFloat() - margin
         }
         canvas.drawText(safeText, x.coerceAtLeast(0f), y.coerceIn(watermarkTextSize, bitmap.height.toFloat() - 4f), paint)
         return output
