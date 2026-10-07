@@ -91,7 +91,6 @@ fun ImageToolsAppV2(
     auth: AuthRepository,
     premium: Boolean,
     darkMode: Boolean,
-    adMobReady: Boolean,
     onDarkModeChange: (Boolean) -> Unit,
     onStartPayment: (String) -> Unit,
     onCancelSubscription: () -> Unit
