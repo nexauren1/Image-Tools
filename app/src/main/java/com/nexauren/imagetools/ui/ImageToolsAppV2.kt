@@ -86,7 +86,17 @@ private val tools = listOf(
     Tool("socialCanvas", "Social Canvas", "Ready-made sizes for posts, stories and banners", Icons.Default.Crop, Color(0xFF0F766E), Color(0xFF14B8A6), Color(0xFFE7FFFB)),
     Tool("negative", "Negative", "Invert light and color for an expressive look", Icons.Default.InvertColors, Color(0xFF334155), Color(0xFF8B5CF6), Color(0xFFF1F0FF)),
     Tool("duotone", "DuoTone", "Turn photos into cinematic two-color art", Icons.Default.Palette, Color(0xFF7C3AED), Color(0xFFEC4899), Color(0xFFF8EEFF), premiumOnly = true),
-    Tool("rounded", "Rounded Corners", "Create clean transparent card-style corners", Icons.Default.CropFree, Color(0xFFF97316), Color(0xFFFB7185), Color(0xFFFFF0F2), premiumOnly = true)
+    Tool("rounded", "Rounded Corners", "Create clean transparent card-style corners", Icons.Default.CropFree, Color(0xFFF97316), Color(0xFFFB7185), Color(0xFFFFF0F2), premiumOnly = true),
+    Tool("vignette", "Vignette", "Add cinematic edge shading and focus", Icons.Default.Vignette, Color(0xFF111827), Color(0xFF475569), Color(0xFFF1F5F9), premiumOnly = true),
+    Tool("grain", "Film Grain", "Add a subtle analog texture", Icons.Default.Grain, Color(0xFF7C3AED), Color(0xFFDB2777), Color(0xFFF7EEFF)),
+    Tool("posterize", "Posterize", "Reduce color levels for graphic artwork", Icons.Default.Palette, Color(0xFF0F766E), Color(0xFF14B8A6), Color(0xFFE7FFFB)),
+    Tool("edgeDetect", "Edge Detect", "Extract high-contrast contours", Icons.Default.Highlight, Color(0xFF334155), Color(0xFF64748B), Color(0xFFEEF2F7)),
+    Tool("tint", "Color Tint", "Blend a creative color grade into the photo", Icons.Default.ColorLens, Color(0xFFE11D48), Color(0xFFF97316), Color(0xFFFFF1F2)),
+    Tool("exposure", "Exposure", "Precisely brighten or darken the image", Icons.Default.Brightness6, Color(0xFF2563EB), Color(0xFF38BDF8), Color(0xFFEAF4FF)),
+    Tool("gamma", "Gamma", "Control midtone response with precision", Icons.Default.Tune, Color(0xFF4F46E5), Color(0xFF8B5CF6), Color(0xFFF1EEFF), premiumOnly = true),
+    Tool("rgbBalance", "RGB Balance", "Tune red, green and blue channels", Icons.Default.Colorize, Color(0xFF0EA5E9), Color(0xFF6366F1), Color(0xFFEEF5FF), premiumOnly = true),
+    Tool("highlightsShadows", "Highlights & Shadows", "Recover dark and bright tonal areas", Icons.Default.Contrast, Color(0xFF059669), Color(0xFF14B8A6), Color(0xFFE9FFF8), premiumOnly = true),
+    Tool("photoStrip", "Photo Strip", "Combine multiple photos into one clean strip", Icons.Default.ViewStream, Color(0xFFF59E0B), Color(0xFFF97316), Color(0xFFFFF5E6))
 )
 
 
@@ -468,6 +478,16 @@ private fun selectedToolTitle(id: String, t: UiStrings): String {
         "negative" -> t.negative
         "duotone" -> t.duotone
         "rounded" -> t.rounded
+        "vignette" -> t.vignette
+        "grain" -> t.grain
+        "posterize" -> t.posterize
+        "edgeDetect" -> t.edgeDetect
+        "tint" -> t.tint
+        "exposure" -> t.exposure
+        "gamma" -> t.gamma
+        "rgbBalance" -> t.rgbBalance
+        "highlightsShadows" -> t.highlightsShadows
+        "photoStrip" -> t.photoStrip
         else -> id
     }
 }
@@ -476,7 +496,7 @@ private fun toolCategory(id: String): String = when (id) {
     "resize", "compress", "convert", "crop", "rotate", "adjust", "info" -> "Essential"
     "filter", "frame", "meme", "pixelate", "blur", "negative", "socialCanvas" -> "Creative"
     "cutout", "portraitBlur", "autoEnhance", "sharpen" -> "Retouch"
-    "watermark", "duotone", "rounded" -> "PRO"
+    "watermark", "duotone", "rounded", "vignette", "gamma", "rgbBalance", "highlightsShadows" -> "PRO"
     else -> "Essential"
 }
 
@@ -886,6 +906,20 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
     var socialBackground by remember { mutableStateOf("White") }
     var duotoneStyle by remember { mutableStateOf("Violet") }
     var cornerRadius by remember { mutableFloatStateOf(72f) }
+    var vignetteAmount by remember { mutableFloatStateOf(0.58f) }
+    var grainAmount by remember { mutableFloatStateOf(0.32f) }
+    var posterizeLevels by remember { mutableFloatStateOf(6f) }
+    var edgeStrength by remember { mutableFloatStateOf(0.72f) }
+    var tintStyle by remember { mutableStateOf("Rose") }
+    var tintAmount by remember { mutableFloatStateOf(0.28f) }
+    var exposureStops by remember { mutableFloatStateOf(0f) }
+    var gammaValue by remember { mutableFloatStateOf(1f) }
+    var redBalance by remember { mutableFloatStateOf(0f) }
+    var greenBalance by remember { mutableFloatStateOf(0f) }
+    var blueBalance by remember { mutableFloatStateOf(0f) }
+    var shadows by remember { mutableFloatStateOf(0f) }
+    var highlights by remember { mutableFloatStateOf(0f) }
+    var stripVertical by remember { mutableStateOf(true) }
 
     fun processImage(transform: suspend () -> Bitmap, output: OutputFormat = format, outputQuality: Int = quality.toInt()) {
         scope.launch {
@@ -1159,6 +1193,23 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                 "negative" -> NegativeStudio()
                 "duotone" -> DuotoneStudio(duotoneStyle, { duotoneStyle = it })
                 "rounded" -> RoundedStudio(cornerRadius, { cornerRadius = it })
+                "vignette" -> VignetteStudio(vignetteAmount, { vignetteAmount = it })
+                "grain" -> GrainStudio(grainAmount, { grainAmount = it })
+                "posterize" -> PosterizeStudio(posterizeLevels, { posterizeLevels = it })
+                "edgeDetect" -> EdgeDetectStudio(edgeStrength, { edgeStrength = it })
+                "tint" -> TintStudio(tintStyle, { tintStyle = it }, tintAmount, { tintAmount = it })
+                "exposure" -> ExposureStudio(exposureStops, { exposureStops = it })
+                "gamma" -> GammaStudio(gammaValue, { gammaValue = it })
+                "rgbBalance" -> RgbBalanceStudio(
+                    redBalance, { redBalance = it },
+                    greenBalance, { greenBalance = it },
+                    blueBalance, { blueBalance = it }
+                )
+                "highlightsShadows" -> HighlightsShadowsStudio(
+                    shadows, { shadows = it },
+                    highlights, { highlights = it }
+                )
+                "photoStrip" -> PhotoStripStudio(stripVertical, { stripVertical = it })
             }
         }
 
@@ -1207,6 +1258,15 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                                     "negative" -> processImage({ ImageProcessor.negative(source) }, OutputFormat.PNG, 100)
                                     "duotone" -> processImage({ ImageProcessor.duotone(source, duotoneShadow(duotoneStyle), duotoneHighlight(duotoneStyle)) }, OutputFormat.PNG, 100)
                                     "rounded" -> processImage({ ImageProcessor.roundedCorners(source, cornerRadius) }, OutputFormat.PNG, 100)
+                                    "vignette" -> processImage({ ImageProcessor.vignette(source, vignetteAmount) })
+                                    "grain" -> processImage({ ImageProcessor.filmGrain(source, grainAmount) })
+                                    "posterize" -> processImage({ ImageProcessor.posterize(source, posterizeLevels.toInt()) })
+                                    "edgeDetect" -> processImage({ ImageProcessor.edgeDetect(source, edgeStrength) }, OutputFormat.PNG, 100)
+                                    "tint" -> processImage({ ImageProcessor.colorTint(source, tintColor(tintStyle).first, tintColor(tintStyle).second, tintColor(tintStyle).third, tintAmount) })
+                                    "exposure" -> processImage({ ImageProcessor.exposure(source, exposureStops) })
+                                    "gamma" -> processImage({ ImageProcessor.gamma(source, gammaValue) })
+                                    "rgbBalance" -> processImage({ ImageProcessor.rgbBalance(source, redBalance, greenBalance, blueBalance) })
+                                    "highlightsShadows" -> processImage({ ImageProcessor.highlightsShadows(source, shadows, highlights) })
                                 }
                             }
                         },
