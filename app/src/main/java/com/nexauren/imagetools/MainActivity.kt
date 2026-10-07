@@ -15,16 +15,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
-    private val adMobReady = mutableStateOf(false)
     private val paymentSubscription = mutableStateOf<String?>(null)
     private val paymentRefreshNonce = mutableStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handleIntent(intent)
-
-        // GMA Legacy SDK auto-initializes through its manifest provider.
-        // Keep startup free of an explicit MobileAds.initialize() call for isolation.
 
         setContent {
             val auth = remember { AuthRepository(this@MainActivity) }
@@ -74,7 +70,6 @@ class MainActivity : ComponentActivity() {
                     auth = auth,
                     premium = premium,
                     darkMode = darkMode,
-                    adMobReady = adMobReady.value,
                     onDarkModeChange = { darkMode = it },
                     onStartPayment = { url ->
                         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
