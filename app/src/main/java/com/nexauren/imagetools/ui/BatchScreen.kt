@@ -158,7 +158,7 @@ fun BatchScreen(strings: UiText = LocalUiText.current) {
                                         FilterChip(
                                             selected = filter == option,
                                             onClick = { filter = option },
-                                            label = { Text(option.label, fontSize = 9.sp) }
+                                            label = { Text(strings.filterTitle(option.name.lowercase()), fontSize = 9.sp) }
                                         )
                                     }
                                 }
