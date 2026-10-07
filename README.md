@@ -4,8 +4,8 @@ Image Tools is a modern Android toolbox for everyday image jobs, with a local-fi
 
 ## Current release
 
-- Version: 1.5.0
-- Version code: 10
+- Version: 1.9.0
+- Version code: 24
 - Package: `com.nexauren.imagetools`
 - Minimum Android: 10 (API 29)
 - Target Android: API 36
