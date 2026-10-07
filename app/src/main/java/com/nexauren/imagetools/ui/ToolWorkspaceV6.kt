@@ -235,6 +235,21 @@ fun ToolWorkspaceV6(
                 ImageProcessor.encode(AdvancedImageProcessor.roundCorners(bitmap, cornerRadius), OutputFormat.PNG, 100),
                 OutputFormat.PNG.mime, OutputFormat.PNG.extension, tool.id
             )
+            "background" -> {
+                val out = withContext(Dispatchers.Default) {
+                    BackgroundRemovalProcessor.removeBackground(bitmap)
+                }
+                RawExportItem(
+                    ImageProcessor.encode(out, OutputFormat.PNG, 100),
+                    OutputFormat.PNG.mime, OutputFormat.PNG.extension, tool.id
+                )
+            }
+            "pdf" -> {
+                val pdf = withContext(Dispatchers.Default) {
+                    AdvancedImageProcessor.pdfBytes(bitmap)
+                }
+                RawExportItem(pdf, "application/pdf", "pdf", "image")
+            }
             "auto_enhance" -> RawExportItem(
                 ImageProcessor.encode(AdvancedImageProcessor.autoEnhance(bitmap), format, 100),
                 format.mime, format.extension, tool.id
@@ -464,7 +479,12 @@ fun ToolWorkspaceV6(
                     } else {
                         val items = bitmaps.map { (uri, bitmap) -> analyzeBitmap(bitmap, uri) }
                         pendingItems = items
-                        previewBitmaps = bitmaps.take(6).map { it.second }
+                        val decodedResults = items.take(6).mapNotNull { item ->
+                            if (item.mime.startsWith("image/")) {
+                                android.graphics.BitmapFactory.decodeByteArray(item.bytes, 0, item.bytes.size)
+                            } else null
+                        }
+                        previewBitmaps = if (decodedResults.isNotEmpty()) decodedResults else bitmaps.take(6).map { it.second }
                     }
 
                     ProcessingStatsStore.recordProcessed(context, bitmaps.size)
@@ -697,7 +717,7 @@ fun ToolWorkspaceV6(
     }
 }
 
-private data class AnyToolDef(
+data class AnyToolDef(
     val id: String,
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
     val start: Color,
