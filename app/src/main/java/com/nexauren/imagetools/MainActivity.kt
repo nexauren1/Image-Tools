@@ -7,16 +7,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
 import com.google.android.gms.ads.MobileAds
-import com.google.android.gms.ads.MobileAds
 import com.nexauren.imagetools.auth.AuthRepository
 import com.nexauren.imagetools.data.FirestoreRepository
 import com.nexauren.imagetools.data.PaymentRepository
 import com.nexauren.imagetools.ui.ImageToolsAppV2
 import com.nexauren.imagetools.ui.theme.ImageToolsTheme
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -109,11 +104,6 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
-    }
-
-    override fun onDestroy() {
-        adMobScope.cancel()
-        super.onDestroy()
     }
 
     override fun onDestroy() {
