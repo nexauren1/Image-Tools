@@ -1703,8 +1703,83 @@ private fun PremiumLine(text: String) {
 
 @Composable
 private fun ModernSettings(darkMode: Boolean, onDarkModeChange: (Boolean) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    val context = LocalContext.current
+    var outputFolderUri by remember { mutableStateOf(OutputFolderStore.getTreeUri(context)) }
+    val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        try {
+            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            context.contentResolver.takePersistableUriPermission(uri, flags)
+        } catch (_: Exception) {
+        }
+        OutputFolderStore.saveTreeUri(context, uri)
+        outputFolderUri = uri
+    }
+    val folderName = OutputFolderStore.folderName(context, outputFolderUri)
+
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         item { Text("Settings", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold) }
+
+        item {
+            Card(shape = RoundedCornerShape(24.dp)) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier.size(48.dp).clip(RoundedCornerShape(15.dp))
+                                .background(Brush.linearGradient(listOf(Color(0xFF7B2FF7), Color(0xFF00C6FF)))),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.FolderSpecial, null, tint = Color.White)
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Output folder", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                            Text(
+                                if (outputFolderUri != null) {
+                                    folderName ?: "Configured folder"
+                                } else {
+                                    "Choose where created images will be stored."
+                                },
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (outputFolderUri != null) Color(0xFFECFDF5) else Color(0xFFFFF7ED)
+                    ) {
+                        Text(
+                            if (outputFolderUri != null) {
+                                "Ready. Images are only written after you tap Save."
+                            } else {
+                                "Not configured. The first Action will guide you through folder setup."
+                            },
+                            Modifier.fillMaxWidth().padding(12.dp),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (outputFolderUri != null) Color(0xFF047857) else Color(0xFFC2410C)
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            folderLauncher.launch(outputFolderUri)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Default.FolderOpen, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (outputFolderUri != null) "Change output folder" else "Choose output folder")
+                    }
+                }
+            }
+        }
+
         item {
             Card(shape = RoundedCornerShape(22.dp)) {
                 ListItem(
