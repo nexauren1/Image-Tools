@@ -40,6 +40,9 @@ import com.nexauren.imagetools.data.OutputFolderStore
 import com.nexauren.imagetools.data.PaymentException
 import com.nexauren.imagetools.data.ProcessingStatsStore
 import com.nexauren.imagetools.data.PaymentRepository
+import com.nexauren.imagetools.data.HistoryStore
+import com.nexauren.imagetools.data.Recipe
+import com.nexauren.imagetools.data.RecipeStore
 import com.nexauren.imagetools.media.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -91,7 +94,13 @@ private val TOOL_CATALOG = listOf(
     ToolDef("posterize", Icons.Default.Palette, Color(0xFFEC4899), Color(0xFF8B5CF6)),
     ToolDef("duotone", Icons.Default.ColorLens, Color(0xFF0F766E), Color(0xFFEA580C), true),
     ToolDef("mirror", Icons.Default.Flip, Color(0xFF2563EB), Color(0xFF14B8A6)),
-    ToolDef("noise_reduction", Icons.Default.AutoFixHigh, Color(0xFF6366F1), Color(0xFF0EA5E9), true)
+    ToolDef("noise_reduction", Icons.Default.AutoFixHigh, Color(0xFF6366F1), Color(0xFF0EA5E9), true),
+    ToolDef("social_presets", Icons.Default.PhoneAndroid, Color(0xFFEC4899), Color(0xFF8B5CF6), false),
+    ToolDef("smart_resize", Icons.Default.PhotoSizeSelectLarge, Color(0xFF0EA5E9), Color(0xFF2563EB), true),
+    ToolDef("face_blur", Icons.Default.Face, Color(0xFF0F766E), Color(0xFF06B6D4), true),
+    ToolDef("pdf_merge", Icons.Default.MergeType, Color(0xFFB91C1C), Color(0xFFF97316), true),
+    ToolDef("gif_creator", Icons.Default.Gif, Color(0xFF7C3AED), Color(0xFFEC4899), true),
+    ToolDef("heic_avif", Icons.Default.Image, Color(0xFF475569), Color(0xFF06B6D4), true)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -148,6 +157,8 @@ fun ImageToolsAppV5(
                     DrawerEntryV5(Icons.Default.WorkspacePremium, strings.get("premium")) { navigate("premium") }
                     DrawerEntryV5(Icons.Default.Person, strings.get("account")) { navigate("account") }
                     DrawerEntryV5(Icons.Default.Settings, strings.get("settings")) { navigate("settings") }
+                    DrawerEntryV5(Icons.Default.History, strings.get("history")) { navigate("history") }
+                    DrawerEntryV5(Icons.Default.AutoAwesome, strings.get("recipes")) { navigate("recipes") }
                     DrawerEntryV5(Icons.Default.Info, strings.get("about")) { navigate("about") }
                 }
             }
@@ -227,6 +238,8 @@ fun ImageToolsAppV5(
                         page == "batch" -> BatchScreen(strings)
                         page == "premium" -> PremiumScreenV5(auth, strings, premium, onStartPayment, onCancelSubscription)
                         page == "account" -> AccountScreenV5(auth, strings, premium) { navigate("premium") }
+                        page == "history" -> HistoryScreenV5(strings)
+                        page == "recipes" -> RecipesScreenV5(auth, strings)
                         page == "settings" -> SettingsScreenV5(
                             strings = strings,
                             darkMode = darkMode,
