@@ -520,7 +520,7 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
             FeatureCardV5(
                 if (premium) Icons.Default.Verified else Icons.Default.Lock,
                 if (premium) strings.get("premium.active") else strings.get("local"),
-                if (premium) "Advanced tools are unlocked." else strings.get("private")
+                if (premium) strings.get("premium.active") + " • " + strings.get("tools") else strings.get("private")
             )
         }
     }
@@ -548,7 +548,7 @@ private fun ToolsScreenV5(strings: UiText, openTool: (String) -> Unit) {
                 Column(Modifier.weight(1f)) {
                     Text(strings.get("tools"), fontWeight = FontWeight.ExtraBold)
                     Text(
-                        filtered.size.toString() + " tools",
+                        filtered.size.toString() + " " + strings.get("tools"),
                         fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1825,7 +1825,7 @@ private fun PremiumScreenV5(
                             fontWeight = FontWeight.ExtraBold
                         )
                         Text(
-                            if (premium) "PRO active" else "Unlock advanced image tools",
+                            if (premium) strings.get("premium.active") else strings.get("premium.unlock"),
                             color = Color.White,
                             fontSize = 26.sp,
                             fontWeight = FontWeight.ExtraBold
@@ -1844,7 +1844,7 @@ private fun PremiumScreenV5(
             FeatureCardV5(
                 Icons.Default.CheckCircle,
                 strings.get("pro"),
-                "Batch, filters, blur, sharpen, background removal, PDF, collage, OCR and EXIF."
+                TOOL_CATALOG.filter { it.premium }.joinToString(" • ") { strings.toolTitle(it.id) }
             )
         }
 
