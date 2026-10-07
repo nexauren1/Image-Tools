@@ -10,6 +10,7 @@ import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import kotlin.math.roundToInt
+import kotlin.math.max
 
 data class PdfResult(val uri: Uri, val bytes: Long)
 object AdvancedImageProcessor {
@@ -34,6 +35,79 @@ object AdvancedImageProcessor {
         }
         return drawWithMatrix(bitmap, m)
     }
+
+    fun autoEnhance(bitmap: Bitmap): Bitmap = adjustColor(bitmap, 8, 14, 12, 3)
+
+    fun exposure(bitmap: Bitmap, amount: Int): Bitmap =
+        adjustColor(bitmap, (amount.coerceIn(-100, 100) * 0.85f).toInt(), 0, 0, 0)
+
+    fun tint(bitmap: Bitmap, amount: Int): Bitmap {
+        val a = amount.coerceIn(-100, 100) / 100f
+        val matrix = ColorMatrix(floatArrayOf(
+            1f + 0.18f * a, 0f, 0f, 0f, 0f,
+            0f, 1f, 0f, 0f, 0f,
+            0f, 0f, 1f - 0.18f * a, 0f, 0f,
+            0f, 0f, 0f, 1f, 0f
+        ))
+        return drawWithMatrix(bitmap, matrix)
+    }
+
+    fun vignette(bitmap: Bitmap, strength: Int): Bitmap {
+        val out = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+        val canvas = Canvas(out)
+        val radius = maxOf(bitmap.width, bitmap.height) * 0.72f
+        val alpha = (strength.coerceIn(0, 100) * 2.35f).toInt().coerceIn(0, 235)
+        val shader = RadialGradient(
+            bitmap.width / 2f,
+            bitmap.height / 2f,
+            radius,
+            intArrayOf(Color.TRANSPARENT, Color.argb(alpha, 0, 0, 0)),
+            floatArrayOf(0.40f, 1f),
+            Shader.TileMode.CLAMP
+        )
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.shader = shader }
+        canvas.drawRect(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat(), paint)
+        return out
+    }
+
+    fun posterize(bitmap: Bitmap, levels: Int): Bitmap {
+        val levelCount = levels.coerceIn(2, 12)
+        val step = 255f / (levelCount - 1)
+        val out = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        val src = IntArray(bitmap.width * bitmap.height)
+        val dst = IntArray(src.size)
+        bitmap.getPixels(src, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        for (i in src.indices) {
+            val p = src[i]
+            fun q(v: Int): Int = (((v / step).roundToInt()) * step).roundToInt().coerceIn(0, 255)
+            dst[i] = Color.argb(Color.alpha(p), q(Color.red(p)), q(Color.green(p)), q(Color.blue(p)))
+        }
+        out.setPixels(dst, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        return out
+    }
+
+    fun duotone(bitmap: Bitmap, darkColor: Int, lightColor: Int): Bitmap {
+        val out = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        val src = IntArray(bitmap.width * bitmap.height)
+        val dst = IntArray(src.size)
+        bitmap.getPixels(src, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        for (i in src.indices) {
+            val p = src[i]
+            val luma = (0.2126f * Color.red(p) + 0.7152f * Color.green(p) + 0.0722f * Color.blue(p)) / 255f
+            val r = Color.red(darkColor) + (Color.red(lightColor) - Color.red(darkColor)) * luma
+            val g = Color.green(darkColor) + (Color.green(lightColor) - Color.green(darkColor)) * luma
+            val b = Color.blue(darkColor) + (Color.blue(lightColor) - Color.blue(darkColor)) * luma
+            dst[i] = Color.argb(Color.alpha(p), r.roundToInt(), g.roundToInt(), b.roundToInt())
+        }
+        out.setPixels(dst, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        return out
+    }
+
+    fun mirror(bitmap: Bitmap, horizontal: Boolean): Bitmap =
+        ImageProcessor.rotate(bitmap, 0, horizontal, !horizontal)
+
+    fun denoise(bitmap: Bitmap, strength: Int): Bitmap =
+        blur(bitmap, (strength.coerceIn(0, 100) / 34f).toInt().coerceIn(1, 3))
 
     fun negative(bitmap: Bitmap): Bitmap = drawWithMatrix(bitmap, ColorMatrix(floatArrayOf(
         -1f,0f,0f,0f,255f, 0f,-1f,0f,0f,255f, 0f,0f,-1f,0f,255f, 0f,0f,0f,1f,0f
