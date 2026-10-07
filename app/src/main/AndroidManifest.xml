@@ -9,6 +9,16 @@
         android:theme="@style/Theme.ImageTools"
         android:supportsRtl="true">
 
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-2381605116846917~1685022220" />
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
+            android:value="true" />
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"
+            android:value="true" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
