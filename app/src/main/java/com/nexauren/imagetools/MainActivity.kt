@@ -12,15 +12,10 @@ import com.nexauren.imagetools.data.FirestoreRepository
 import com.nexauren.imagetools.data.PaymentRepository
 import com.nexauren.imagetools.ui.ImageToolsAppV2
 import com.nexauren.imagetools.ui.theme.ImageToolsTheme
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
-    private val adMobScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val adMobReady = mutableStateOf(false)
     private val paymentSubscription = mutableStateOf<String?>(null)
     private val paymentRefreshNonce = mutableStateOf(0)
@@ -29,11 +24,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         handleIntent(intent)
 
-        adMobScope.launch {
-            runCatching {
-                MobileAds.initialize(applicationContext) {
-                    runOnUiThread { adMobReady.value = true }
-                }
+        runCatching {
+            MobileAds.initialize(this) {
+                adMobReady.value = true
             }
         }
 
@@ -104,11 +97,6 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
-    }
-
-    override fun onDestroy() {
-        adMobScope.cancel()
-        super.onDestroy()
     }
 
     override fun onNewIntent(intent: Intent) {
