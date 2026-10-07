@@ -232,7 +232,6 @@ class UiText(private val language: AppLanguage) {
             "settings.dark.help" to "Utiliser un espace plus sombre",
             "batch.selected" to "sélectionnées",
             "batch.results" to "résultats",
-            "batch.image" to "Image"
             "batch.image" to "Image",
             "batch.mode" to "Mode de traitement",
             "batch.single" to "Une image",
