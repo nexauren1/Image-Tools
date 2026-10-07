@@ -1337,10 +1337,10 @@ private fun ToolControlsV5(
 
         "filter" -> {
             ChoicesV5(
-                ImageFilter.entries.map { it.label },
+                ImageFilter.entries.map { strings.filterTitle(it.name.lowercase()) },
                 imageFilter.label
             ) { selected ->
-                onFilter(ImageFilter.entries.first { it.label == selected })
+                onFilter(ImageFilter.entries.first { strings.filterTitle(it.name.lowercase()) == selected })
             }
         }
 
