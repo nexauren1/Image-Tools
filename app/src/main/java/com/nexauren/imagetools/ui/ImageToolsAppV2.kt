@@ -877,7 +877,7 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                 "info" -> DetailsStudio(image, context)
                 "watermark" -> WatermarkStudio(watermarkText, { watermarkText = it }, watermarkOpacity, { watermarkOpacity = it }, watermarkPosition, { watermarkPosition = it })
                 "adjust" -> AdjustStudio(brightness, { brightness = it }, contrast, { contrast = it }, saturation, { saturation = it })
-                "collage" -> CollageStudio(sources.size, columns, { columns = it }, background, { background = it }, { chooseMany() })
+                "collage" -> CollageStudio(sources.size, columns, { columns = it }, background, { background = it }, { multiPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) })
                 "frame" -> FrameStudio(border, { border = it }, background, { background = it })
                 "meme" -> MemeStudio(topText, { topText = it }, bottomText, { bottomText = it })
                 "pixelate" -> PixelateStudio(pixelSize, { pixelSize = it })
