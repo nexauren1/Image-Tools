@@ -36,7 +36,98 @@ class UiText(private val language: AppLanguage) {
         AppLanguage.FR -> fr
     }
 
-    fun get(key: String): String = map[key] ?: en[key] ?: key
+    private val extra = when (language) {
+        AppLanguage.PT -> mapOf(
+            "auth.google" to "Continuar com Google",
+            "auth.email" to "Email",
+            "auth.password" to "Palavra-passe",
+            "auth.create" to "Criar conta",
+            "auth.signin" to "Iniciar sessão",
+            "auth.already" to "Já tenho uma conta",
+            "auth.new" to "Criar uma conta",
+            "auth.forgot" to "Esqueci-me da palavra-passe",
+            "auth.invalid" to "Introduza um email válido.",
+            "auth.exists" to "Este email já está registado.",
+            "auth.network" to "Falha de ligação. Verifique a internet.",
+            "auth.generic" to "Não foi possível concluir o início de sessão.",
+            "premium.active" to "PRO ativo",
+            "premium.unlock" to "Desbloquear ferramentas avançadas",
+            "premium.cancel" to "Cancelar assinatura",
+            "account.signout" to "Terminar sessão",
+            "process.error" to "Não foi possível processar a imagem.",
+            "settings.dark.help" to "Usar um espaço de trabalho mais escuro",
+            "batch.selected" to "selecionadas",
+            "batch.results" to "resultados"
+        )
+        AppLanguage.EN -> mapOf(
+            "auth.google" to "Continue with Google",
+            "auth.email" to "Email",
+            "auth.password" to "Password",
+            "auth.create" to "Create account",
+            "auth.signin" to "Sign in",
+            "auth.already" to "I already have an account",
+            "auth.new" to "Create an account",
+            "auth.forgot" to "Forgot password?",
+            "auth.invalid" to "Please enter a valid email.",
+            "auth.exists" to "This email is already registered.",
+            "auth.network" to "Connection failed. Check your internet.",
+            "auth.generic" to "We could not complete sign-in.",
+            "premium.active" to "PRO active",
+            "premium.unlock" to "Unlock advanced image tools",
+            "premium.cancel" to "Cancel subscription",
+            "account.signout" to "Sign out",
+            "process.error" to "Could not process the image.",
+            "settings.dark.help" to "Use a darker workspace",
+            "batch.selected" to "selected",
+            "batch.results" to "results"
+        )
+        AppLanguage.ES -> mapOf(
+            "auth.google" to "Continuar con Google",
+            "auth.email" to "Correo electrónico",
+            "auth.password" to "Contraseña",
+            "auth.create" to "Crear cuenta",
+            "auth.signin" to "Iniciar sesión",
+            "auth.already" to "Ya tengo una cuenta",
+            "auth.new" to "Crear una cuenta",
+            "auth.forgot" to "¿Olvidaste la contraseña?",
+            "auth.invalid" to "Introduce un correo válido.",
+            "auth.exists" to "Este correo ya está registrado.",
+            "auth.network" to "Error de conexión. Comprueba Internet.",
+            "auth.generic" to "No se pudo completar el inicio de sesión.",
+            "premium.active" to "PRO activo",
+            "premium.unlock" to "Desbloquear herramientas avanzadas",
+            "premium.cancel" to "Cancelar suscripción",
+            "account.signout" to "Cerrar sesión",
+            "process.error" to "No se pudo procesar la imagen.",
+            "settings.dark.help" to "Usar un espacio de trabajo oscuro",
+            "batch.selected" to "seleccionadas",
+            "batch.results" to "resultados"
+        )
+        AppLanguage.FR -> mapOf(
+            "auth.google" to "Continuer avec Google",
+            "auth.email" to "E-mail",
+            "auth.password" to "Mot de passe",
+            "auth.create" to "Créer un compte",
+            "auth.signin" to "Se connecter",
+            "auth.already" to "J’ai déjà un compte",
+            "auth.new" to "Créer un compte",
+            "auth.forgot" to "Mot de passe oublié ?",
+            "auth.invalid" to "Saisissez une adresse e-mail valide.",
+            "auth.exists" to "Cet e-mail est déjà enregistré.",
+            "auth.network" to "Échec de connexion. Vérifiez Internet.",
+            "auth.generic" to "Impossible de terminer la connexion.",
+            "premium.active" to "PRO actif",
+            "premium.unlock" to "Débloquer les outils avancés",
+            "premium.cancel" to "Annuler l’abonnement",
+            "account.signout" to "Se déconnecter",
+            "process.error" to "Impossible de traiter l’image.",
+            "settings.dark.help" to "Utiliser un espace plus sombre",
+            "batch.selected" to "sélectionnées",
+            "batch.results" to "résultats"
+        )
+    }
+
+    fun get(key: String): String = extra[key] ?: map[key] ?: en[key] ?: key
 
     fun toolTitle(id: String): String = get("tool.$id.title")
     fun toolSubtitle(id: String): String = get("tool.$id.subtitle")
