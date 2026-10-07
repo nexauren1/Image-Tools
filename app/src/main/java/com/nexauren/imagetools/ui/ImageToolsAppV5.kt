@@ -743,6 +743,7 @@ private fun ToolWorkspaceV5(
     var pixelSize by remember { mutableFloatStateOf(18f) }
     var borderSize by remember { mutableFloatStateOf(24f) }
     var cornerRadius by remember { mutableFloatStateOf(36f) }
+    var duotonePreset by remember { mutableStateOf("ocean") }
 
     val singlePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -984,6 +985,71 @@ private fun ToolWorkspaceV5(
                     status = "Preview ready. Export will re-encode the image and remove common metadata."
                 }
 
+                "auto_enhance" -> {
+                    prepareImage(AdvancedImageProcessor.autoEnhance(bitmap), format, 100)
+                }
+
+                "exposure" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.exposure(bitmap, amount.toInt()),
+                        format,
+                        100
+                    )
+                }
+
+                "tint" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.tint(bitmap, amount.toInt()),
+                        format,
+                        100
+                    )
+                }
+
+                "vignette" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.vignette(bitmap, amount.toInt()),
+                        format,
+                        100
+                    )
+                }
+
+                "posterize" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.posterize(bitmap, amount.toInt()),
+                        format,
+                        100
+                    )
+                }
+
+                "duotone" -> {
+                    val colors = when (duotonePreset) {
+                        "sunset" -> android.graphics.Color.rgb(60, 12, 50) to android.graphics.Color.rgb(255, 182, 92)
+                        "ink" -> android.graphics.Color.rgb(15, 23, 42) to android.graphics.Color.rgb(241, 245, 249)
+                        else -> android.graphics.Color.rgb(8, 47, 73) to android.graphics.Color.rgb(103, 232, 249)
+                    }
+                    prepareImage(
+                        AdvancedImageProcessor.duotone(bitmap, colors.first, colors.second),
+                        format,
+                        100
+                    )
+                }
+
+                "mirror" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.mirror(bitmap, flipH),
+                        format,
+                        100
+                    )
+                }
+
+                "noise_reduction" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.denoise(bitmap, amount.toInt()),
+                        format,
+                        100
+                    )
+                }
+
                 "details" -> {
                     val sourceBytes = sourceUri?.let {
                         withContext(Dispatchers.IO) {
@@ -1056,6 +1122,9 @@ private fun ToolWorkspaceV5(
                     }
                 }
             }
+            if (previewBitmap != null || pendingBytes != null || details != null || ocrText != null || exifText != null || palette.isNotEmpty()) {
+                ProcessingStatsStore.recordProcessed(context)
+            }
         } catch (error: Exception) {
             status = error.message ?: strings.get("process.error")
         } finally {
@@ -1086,6 +1155,7 @@ private fun ToolWorkspaceV5(
                     ).uri
                 }
                 exportedMime = if (pendingPdf) "application/pdf" else pendingFormat?.mime ?: "image/*"
+                ProcessingStatsStore.recordExported(context)
                 status = strings.get("saved")
             } catch (error: Exception) {
                 status = strings.get("save.error")
