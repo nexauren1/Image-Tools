@@ -877,9 +877,9 @@ export default {
 
     try {
       if (request.method === "GET" && url.pathname === "/") return homePage();
-      if (request.method === "GET" && url.pathname === "/privacy") return privacyPage();
-      if (request.method === "GET" && url.pathname === "/terms") return termsPage();
-      if (request.method === "GET" && url.pathname === "/support") return supportPage();
+      if (request.method === "GET" && (url.pathname === "/privacy" || url.pathname === "/privacy-policy")) return privacyPage();
+      if (request.method === "GET" && (url.pathname === "/terms" || url.pathname === "/terms-of-service")) return termsPage();
+      if (request.method === "GET" && (url.pathname === "/support" || url.pathname === "/support/account-deletion")) return supportPage();
 
       if (request.method === "GET" && url.pathname === "/health") {
         return reply({
