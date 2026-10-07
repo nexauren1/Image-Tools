@@ -119,7 +119,7 @@ object AdvancedImageProcessor {
         return out
     }
 
-    fun savePdf(context: Context, bitmap: Bitmap, treeUri: Uri?, prefix: String): PdfResult {
+    fun pdfBytes(bitmap: Bitmap): ByteArray {
         val pdf = PdfDocument()
         val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
         val page = pdf.startPage(pageInfo)
@@ -137,34 +137,10 @@ object AdvancedImageProcessor {
         canvas.drawBitmap(bitmap, null, RectF(left, top, left + w, top + h), Paint(Paint.ANTI_ALIAS_FLAG))
         pdf.finishPage(page)
 
-        val name = prefix + "_" + System.currentTimeMillis() + ".pdf"
-        val uri = if (treeUri != null) {
-            DocumentsContract.createDocument(context.contentResolver, treeUri, "application/pdf", name)
-                ?: error("Could not create PDF")
-        } else {
-            val values = ContentValues().apply {
-                put(MediaStore.Downloads.DISPLAY_NAME, name)
-                put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
-                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Image Tools")
-                put(MediaStore.Downloads.IS_PENDING, 1)
-            }
-            context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                ?: error("Could not create PDF")
-        }
-
-        try {
-            context.contentResolver.openOutputStream(uri)?.use { pdf.writeTo(it) } ?: error("Could not write PDF")
-            if (treeUri == null) {
-                context.contentResolver.update(uri, ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }, null, null)
-            }
-            val size = context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
-            return PdfResult(uri, size)
-        } catch (e: Exception) {
-            context.contentResolver.delete(uri, null, null)
-            throw e
-        } finally {
-            pdf.close()
-        }
+        val output = java.io.ByteArrayOutputStream()
+        pdf.writeTo(output)
+        pdf.close()
+        return output.toByteArray()
     }
 
     private fun drawWithMatrix(bitmap: Bitmap, matrix: ColorMatrix): Bitmap {
