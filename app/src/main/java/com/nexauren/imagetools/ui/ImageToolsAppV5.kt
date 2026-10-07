@@ -1687,6 +1687,63 @@ private fun ToolControlsV5(
             Slider(cornerRadius, onCornerRadius, valueRange = 8f..160f)
         }
 
+        "auto_enhance" -> {
+            Text(strings.toolSubtitle(tool.id), fontSize = 12.sp)
+        }
+
+        "exposure", "tint", "vignette", "noise_reduction" -> {
+            Text(strings.get("strength") + " " + amount.toInt())
+            Slider(
+                amount,
+                onAmount,
+                valueRange = if (tool.id == "exposure") -100f..100f else 0f..100f
+            )
+        }
+
+        "posterize" -> {
+            Text(strings.get("strength") + " " + amount.toInt())
+            Slider(
+                amount,
+                onAmount,
+                valueRange = 2f..12f,
+                steps = 9
+            )
+        }
+
+        "duotone" -> {
+            Text(strings.toolSubtitle(tool.id), fontSize = 12.sp)
+            ChoicesV5(
+                listOf(
+                    strings.get("duotone.ocean"),
+                    strings.get("duotone.sunset"),
+                    strings.get("duotone.ink")
+                ),
+                when (duotonePreset) {
+                    "sunset" -> strings.get("duotone.sunset")
+                    "ink" -> strings.get("duotone.ink")
+                    else -> strings.get("duotone.ocean")
+                }
+            ) { selected ->
+                onDuotonePreset(
+                    when (selected) {
+                        strings.get("duotone.sunset") -> "sunset"
+                        strings.get("duotone.ink") -> "ink"
+                        else -> "ocean"
+                    }
+                )
+            }
+        }
+
+        "mirror" -> {
+            Text(strings.get("position"), fontWeight = FontWeight.Bold)
+            ChoicesV5(
+                listOf("H", "V"),
+                if (flipH) "H" else "V"
+            ) { selected ->
+                onFlipH(selected == "H")
+            }
+        }
+
         else -> {
             Text(strings.toolSubtitle(tool.id), fontSize = 12.sp)
         }
