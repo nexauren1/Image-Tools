@@ -15,6 +15,7 @@ object RecipeStore {
     fun list(context: Context): List<Recipe> {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getStringSet(KEY, emptySet())
+            .orEmpty()
             .mapNotNull { decode(it) }
             .sortedBy { it.name.lowercase() }
     }
