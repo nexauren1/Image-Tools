@@ -58,7 +58,6 @@ class UiText(private val language: AppLanguage) {
             "settings.dark.help" to "Usar um espaço de trabalho mais escuro",
             "batch.selected" to "selecionadas",
             "batch.results" to "resultados",
-            "batch.image" to "Imagem"
             "batch.image" to "Imagem",
             "batch.mode" to "Modo de processamento",
             "batch.single" to "Uma imagem",
@@ -117,7 +116,6 @@ class UiText(private val language: AppLanguage) {
             "settings.dark.help" to "Use a darker workspace",
             "batch.selected" to "selected",
             "batch.results" to "results",
-            "batch.image" to "Image"
             "batch.image" to "Image",
             "batch.mode" to "Processing mode",
             "batch.single" to "Single image",
@@ -175,7 +173,7 @@ class UiText(private val language: AppLanguage) {
             "process.error" to "No se pudo procesar la imagen.",
             "settings.dark.help" to "Usar un espacio de trabajo oscuro",
             "batch.selected" to "seleccionadas",
-            "batch.results" to "resultados"
+            "batch.results" to "resultados",
             "batch.image" to "Imagen",
             "batch.mode" to "Modo de procesamiento",
             "batch.single" to "Una imagen",
