@@ -12,6 +12,7 @@ import java.io.ByteArrayOutputStream
 import java.text.DecimalFormat
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sqrt
 
 enum class OutputFormat(val label: String, val mime: String, val extension: String) {
     JPEG("JPEG", "image/jpeg", "jpg"),
@@ -234,6 +235,192 @@ object ImageProcessor {
         }
         canvas.drawText(safeText, x.coerceAtLeast(0f), y.coerceIn(watermarkTextSize, bitmap.height.toFloat() - 4f), paint)
         return output
+    }
+
+    fun autoEnhance(bitmap: Bitmap): Bitmap {
+        val sampleStep = max(1, min(bitmap.width, bitmap.height) / 160)
+        var sum = 0.0
+        var count = 0
+        var sumSq = 0.0
+        val pixel = IntArray(1)
+        var y = 0
+        while (y < bitmap.height) {
+            var x = 0
+            while (x < bitmap.width) {
+                bitmap.getPixels(pixel, 0, 1, x, y, 1, 1)
+                val c = pixel[0]
+                val l = (0.2126 * Color.red(c) + 0.7152 * Color.green(c) + 0.0722 * Color.blue(c)) / 255.0
+                sum += l
+                sumSq += l * l
+                count++
+                x += sampleStep
+            }
+            y += sampleStep
+        }
+        val mean = if (count == 0) 0.5 else sum / count
+        val variance = max(0.0, (sumSq / max(1, count)) - mean * mean)
+        val target = 0.52
+        val brightness = ((target - mean) * 1.2).toFloat().coerceIn(-0.18f, 0.18f)
+        val contrast = (0.08f + ((0.20 - variance) * 0.55)).toFloat().coerceIn(0.04f, 0.16f)
+        return adjust(bitmap, brightness, contrast, 1.08f)
+    }
+
+    fun sharpen(bitmap: Bitmap, amount: Float): Bitmap {
+        val strength = amount.coerceIn(0.15f, 1.0f)
+        val width = bitmap.width
+        val height = bitmap.height
+        val source = IntArray(width * height)
+        bitmap.getPixels(source, 0, width, 0, 0, width, height)
+        val output = source.copyOf()
+        if (width < 3 || height < 3) {
+            return bitmap.copy(Bitmap.Config.ARGB_8888, true)
+        }
+        for (y in 1 until height - 1) {
+            val row = y * width
+            for (x in 1 until width - 1) {
+                val i = row + x
+                val c = source[i]
+                val up = source[i - width]
+                val down = source[i + width]
+                val left = source[i - 1]
+                val right = source[i + 1]
+                fun channel(shift: Int): Int {
+                    val center = (c shr shift) and 255
+                    val neighbors = ((up shr shift) and 255) + ((down shr shift) and 255) +
+                        ((left shr shift) and 255) + ((right shr shift) and 255)
+                    return (center + strength * (4f * center - neighbors))
+                        .toInt()
+                        .coerceIn(0, 255)
+                }
+                output[i] = (Color.alpha(c) shl 24) or
+                    (channel(16) shl 16) or
+                    (channel(8) shl 8) or
+                    channel(0)
+            }
+        }
+        return Bitmap.createBitmap(output, width, height, Bitmap.Config.ARGB_8888)
+    }
+
+    fun backgroundCutout(bitmap: Bitmap, tolerance: Int): Bitmap {
+        val width = bitmap.width
+        val height = bitmap.height
+        if (width < 3 || height < 3) return bitmap.copy(Bitmap.Config.ARGB_8888, true)
+
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+
+        fun averageCorner(startX: Int, startY: Int): Int {
+            var r = 0L
+            var g = 0L
+            var b = 0L
+            var n = 0
+            val patch = min(12, min(width, height))
+            for (yy in startY until min(height, startY + patch)) {
+                for (xx in startX until min(width, startX + patch)) {
+                    val c = pixels[yy * width + xx]
+                    r += Color.red(c)
+                    g += Color.green(c)
+                    b += Color.blue(c)
+                    n++
+                }
+            }
+            return Color.rgb((r / max(1, n)).toInt(), (g / max(1, n)).toInt(), (b / max(1, n)).toInt())
+        }
+
+        val c1 = averageCorner(0, 0)
+        val c2 = averageCorner(max(0, width - 12), 0)
+        val c3 = averageCorner(0, max(0, height - 12))
+        val c4 = averageCorner(max(0, width - 12), max(0, height - 12))
+        val bgR = (Color.red(c1) + Color.red(c2) + Color.red(c3) + Color.red(c4)) / 4
+        val bgG = (Color.green(c1) + Color.green(c2) + Color.green(c3) + Color.green(c4)) / 4
+        val bgB = (Color.blue(c1) + Color.blue(c2) + Color.blue(c3) + Color.blue(c4)) / 4
+        val threshold = tolerance.coerceIn(15, 140)
+        val thresholdSq = threshold * threshold
+
+        fun similar(c: Int): Boolean {
+            val dr = Color.red(c) - bgR
+            val dg = Color.green(c) - bgG
+            val db = Color.blue(c) - bgB
+            return dr * dr + dg * dg + db * db <= thresholdSq
+        }
+
+        val visited = BooleanArray(width * height)
+        val queue = IntArray(width * height)
+        var head = 0
+        var tail = 0
+
+        fun enqueue(index: Int) {
+            if (index in 0 until pixels.size && !visited[index] && similar(pixels[index])) {
+                visited[index] = true
+                queue[tail++] = index
+            }
+        }
+
+        for (x in 0 until width) {
+            enqueue(x)
+            enqueue((height - 1) * width + x)
+        }
+        for (y in 0 until height) {
+            enqueue(y * width)
+            enqueue(y * width + width - 1)
+        }
+
+        while (head < tail) {
+            val index = queue[head++]
+            val x = index % width
+            val y = index / width
+            if (x > 0) enqueue(index - 1)
+            if (x < width - 1) enqueue(index + 1)
+            if (y > 0) enqueue(index - width)
+            if (y < height - 1) enqueue(index + width)
+        }
+
+        for (i in pixels.indices) {
+            if (visited[i]) {
+                pixels[i] = pixels[i] and 0x00FFFFFF
+            }
+        }
+        return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
+    }
+
+    fun portraitBlur(bitmap: Bitmap, intensity: Float): Bitmap {
+        val strength = intensity.coerceIn(0.15f, 1f)
+        val scale = 12
+        val smallW = max(1, bitmap.width / scale)
+        val smallH = max(1, bitmap.height / scale)
+        val small = Bitmap.createScaledBitmap(bitmap, smallW, smallH, true)
+        val blurred = Bitmap.createScaledBitmap(small, bitmap.width, bitmap.height, true)
+        small.recycle()
+
+        val width = bitmap.width
+        val height = bitmap.height
+        val source = IntArray(width * height)
+        val blur = IntArray(width * height)
+        bitmap.getPixels(source, 0, width, 0, 0, width, height)
+        blurred.getPixels(blur, 0, width, 0, 0, width, height)
+        blurred.recycle()
+
+        val output = IntArray(source.size)
+        val cx = width * 0.5f
+        val cy = height * 0.46f
+        val rx = width * 0.38f
+        val ry = height * 0.44f
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                val dx = (x - cx) / rx
+                val dy = (y - cy) / ry
+                val distance = sqrt((dx * dx + dy * dy).toDouble()).toFloat()
+                val outside = ((distance - 0.70f) / 0.50f).coerceIn(0f, 1f)
+                val mix = outside * strength
+                val i = y * width + x
+                val a = Color.alpha(source[i])
+                val r = (Color.red(source[i]) * (1f - mix) + Color.red(blur[i]) * mix).toInt()
+                val g = (Color.green(source[i]) * (1f - mix) + Color.green(blur[i]) * mix).toInt()
+                val b = (Color.blue(source[i]) * (1f - mix) + Color.blue(blur[i]) * mix).toInt()
+                output[i] = Color.argb(a, r.coerceIn(0, 255), g.coerceIn(0, 255), b.coerceIn(0, 255))
+            }
+        }
+        return Bitmap.createBitmap(output, width, height, Bitmap.Config.ARGB_8888)
     }
 
     fun encode(bitmap: Bitmap, format: OutputFormat, quality: Int): ByteArray {
