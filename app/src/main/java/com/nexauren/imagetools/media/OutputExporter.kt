@@ -18,12 +18,22 @@ object OutputExporter {
         height: Int,
         treeUri: Uri?
     ): ImageResult {
-        return if (treeUri != null) {
-            ImageProcessor.saveToFolder(context, treeUri, bytes, format, prefix, width, height)
-        } else {
-            ImageProcessor.save(context, bytes, format, prefix, width, height)
+        if (treeUri != null) {
+            return try {
+                ImageProcessor.saveToFolder(context, treeUri, bytes, format, prefix, width, height)
+            } catch (_: Exception) {
+                ImageProcessor.save(context, bytes, format, prefix, width, height)
+            }
         }
+        return ImageProcessor.save(context, bytes, format, prefix, width, height)
     }
+
+    fun saveText(
+        context: Context,
+        text: String,
+        prefix: String,
+        treeUri: Uri?
+    ): Uri = ExportText.save(context, text, prefix, treeUri)
 
     fun savePdf(
         context: Context,
@@ -70,6 +80,7 @@ object OutputExporter {
             }
             uri
         } catch (error: Exception) {
+            if (treeUri != null) return savePdf(context, bytes, prefix, null)
             context.contentResolver.delete(uri, null, null)
             throw error
         }
