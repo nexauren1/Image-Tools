@@ -6,15 +6,22 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
+import com.google.android.gms.ads.MobileAds
 import com.nexauren.imagetools.auth.AuthRepository
 import com.nexauren.imagetools.data.FirestoreRepository
 import com.nexauren.imagetools.data.PaymentRepository
 import com.nexauren.imagetools.ui.ImageToolsAppV2
 import com.nexauren.imagetools.ui.theme.ImageToolsTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    private val adMobScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val adMobReady = mutableStateOf(false)
     private val paymentSubscription = mutableStateOf<String?>(null)
     private val paymentRefreshNonce = mutableStateOf(0)
 
@@ -22,6 +29,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         handleIntent(intent)
 
+        adMobScope.launch {
+            runCatching {
+                MobileAds.initialize(applicationContext) {}
+            }.onSuccess {
+                runOnUiThread { adMobReady.value = true }
+            }
+        }
 
         setContent {
             val auth = remember { AuthRepository(this@MainActivity) }
@@ -71,6 +85,7 @@ class MainActivity : ComponentActivity() {
                     auth = auth,
                     premium = premium,
                     darkMode = darkMode,
+                    adMobReady = adMobReady.value,
                     onDarkModeChange = { darkMode = it },
                     onStartPayment = { url ->
                         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
@@ -89,6 +104,11 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    override fun onDestroy() {
+        adMobScope.cancel()
+        super.onDestroy()
     }
 
     override fun onNewIntent(intent: Intent) {
