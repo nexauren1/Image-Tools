@@ -32,7 +32,8 @@ class AuthRepository(private val context: Context) {
 
     suspend fun registerEmail(email: String, password: String): Result<Unit> = runCatching {
         val result = auth.createUserWithEmailAndPassword(email.trim(), password).await()
-        result.user?.sendEmailVerification()?.await()
+        val user = result.user ?: error("Could not create account.")
+        user.sendEmailVerification().await()
     }
 
     suspend fun sendPasswordReset(email: String): Result<Unit> = runCatching {
