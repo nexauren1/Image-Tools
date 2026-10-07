@@ -13,6 +13,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -419,6 +421,17 @@ private fun ModernAuthScreen(auth: AuthRepository) {
 }
 
 private fun authMessage(error: Throwable): String {
+    val text = error.message?.lowercase().orEmpty()
+    return when {
+        "already in use" in text -> "This email is already registered. Try signing in."
+        "badly formatted" in text || "invalid email" in text -> "Please enter a valid email address."
+        "wrong-password" in text || "invalid-credential" in text || "password is invalid" in text -> "The email or password is incorrect."
+        "network" in text -> "Connection failed. Please check your internet and try again."
+        "credential" in text -> "Google sign-in could not be completed. Please try again."
+        else -> "We could not complete sign-in. Please try again."
+    }
+}
+
 private fun selectedToolTitle(id: String, t: UiStrings): String {
     return when (id) {
         "resize" -> t.resize
@@ -435,17 +448,6 @@ private fun selectedToolTitle(id: String, t: UiStrings): String {
         "meme" -> t.meme
         "pixelate" -> t.pixelate
         else -> id
-    }
-}
-
-    val text = error.message?.lowercase().orEmpty()
-    return when {
-        "already in use" in text -> "This email is already registered. Try signing in."
-        "badly formatted" in text || "invalid email" in text -> "Please enter a valid email address."
-        "wrong-password" in text || "invalid-credential" in text || "password is invalid" in text -> "The email or password is incorrect."
-        "network" in text -> "Connection failed. Please check your internet and try again."
-        "credential" in text -> "Google sign-in could not be completed. Please try again."
-        else -> "We could not complete sign-in. Please try again."
     }
 }
 
@@ -689,14 +691,6 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
     var pixelSize by remember { mutableFloatStateOf(12f) }
     var columns by remember { mutableIntStateOf(2) }
 
-    fun chooseImage() {
-        singlePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-    }
-
-    fun chooseMany() {
-        multiPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-    }
-
     fun processImage(transform: suspend () -> Bitmap, output: OutputFormat = format, outputQuality: Int = quality.toInt()) {
         scope.launch {
             busy = true
@@ -817,7 +811,7 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
             when {
                 current == null && id == "collage" -> {
                     Surface(
-                        Modifier.fillMaxWidth().height(230.dp).clickable { chooseMany() },
+                        Modifier.fillMaxWidth().height(230.dp).clickable { multiPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                         shape = RoundedCornerShape(30.dp),
                         color = Color(0xFF071C26)
                     ) {
@@ -827,7 +821,7 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                             Text("Pick 2–6 images", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
                             Text("Build one layout on the phone", color = Color.White.copy(alpha = .70f), fontSize = 12.sp)
                             Spacer(Modifier.height(13.dp))
-                            Button(onClick = { chooseMany() }) { Text(t.chooseImages) }
+                            Button(onClick = { multiPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) { Text(t.chooseImages) }
                         }
                     }
                 }
@@ -1160,7 +1154,7 @@ private fun CollageStudio(count: Int, columns: Int, setColumns: (Int) -> Unit, b
         Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Collage board", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF0078B7))
             Text(count.toString() + " images selected", color = Color(0xFF4C6A78))
-            Button(onClick = chooseMany, modifier = Modifier.fillMaxWidth()) { Text("Choose 2–6 photos") }
+            Button(onClick = { multiPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, modifier = Modifier.fillMaxWidth()) { Text("Choose 2–6 photos") }
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 (1..3).forEach { c -> FilterChip(c == columns, { setColumns(c) }, label = { Text(c.toString() + " columns") }) }
             }
