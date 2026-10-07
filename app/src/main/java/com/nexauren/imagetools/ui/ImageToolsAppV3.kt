@@ -70,85 +70,157 @@ private val CATALOG = listOf(
     Tool("metadata","Remove Metadata","Strip common embedded metadata",Icons.Default.Security,Color(0xFF059669),Color(0xFF0F766E)),
     Tool("pdf","Image → PDF","Create a shareable PDF",Icons.Default.PictureAsPdf,Color(0xFFDC2626),Color(0xFFEA580C),true),
     Tool("palette","Color Palette","Extract five dominant colors",Icons.Default.ColorLens,Color(0xFF0EA5E9),Color(0xFF8B5CF6)),
-    Tool("collage","Quick Collage","Combine 2–4 images",Icons.Default.Collections,Color(0xFFDB2777),Color(0xFFF97316),true)
+    Tool("collage","Quick Collage","Combine 2–4 images",Icons.Default.Collections,Color(0xFFDB2777),Color(0xFFF97316),true),
+    Tool("ocr","OCR","Extract text from an image",Icons.Default.TextSnippet,Color(0xFF2563EB),Color(0xFF8B5CF6)),
+    Tool("background","Remove Background","Keep the main subject",Icons.Default.AutoFixNormal,Color(0xFF0EA5E9),Color(0xFF14B8A6),true),
+    Tool("exif","EXIF","Read photo metadata",Icons.Default.DataObject,Color(0xFF475569),Color(0xFF06B6D4))
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImageToolsAppV3(
-    auth: AuthRepository, premium: Boolean, darkMode: Boolean,
-    onDarkModeChange: (Boolean)->Unit, onStartPayment: (String)->Unit,
-    onCancelSubscription: ()->Unit
+    auth: AuthRepository,
+    premium: Boolean,
+    darkMode: Boolean,
+    onDarkModeChange: (Boolean) -> Unit,
+    onStartPayment: (String) -> Unit,
+    onCancelSubscription: () -> Unit
 ) {
-    if (auth.currentUser == null) { AuthScreen(auth); return }
-    var page by remember { mutableStateOf("home") }
-    var selected by remember { mutableStateOf<String?>(null) }
-    var drawer by remember { mutableStateOf(false) }
-    val drawerState = rememberDrawerState(if (drawer) DrawerValue.Open else DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
-    LaunchedEffect(drawerState.currentValue) { drawer = drawerState.currentValue == DrawerValue.Open }
+    val context = LocalContext.current
+    var language by remember { mutableStateOf(AppLanguageStore.get(context)) }
+    val strings = remember(language) { UiText(language) }
 
-    fun go(p: String) { page = p; selected = null; scope.launch { drawerState.close() } }
+    CompositionLocalProvider(LocalUiText provides strings) {
+        if (auth.currentUser == null) {
+            AuthScreen(auth)
+        } else {
+            var page by remember { mutableStateOf("home") }
+            var selected by remember { mutableStateOf<String?>(null) }
+            var drawer by remember { mutableStateOf(false) }
+            val drawerState = rememberDrawerState(if (drawer) DrawerValue.Open else DrawerValue.Closed)
+            val scope = rememberCoroutineScope()
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            ModalDrawerSheet {
-                Spacer(Modifier.height(18.dp))
-                Text("IMAGE TOOLS",Modifier.padding(horizontal=22.dp),fontWeight=FontWeight.ExtraBold,letterSpacing=2.sp)
-                Text(if(premium) "PRO workspace" else "Private image workspace",
-                    Modifier.padding(start=22.dp,top=4.dp,bottom=16.dp),
-                    color=MaterialTheme.colorScheme.primary,fontSize=11.sp)
-                DrawerEntry(Icons.Default.Home,"Home"){go("home")}
-                DrawerEntry(Icons.Default.Build,"All tools"){go("tools")}
-                DrawerEntry(Icons.Default.WorkspacePremium,"Premium"){go("premium")}
-                DrawerEntry(Icons.Default.Person,"Account"){go("account")}
-                DrawerEntry(Icons.Default.Settings,"Settings"){go("settings")}
-                DrawerEntry(Icons.Default.Info,"About"){go("about")}
+            LaunchedEffect(drawerState.currentValue) {
+                drawer = drawerState.currentValue == DrawerValue.Open
             }
-        }
-    ) {
-        Scaffold(
-            topBar={
-                CenterAlignedTopAppBar(
-                    title={Column(horizontalAlignment=Alignment.CenterHorizontally){
-                        Text("Image Tools",fontWeight=FontWeight.ExtraBold)
-                        Text(if(premium)"PRO enabled" else "Fast • Private • Local",fontSize=9.sp,color=MaterialTheme.colorScheme.primary)
-                    }},
-                    navigationIcon={IconButton({scope.launch{drawerState.open()}}){Icon(Icons.Default.Menu,"Menu")}},
-                    actions={IconButton({go("premium")}){Icon(if(premium)Icons.Default.WorkspacePremium else Icons.Default.AutoAwesome,"Premium")}}
-                )
-            },
-            bottomBar={
-                NavigationBar{
-                    NavigationBarItem(selected=page=="home"&&selected==null,onClick={go("home")},icon={Icon(Icons.Default.Home,null)},label={Text("Home")})
-                    NavigationBarItem(selected=page=="tools"&&selected==null,onClick={go("tools")},icon={Icon(Icons.Default.Build,null)},label={Text("Tools")})
-                    NavigationBarItem(selected=page=="account"&&selected==null,onClick={go("account")},icon={Icon(Icons.Default.Person,null)},label={Text("Account")})
+
+            fun go(p: String) {
+                page = p
+                selected = null
+                scope.launch { drawerState.close() }
+            }
+
+            ModalNavigationDrawer(
+                drawerState = drawerState,
+                drawerContent = {
+                    ModalDrawerSheet {
+                        Spacer(Modifier.height(18.dp))
+                        Text(
+                            "IMAGE TOOLS",
+                            Modifier.padding(horizontal = 22.dp),
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 2.sp
+                        )
+                        Text(
+                            if (premium) strings.get("pro") else strings.get("local"),
+                            Modifier.padding(start = 22.dp, top = 4.dp, bottom = 16.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 11.sp
+                        )
+                        DrawerEntry(Icons.Default.Home, strings.get("home")) { go("home") }
+                        DrawerEntry(Icons.Default.Build, strings.get("tools")) { go("tools") }
+                        DrawerEntry(Icons.Default.DynamicFeed, strings.get("batch")) { go("batch") }
+                        DrawerEntry(Icons.Default.WorkspacePremium, strings.get("premium")) { go("premium") }
+                        DrawerEntry(Icons.Default.Person, strings.get("account")) { go("account") }
+                        DrawerEntry(Icons.Default.Settings, strings.get("settings")) { go("settings") }
+                        DrawerEntry(Icons.Default.Info, strings.get("about")) { go("about") }
+                    }
+                }
+            ) {
+                Scaffold(
+                    topBar = {
+                        CenterAlignedTopAppBar(
+                            title = {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("Image Tools", fontWeight = FontWeight.ExtraBold)
+                                    Text(
+                                        if (premium) strings.get("pro") else strings.get("home.subtitle"),
+                                        fontSize = 8.sp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            },
+                            navigationIcon = {
+                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                    Icon(Icons.Default.Menu, strings.get("tools"))
+                                }
+                            },
+                            actions = {
+                                IconButton(onClick = { go("premium") }) {
+                                    Icon(
+                                        if (premium) Icons.Default.WorkspacePremium else Icons.Default.AutoAwesome,
+                                        strings.get("premium")
+                                    )
+                                }
+                            }
+                        )
+                    },
+                    bottomBar = {
+                        NavigationBar {
+                            NavigationBarItem(
+                                selected = page == "home" && selected == null,
+                                onClick = { go("home") },
+                                icon = { Icon(Icons.Default.Home, null) },
+                                label = { Text(strings.get("home")) }
+                            )
+                            NavigationBarItem(
+                                selected = page == "tools" && selected == null,
+                                onClick = { go("tools") },
+                                icon = { Icon(Icons.Default.Build, null) },
+                                label = { Text(strings.get("tools")) }
+                            )
+                            NavigationBarItem(
+                                selected = page == "batch" && selected == null,
+                                onClick = { go("batch") },
+                                icon = { Icon(Icons.Default.DynamicFeed, null) },
+                                label = { Text(strings.get("batch")) }
+                            )
+                        }
+                    }
+                ) { pad ->
+                    Box(Modifier.fillMaxSize().padding(pad)) {
+                        when (selected ?: page) {
+                            "home" -> HomeScreen(premium) { open(it) }
+                            "tools" -> ToolsScreen(premium) { open(it) }
+                            "batch" -> BatchScreen(strings)
+                            "premium" -> PremiumScreen(auth, premium, onStartPayment, onCancelSubscription)
+                            "account" -> AccountScreen(auth, premium) { go("premium") }
+                            "settings" -> SettingsScreen(
+                                darkMode = darkMode,
+                                onDarkModeChange = onDarkModeChange,
+                                language = language,
+                                onLanguageChange = {
+                                    language = it
+                                    AppLanguageStore.save(context, it)
+                                }
+                            )
+                            "about" -> AboutScreen()
+                            else -> ToolWorkspace(
+                                tool = CATALOG.first { it.id == (selected ?: "") },
+                                premium = premium,
+                                onBack = { selected = null },
+                                onNeedPremium = { go("premium") }
+                            )
+                        }
+                    }
                 }
             }
-        ){pad->
-            Box(Modifier.fillMaxSize().padding(pad)){
-                when(selected?:page){
-                    "home"->HomeScreen(premium){open(it)}
-                    "tools"->ToolsScreen(premium){open(it)}
-                    "premium"->PremiumScreen(auth,premium,onStartPayment,onCancelSubscription)
-                    "account"->AccountScreen(auth,premium){go("premium")}
-                    "settings"->SettingsScreen(darkMode,onDarkModeChange)
-                    "about"->AboutScreen()
-                    else->ToolWorkspace(
-                        tool=CATALOG.first{it.id==(selected?:"")},
-                        premium=premium,
-                        onBack={selected=null},
-                        onNeedPremium={go("premium")}
-                    )
-                }
+
+            fun open(id: String) {
+                val t = CATALOG.first { it.id == id }
+                if (t.pro && !premium) go("premium") else selected = id
             }
         }
-    }
-
-    fun open(id:String){
-        val t=CATALOG.first{it.id==id}
-        if(t.pro&&!premium) go("premium") else selected=id
     }
 }
 
@@ -225,6 +297,78 @@ private fun authMessage(e:Throwable):String{val t=e.message?.lowercase().orEmpty
         item{Button(openPremium,Modifier.fillMaxWidth(),shape=RoundedCornerShape(16.dp)){Text(if(premium)"Manage Premium" else "See Premium")}}
         item{OutlinedButton({auth.signOut()},Modifier.fillMaxWidth(),shape=RoundedCornerShape(16.dp)){Text("Sign out")}}
         item{Feature("Account deletion","Use Support in Settings to request deletion of your account and associated server-side account data.","Info")}}
+    }
+}
+
+@Composable
+private fun SettingsScreen(
+    darkMode: Boolean,
+    onDarkModeChange: (Boolean) -> Unit,
+    language: AppLanguage,
+    onLanguageChange: (AppLanguage) -> Unit
+) {
+    val strings = LocalUiText.current
+    val context = LocalContext.current
+    var folder by remember { mutableStateOf(OutputFolderStore.folderName(context)) }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            }
+            OutputFolderStore.saveTreeUri(context, uri)
+            folder = OutputFolderStore.folderName(context, uri)
+        }
+    }
+
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Header(strings.get("settings"), strings.get("language.help"))
+        }
+        item {
+            Card(shape = RoundedCornerShape(20.dp)) {
+                Column(
+                    Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(strings.get("language"), fontWeight = FontWeight.Bold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        AppLanguage.entries.forEach { option ->
+                            FilterChip(
+                                selected = option == language,
+                                onClick = { onLanguageChange(option) },
+                                label = { Text(option.label, fontSize = 9.sp) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            Setting(strings.get("settings.dark"), "Use a darker workspace", Icons.Default.DarkMode) {
+                Switch(darkMode, onDarkModeChange)
+            }
+        }
+        item {
+            Setting(
+                strings.get("settings.output"),
+                folder ?: "Pictures/Image Tools",
+                Icons.Default.Folder
+            ) {
+                TextButton(onClick = { picker.launch(null) }) {
+                    Text(strings.get("choose.image"))
+                }
+            }
+        }
+        item { LinkCard("Privacy Policy", PRIVACY, Icons.Default.PrivacyTip) }
+        item { LinkCard("Terms of Service", TERMS, Icons.Default.Gavel) }
+        item { LinkCard("Support & account deletion", SUPPORT, Icons.Default.SupportAgent) }
     }
 }
 
