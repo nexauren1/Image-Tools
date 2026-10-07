@@ -60,6 +60,11 @@ data class UiStrings(
     val portraitBlur: String,
     val autoEnhance: String,
     val sharpen: String,
+    val blur: String,
+    val socialCanvas: String,
+    val negative: String,
+    val duotone: String,
+    val rounded: String,
     val about: String,
     val error: String
 )
@@ -108,6 +113,11 @@ private val EN = UiStrings(
     portraitBlur = "Portrait Blur",
     autoEnhance = "Auto Enhance",
     sharpen = "Sharpen",
+    blur = "Blur Studio",
+    socialCanvas = "Social Canvas",
+    negative = "Negative",
+    duotone = "DuoTone",
+    rounded = "Rounded Corners",
     about = "About",
     error = "Something went wrong"
 )
