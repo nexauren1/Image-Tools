@@ -6,6 +6,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -354,7 +357,7 @@ private fun ModernHome(premium: Boolean, openTool: (String) -> Unit) {
                             Text("ON-DEVICE", Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
                         Surface(shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.14f)) {
-                            Text("undefined TOOLS", Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text("${tools.size} TOOLS", Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -437,32 +440,50 @@ private fun ModernTools(openTool: (String) -> Unit) {
 
 @Composable
 private fun ToolCard(tool: Tool, openTool: (String) -> Unit) {
+    val accent by animateColorAsState(tool.start, label = "toolAccent")
+    val iconScale by animateFloatAsState(1f, animationSpec = spring(stiffness = 500f), label = "iconScale")
+
     Card(
         onClick = { openTool(tool.id) },
-        modifier = Modifier.fillMaxWidth().height(178.dp),
-        shape = RoundedCornerShape(26.dp),
+        modifier = Modifier.fillMaxWidth().height(184.dp),
+        shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = tool.soft),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
     ) {
         Box(Modifier.fillMaxSize()) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 18.dp, y = (-22).dp)
+                    .size(96.dp)
+                    .clip(RoundedCornerShape(40.dp))
+                    .background(Brush.linearGradient(listOf(tool.end.copy(alpha = 0.18f), Color.Transparent)))
+            )
             Column(
                 Modifier.fillMaxSize().padding(14.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
                     Box(
-                        Modifier.size(58.dp).clip(RoundedCornerShape(19.dp))
+                        Modifier.size(60.dp).clip(RoundedCornerShape(20.dp))
                             .background(Brush.linearGradient(listOf(tool.start, tool.end))),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(tool.icon, null, tint = Color.White, modifier = Modifier.size(29.dp))
+                        Icon(tool.icon, null, tint = Color.White, modifier = Modifier.size((29 * iconScale).dp))
                     }
                     if (tool.premiumOnly) {
                         Surface(
                             shape = RoundedCornerShape(50),
-                            color = Color(0xFF171126).copy(alpha = 0.92f)
+                            color = Color(0xFF171126).copy(alpha = 0.95f)
                         ) {
-                            Row(Modifier.padding(horizontal = 8.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Icon(Icons.Default.Lock, null, tint = Color.White, modifier = Modifier.size(13.dp))
                                 Spacer(Modifier.width(4.dp))
                                 Text("PRO", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
@@ -473,11 +494,31 @@ private fun ToolCard(tool: Tool, openTool: (String) -> Unit) {
                 Column {
                     Text(tool.title, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
                     Spacer(Modifier.height(4.dp))
-                    Text(tool.subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                    Text(
+                        tool.subtitle,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2
+                    )
                 }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (tool.premiumOnly) "Premium" else "Free", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = tool.start)
-                    Icon(Icons.Default.ArrowForward, null, tint = tool.start)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = accent.copy(alpha = 0.10f)
+                    ) {
+                        Text(
+                            if (tool.premiumOnly) "Premium" else "Free",
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = accent
+                        )
+                    }
+                    Icon(Icons.Default.ArrowForward, null, tint = accent)
                 }
             }
         }
@@ -556,20 +597,69 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
         item {
             Card(
                 onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(containerColor = tool.soft)
+                shape = RoundedCornerShape(30.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF101426)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
             ) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Surface(shape = RoundedCornerShape(50), color = tool.start.copy(alpha = 0.16f)) {
+                            Row(Modifier.padding(horizontal = 9.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(tool.icon, null, tint = tool.end, modifier = Modifier.size(15.dp))
+                                Spacer(Modifier.width(5.dp))
+                                Text(tool.title.uppercase(), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                            }
+                        }
+                        Text("LOCAL", color = Color.White.copy(alpha = 0.55f), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.height(12.dp))
                     if (image == null) {
-                        Icon(tool.icon, null, tint = tool.start, modifier = Modifier.size(64.dp))
-                        Spacer(Modifier.height(8.dp))
-                        Text("Choose an image", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Text("Tap here to select from your gallery.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Box(
+                            Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(22.dp))
+                                .background(Brush.linearGradient(listOf(Color(0xFF171D35), Color(0xFF0D1120)))),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Box(
+                                    Modifier.size(72.dp).clip(RoundedCornerShape(24.dp))
+                                        .background(Brush.linearGradient(listOf(tool.start, tool.end))),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(tool.icon, null, tint = Color.White, modifier = Modifier.size(34.dp))
+                                }
+                                Spacer(Modifier.height(12.dp))
+                                Text("Choose an image", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                                Text("Tap to open your photo picker.", color = Color.White.copy(alpha = 0.62f), fontSize = 12.sp)
+                            }
+                        }
                     } else {
-                        Image(image!!.asImageBitmap(), "Selected image", Modifier.fillMaxWidth().height(230.dp).clip(RoundedCornerShape(20.dp)), contentScale = ContentScale.Fit)
-                        Spacer(Modifier.height(8.dp))
-                        Text(image!!.width.toString() + " × " + image!!.height.toString(), fontWeight = FontWeight.ExtraBold, color = tool.start)
-                        Text("Tap the preview to replace the image.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Box(
+                            Modifier.fillMaxWidth().height(260.dp).clip(RoundedCornerShape(22.dp))
+                                .background(Color(0xFF080B14)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                image!!.asImageBitmap(),
+                                "Selected image",
+                                Modifier.fillMaxSize().padding(10.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                            Surface(
+                                Modifier.align(Alignment.BottomStart).padding(12.dp),
+                                shape = RoundedCornerShape(50),
+                                color = Color.Black.copy(alpha = 0.72f)
+                            ) {
+                                Text(
+                                    image!!.width.toString() + " × " + image!!.height,
+                                    Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    color = Color.White,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(9.dp))
+                        Text("Tap the preview to replace the image.", color = Color.White.copy(alpha = 0.62f), fontSize = 12.sp)
                     }
                 }
             }
