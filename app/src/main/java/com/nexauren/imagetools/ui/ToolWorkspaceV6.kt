@@ -226,7 +226,7 @@ fun ToolWorkspaceV6(
             )
             "border" -> RawExportItem(
                 ImageProcessor.encode(
-                    AdvancedImageProcessor.addBorder(bitmap, borderSize.toInt(), Color.WHITE.value.toInt()),
+                    AdvancedImageProcessor.addBorder(bitmap, borderSize.toInt(), android.graphics.Color.WHITE),
                     format, 100
                 ),
                 format.mime, format.extension, tool.id
