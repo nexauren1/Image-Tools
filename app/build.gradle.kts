@@ -29,8 +29,8 @@ android {
         applicationId = "com.nexauren.imagetools"
         minSdk = 29
         targetSdk = 36
-        versionCode = 22
-        versionName = "1.7.0"
+        versionCode = 23
+        versionName = "1.8.0"
         vectorDrawables { useSupportLibrary = true }
 
         buildConfigField("String", "WORKER_URL", "\"${System.getenv("WORKER_URL") ?: "https://steep-pine-34fe.nexaurenstore.workers.dev"}\"")
@@ -106,6 +106,7 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
 
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
