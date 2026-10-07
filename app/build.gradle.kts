@@ -15,7 +15,7 @@ val hasReleaseSigning = !releaseKeystoreBase64.isNullOrBlank() &&
     !releaseKeyAlias.isNullOrBlank() &&
     !releaseKeyPassword.isNullOrBlank()
 
-val releaseKeystoreFile = layout.buildDirectory.file("keystores/imagetools-release.jks").get().asFile
+val admobAppId = System.getenv("ADMOB_APP_ID")\n    .takeUnless { it.isNullOrBlank() }\n    ?: "ca-app-pub-3940256099942544~3347511713"\n\nval admobBannerAdUnitId = System.getenv("ADMOB_BANNER_AD_UNIT_ID")\n    .takeUnless { it.isNullOrBlank() }\n    ?: "ca-app-pub-3940256099942544/9214589741"\n\nval releaseKeystoreFile = layout.buildDirectory.file("keystores/imagetools-release.jks").get().asFile
 if (hasReleaseSigning) {
     releaseKeystoreFile.parentFile.mkdirs()
     releaseKeystoreFile.writeBytes(Base64.getDecoder().decode(releaseKeystoreBase64))
@@ -35,7 +35,7 @@ android {
 
         buildConfigField("String", "WORKER_URL", "\"${System.getenv("WORKER_URL") ?: "https://steep-pine-34fe.nexaurenstore.workers.dev"}\"")
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${System.getenv("GOOGLE_WEB_CLIENT_ID") ?: "1062438516387-i2plli4d5mq9gkaauik6q2tf4nb1bqq7.apps.googleusercontent.com"}\"")
-        buildConfigField("String", "ADMOB_BANNER_AD_UNIT_ID", "\"ca-app-pub-2381605116846917/9180368865\"")
+        buildConfigField("String", "ADMOB_BANNER_AD_UNIT_ID", "\"$admobBannerAdUnitId\"")\n        resValue("string", "admob_app_id", admobAppId)
     }
 
     signingConfigs {
