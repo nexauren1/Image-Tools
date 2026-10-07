@@ -56,6 +56,10 @@ data class UiStrings(
     val frame: String,
     val meme: String,
     val pixelate: String,
+    val cutout: String,
+    val portraitBlur: String,
+    val autoEnhance: String,
+    val sharpen: String,
     val about: String,
     val error: String
 )
@@ -100,6 +104,10 @@ private val EN = UiStrings(
     frame = "Frame",
     meme = "Meme",
     pixelate = "Pixelate",
+    cutout = "Background Cutout",
+    portraitBlur = "Portrait Blur",
+    autoEnhance = "Auto Enhance",
+    sharpen = "Sharpen",
     about = "About",
     error = "Something went wrong"
 )
@@ -115,6 +123,7 @@ private val PT = EN.copy(
     convert = "Converter formato", crop = "Corte inteligente", rotate = "Rodar e inverter",
     filters = "Filtros rápidos", details = "Detalhes da imagem", watermark = "Marca de água",
     adjust = "Ajustar", collage = "Colagem", frame = "Moldura", meme = "Meme", pixelate = "Pixelizar",
+    cutout = "Recorte de fundo", portraitBlur = "Desfocar fundo", autoEnhance = "Melhoria automática", sharpen = "Nitidez",
     about = "Sobre", error = "Algo correu mal"
 )
 
@@ -129,6 +138,7 @@ private val ES = EN.copy(
     convert = "Convertir formato", crop = "Recorte inteligente", rotate = "Girar y voltear",
     filters = "Filtros rápidos", details = "Detalles de imagen", watermark = "Marca de agua",
     adjust = "Ajustar", collage = "Collage", frame = "Marco", meme = "Meme", pixelate = "Pixelar",
+    cutout = "Recorte de fondo", portraitBlur = "Desenfoque de fondo", autoEnhance = "Mejora automática", sharpen = "Nitidez",
     about = "Acerca de", error = "Algo salió mal"
 )
 
@@ -143,6 +153,7 @@ private val FR = EN.copy(
     convert = "Convertir", crop = "Recadrage intelligent", rotate = "Rotation et miroir",
     filters = "Filtres rapides", details = "Détails de l’image", watermark = "Filigrane",
     adjust = "Ajuster", collage = "Collage", frame = "Cadre", meme = "Mème", pixelate = "Pixeliser",
+    cutout = "Détourage du fond", portraitBlur = "Flou du fond", autoEnhance = "Amélioration auto", sharpen = "Netteté",
     about = "À propos", error = "Une erreur est survenue"
 )
 
@@ -156,7 +167,7 @@ private val AR = EN.copy(
     quickActions = "إجراءات سريعة", photo = "صورة", resize = "تغيير الحجم", compress = "ضغط",
     convert = "تحويل الصيغة", crop = "قص ذكي", rotate = "تدوير وقلب", filters = "فلاتر سريعة",
     details = "تفاصيل الصورة", watermark = "علامة مائية", adjust = "ضبط", collage = "كولاج",
-    frame = "إطار", meme = "ميم", pixelate = "بكسلة", about = "حول التطبيق", error = "حدث خطأ"
+    frame = "إطار", meme = "ميم", pixelate = "بكسلة", cutout = "قص الخلفية", portraitBlur = "ضبابية الخلفية", autoEnhance = "تحسين تلقائي", sharpen = "حدة الصورة", about = "حول التطبيق", error = "حدث خطأ"
 )
 
 private fun stringsFor(language: AppLanguage): UiStrings = when (language) {
