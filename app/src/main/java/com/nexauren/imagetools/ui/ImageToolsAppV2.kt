@@ -827,7 +827,7 @@ private fun ModernToolWorkspace(id: String, premium: Boolean, onBack: () -> Unit
                 }
                 current == null -> {
                     Surface(
-                        Modifier.fillMaxWidth().height(230.dp).clickable { chooseImage() },
+                        Modifier.fillMaxWidth().height(230.dp).clickable { singlePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                         shape = RoundedCornerShape(30.dp),
                         color = Color(0xFF0E1426)
                     ) {
@@ -1154,7 +1154,7 @@ private fun CollageStudio(count: Int, columns: Int, setColumns: (Int) -> Unit, b
         Column(Modifier.padding(19.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Collage board", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF0078B7))
             Text(count.toString() + " images selected", color = Color(0xFF4C6A78))
-            Button(onClick = { multiPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, modifier = Modifier.fillMaxWidth()) { Text("Choose 2–6 photos") }
+            Button(onClick = chooseMany, modifier = Modifier.fillMaxWidth()) { Text("Choose 2–6 photos") }
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 (1..3).forEach { c -> FilterChip(c == columns, { setColumns(c) }, label = { Text(c.toString() + " columns") }) }
             }
