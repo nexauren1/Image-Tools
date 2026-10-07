@@ -1909,49 +1909,203 @@ private fun AccountScreenV5(
     premium: Boolean,
     openPremium: () -> Unit
 ) {
+    val context = LocalContext.current
+    val processed = ProcessingStatsStore.processed(context)
+    val exported = ProcessingStatsStore.exported(context)
+
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Card(shape = RoundedCornerShape(24.dp)) {
-                Column(
-                    Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+            Card(shape = RoundedCornerShape(28.dp)) {
+                Box(
+                    Modifier.fillMaxWidth()
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    Color(0xFF111827),
+                                    Color(0xFF4C1D95),
+                                    Color(0xFF0E7490)
+                                )
+                            )
+                        )
+                        .padding(20.dp)
                 ) {
-                    Text(strings.get("account"), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
-                    Text(
-                        auth.currentUser?.email.orEmpty(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(if (premium) strings.get("pro") else strings.get("free"))
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            strings.get("account"),
+                            color = Color.White,
+                            fontSize = 25.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text(
+                            auth.currentUser?.email.orEmpty(),
+                            color = Color.White.copy(alpha = .78f),
+                            fontSize = 12.sp
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color.White.copy(alpha = .12f)
+                        ) {
+                            Text(
+                                if (premium) strings.get("premium.active") else strings.get("free"),
+                                color = Color.White,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 10.sp,
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
+
         item {
-            Button(
-                onClick = openPremium,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text(strings.get("premium"))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                AccountStatCardV5(
+                    processed.toString(),
+                    strings.get("account.processed"),
+                    Icons.Default.AutoFixHigh,
+                    Modifier.weight(1f)
+                )
+                AccountStatCardV5(
+                    exported.toString(),
+                    strings.get("account.exported"),
+                    Icons.Default.FileDownload,
+                    Modifier.weight(1f)
+                )
             }
         }
+
+        item {
+            Card(shape = RoundedCornerShape(22.dp)) {
+                Column(
+                    Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
+                    Text(
+                        strings.get("account.subscription"),
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        if (premium) strings.get("premium.active") else strings.get("free"),
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Button(
+                        onClick = openPremium,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(15.dp)
+                    ) {
+                        Icon(Icons.Default.WorkspacePremium, null)
+                        Spacer(Modifier.width(7.dp))
+                        Text(strings.get("premium"))
+                    }
+                }
+            }
+        }
+
+        item {
+            FeatureCardV5(
+                Icons.Default.Security,
+                strings.get("account.security"),
+                auth.currentUser?.email.orEmpty()
+            )
+        }
+
+        item {
+            Card(shape = RoundedCornerShape(22.dp)) {
+                Column(
+                    Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    Text(
+                        strings.get("settings.legal"),
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    LegalLinkV5("Privacy Policy", PRIVACY, Icons.Default.PrivacyTip)
+                    LegalLinkV5("Terms of Service", TERMS, Icons.Default.Gavel)
+                    LegalLinkV5(strings.get("account.support"), SUPPORT, Icons.Default.SupportAgent)
+                }
+            }
+        }
+
         item {
             OutlinedButton(
                 onClick = { auth.signOut() },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp)
             ) {
+                Icon(Icons.Default.Logout, null)
+                Spacer(Modifier.width(7.dp))
                 Text(strings.get("account.signout"))
             }
         }
+
         item {
-            FeatureCardV5(
-                Icons.Default.Info,
-                strings.get("settings.legal"),
-                "Privacy Policy • Terms • Support"
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Column(Modifier.padding(14.dp)) {
+                    Text(
+                        strings.get("account.delete"),
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        strings.get("account.delete.help"),
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                    TextButton(
+                        onClick = {
+                            context.startActivity(
+                                Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse(SUPPORT + "/account-deletion")
+                                )
+                            )
+                        }
+                    ) {
+                        Icon(Icons.Default.DeleteOutline, null)
+                        Spacer(Modifier.width(5.dp))
+                        Text(strings.get("account.delete"))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountStatCardV5(
+    value: String,
+    label: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Column(
+            Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+            Text(
+                value,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Text(
+                label,
+                fontSize = 9.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
