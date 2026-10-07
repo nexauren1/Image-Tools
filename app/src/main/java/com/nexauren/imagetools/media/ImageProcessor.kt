@@ -235,7 +235,7 @@ object ImageProcessor {
         }
     }
 
-    fun humanBytes(bytes: Long) {
+    fun humanBytes(bytes: Long): String {
         if (bytes < 1024) return "$bytes B"
         val kb = bytes / 1024.0
         if (kb < 1024) return DecimalFormat("#,##0.0").format(kb) + " KB"
