@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 
 data class SubscriptionStart(
     val subscriptionId: String,
@@ -23,11 +24,8 @@ object PaymentRepository {
     suspend fun createSubscription(token: String): Result<SubscriptionStart> = withContext(Dispatchers.IO) {
         runCatching {
             val connection = open("/paypal/create-subscription", token, "POST")
-            connection.outputStream.bufferedWriter().use {
-                it.write("{}")
-            }
-            val body = read(connection)
-            val data = JSONObject(body)
+            connection.outputStream.bufferedWriter().use { it.write("{}") }
+            val data = JSONObject(read(connection))
             requirePaymentOk(connection, data, "subscription-create")
             SubscriptionStart(
                 subscriptionId = data.getString("subscriptionId"),
@@ -43,7 +41,7 @@ object PaymentRepository {
                     "/paypal/subscription-status"
                 } else {
                     "/paypal/subscription-status?subscriptionId=" +
-                        java.net.URLEncoder.encode(subscriptionId, "UTF-8")
+                        URLEncoder.encode(subscriptionId, "UTF-8")
                 }
                 val connection = open(path, token, "GET")
                 val data = JSONObject(read(connection))
@@ -52,15 +50,19 @@ object PaymentRepository {
             }
         }
 
-    suspend fun cancelSubscription(token: String): Result<Boolean> = withContext(Dispatchers.IO) {
+    suspend fun cancelSubscription(
+        token: String,
+        subscriptionId: String? = null
+    ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val connection = open("/paypal/cancel-subscription", token, "POST")
-            connection.outputStream.bufferedWriter().use {
-                it.write("{}")
+            val payload = JSONObject().apply {
+                if (!subscriptionId.isNullOrBlank()) put("subscriptionId", subscriptionId)
             }
+            connection.outputStream.bufferedWriter().use { it.write(payload.toString()) }
             val data = JSONObject(read(connection))
             requirePaymentOk(connection, data, "subscription-cancel")
-            true
+            data.optString("status").ifBlank { "CANCELLED" }
         }
     }
 
