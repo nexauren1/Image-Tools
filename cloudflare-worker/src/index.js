@@ -685,35 +685,59 @@ async function subscriptionStatus(request, env, url) {
   });
 }
 
+async function resolveOwnedSubscription(paypal, userId, candidates) {
+  const seen = new Set();
+  let lastError = null;
+
+  for (const candidate of candidates) {
+    const subscriptionId = String(candidate || "").trim();
+    if (!subscriptionId || seen.has(subscriptionId)) continue;
+    seen.add(subscriptionId);
+
+    try {
+      const current = await getPayPalSubscription(paypal, subscriptionId);
+
+      if (current.custom_id && current.custom_id !== userId) {
+        const error = new Error("Subscription ownership mismatch");
+        error.code = "SUBSCRIPTION_OWNERSHIP_MISMATCH";
+        error.stage = "subscription-ownership";
+        lastError = error;
+        continue;
+      }
+
+      return { subscriptionId, current };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastError) throw lastError;
+
+  const error = new Error("No PayPal subscription is linked to this account");
+  error.code = "SUBSCRIPTION_NOT_FOUND";
+  error.stage = "subscription-lookup";
+  error.httpStatus = 404;
+  throw error;
+}
+
 async function cancelSubscription(request, env) {
   const user = await firebaseUser(request, env);
   const paypal = await paypalToken(env);
   const body = await request.json().catch(() => ({}));
-  let subscriptionId = String(body.subscriptionId || "").trim();
+  const requestedSubscriptionId = String(body.subscriptionId || "").trim();
 
-  if (!subscriptionId) {
-    const fields = await firestoreUser(env, user.localId);
-    subscriptionId = fieldString(fields, "paypalSubscriptionId");
-  }
+  const fields = await firestoreUser(env, user.localId);
+  const storedSubscriptionId = fieldString(fields, "paypalSubscriptionId").trim();
 
-  if (!subscriptionId) {
-    return reply({
-      ok: false,
-      error: "No PayPal subscription is linked to this account",
-      code: "SUBSCRIPTION_NOT_FOUND",
-      stage: "subscription-lookup"
-    }, 404);
-  }
-
-  const current = await getPayPalSubscription(paypal, subscriptionId);
-  if (current.custom_id && current.custom_id !== user.localId) {
-    return reply({
-      ok: false,
-      error: "Subscription ownership mismatch",
-      code: "SUBSCRIPTION_OWNERSHIP_MISMATCH",
-      stage: "subscription-ownership"
-    }, 403);
-  }
+  // Prefer the server-linked subscription. If it is missing, stale or belongs
+  // to another PayPal account, use the APK's cached id as a recovery path.
+  const resolved = await resolveOwnedSubscription(
+    paypal,
+    user.localId,
+    [storedSubscriptionId, requestedSubscriptionId]
+  );
+  const subscriptionId = resolved.subscriptionId;
+  const current = resolved.current;
 
   if (current.status === "CANCELLED" || current.status === "EXPIRED") {
     let entitlementSynced = true;
