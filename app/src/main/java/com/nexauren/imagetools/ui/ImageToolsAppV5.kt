@@ -231,7 +231,7 @@ fun ImageToolsAppV5(
                             val tool = TOOL_CATALOG.first { it.id == id }
                             if (tool.premium && !premium) navigate("premium") else selectedTool = id
                         }
-                        page == "tools" -> ToolsScreenV5(strings) { id ->
+                        page == "tools" -> ToolsScreenV5(strings, premium) { id ->
                             val tool = TOOL_CATALOG.first { it.id == id }
                             if (tool.premium && !premium) navigate("premium") else selectedTool = id
                         }
@@ -556,7 +556,7 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
 }
 
 @Composable
-private fun ToolsScreenV5(strings: UiText, openTool: (String) -> Unit) {
+private fun ToolsScreenV5(strings: UiText, premium: Boolean, openTool: (String) -> Unit) {
     var query by remember { mutableStateOf("") }
     val filtered = TOOL_CATALOG.filter {
         (strings.toolTitle(it.id) + " " + strings.toolSubtitle(it.id)).contains(query, true)
@@ -613,14 +613,14 @@ private fun ToolsScreenV5(strings: UiText, openTool: (String) -> Unit) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             gridItems(filtered) { tool ->
-                ToolGridCardV5(tool, strings, openTool)
+                ToolGridCardV5(tool, strings, premium, openTool)
             }
         }
     }
 }
 
 @Composable
-private fun ToolGridCardV5(tool: ToolDef, strings: UiText, openTool: (String) -> Unit) {
+private fun ToolGridCardV5(tool: ToolDef, strings: UiText, premium: Boolean, openTool: (String) -> Unit) {
     Card(
         onClick = { openTool(tool.id) },
         shape = RoundedCornerShape(24.dp)
@@ -642,7 +642,7 @@ private fun ToolGridCardV5(tool: ToolDef, strings: UiText, openTool: (String) ->
                     Icon(tool.icon, null, tint = Color.White)
                 }
                 Spacer(Modifier.weight(1f))
-                if (tool.premium) {
+                if (tool.premium && !premium) {
                     Surface(
                         shape = RoundedCornerShape(9.dp),
                         color = Color(0xFFEDE9FE)
@@ -674,7 +674,7 @@ private fun ToolGridCardV5(tool: ToolDef, strings: UiText, openTool: (String) ->
 }
 
 @Composable
-private fun ToolRowV5(tool: ToolDef, strings: UiText, openTool: (String) -> Unit) {
+private fun ToolRowV5(tool: ToolDef, strings: UiText, premium: Boolean, openTool: (String) -> Unit) {
     Card(onClick = { openTool(tool.id) }, shape = RoundedCornerShape(21.dp)) {
         Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -689,7 +689,7 @@ private fun ToolRowV5(tool: ToolDef, strings: UiText, openTool: (String) -> Unit
                 Text(strings.toolTitle(tool.id), fontWeight = FontWeight.ExtraBold)
                 Text(strings.toolSubtitle(tool.id), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (tool.premium) {
+            if (tool.premium && !premium) {
                 Text(strings.get("pro"), color = Color(0xFF7C3AED), fontWeight = FontWeight.ExtraBold, fontSize = 9.sp)
             }
         }
@@ -1211,7 +1211,7 @@ private fun ToolWorkspaceV5(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            ToolHeaderV5(tool, strings, onBack)
+            ToolHeaderV5(tool, strings, premium, onBack)
         }
 
         item {
@@ -1473,7 +1473,7 @@ private fun ToolWorkspaceV5(
 }
 
 @Composable
-private fun ToolHeaderV5(tool: ToolDef, strings: UiText, onBack: () -> Unit) {
+private fun ToolHeaderV5(tool: ToolDef, strings: UiText, premium: Boolean, onBack: () -> Unit) {
     Row(
         Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -1502,7 +1502,7 @@ private fun ToolHeaderV5(tool: ToolDef, strings: UiText, onBack: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        if (tool.premium) {
+        if (tool.premium && !premium) {
             Text(
                 strings.get("pro"),
                 color = Color(0xFF7C3AED),
