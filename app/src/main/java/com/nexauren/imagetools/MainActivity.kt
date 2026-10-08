@@ -9,6 +9,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.runtime.*
 import com.nexauren.imagetools.auth.AuthRepository
+import com.nexauren.imagetools.data.AppNotificationHelper
+import com.nexauren.imagetools.data.AppNotificationSettings
 import com.nexauren.imagetools.data.FirestoreRepository
 import com.nexauren.imagetools.data.PaymentRepository
 import com.nexauren.imagetools.data.SubscriptionStore
@@ -64,7 +66,19 @@ class MainActivity : ComponentActivity() {
                         val token = auth.idToken(attempt > 0)
                         if (!token.isNullOrBlank()) {
                             PaymentRepository.refreshSubscription(token, subscriptionId)
-                                .onSuccess { active = it }
+                                .onSuccess {
+                                    active = it
+                                    if (active && AppNotificationSettings.isEnabled(this@MainActivity)) {
+                                        val text = com.nexauren.imagetools.ui.UiText(
+                                            com.nexauren.imagetools.ui.AppLanguageStore.get(this@MainActivity)
+                                        )
+                                        AppNotificationHelper.show(
+                                            this@MainActivity,
+                                            text.get("notification.premium.title"),
+                                            text.get("notification.premium.active")
+                                        )
+                                    }
+                                }
                         }
                         if (active) return@launch
                         if (attempt < 11) delay(3000)
