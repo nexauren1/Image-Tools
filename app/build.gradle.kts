@@ -1,25 +1,9 @@
-import java.util.Base64
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.gms.google-services")
 }
 
-val releaseKeystoreBase64 = System.getenv("KEYSTORE_BASE64")
-val releaseKeystorePassword = System.getenv("KEYSTORE_PASSWORD")
-val releaseKeyAlias = System.getenv("KEY_ALIAS")
-val releaseKeyPassword = System.getenv("KEY_PASSWORD")
-val hasReleaseSigning = !releaseKeystoreBase64.isNullOrBlank() &&
-    !releaseKeystorePassword.isNullOrBlank() &&
-    !releaseKeyAlias.isNullOrBlank() &&
-    !releaseKeyPassword.isNullOrBlank()
-
-val releaseKeystoreFile = layout.buildDirectory.file("keystores/imagetools-release.jks").get().asFile
-if (hasReleaseSigning) {
-    releaseKeystoreFile.parentFile.mkdirs()
-    releaseKeystoreFile.writeBytes(Base64.getDecoder().decode(releaseKeystoreBase64))
-}
 
 android {
     namespace = "com.nexauren.imagetools"
@@ -37,17 +21,6 @@ android {
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${System.getenv("GOOGLE_WEB_CLIENT_ID") ?: "1062438516387-i2plli4d5mq9gkaauik6q2tf4nb1bqq7.apps.googleusercontent.com"}\"")
     }
 
-    signingConfigs {
-        create("release") {
-            if (hasReleaseSigning) {
-                storeFile = releaseKeystoreFile
-                storePassword = releaseKeystorePassword!!
-                keyAlias = releaseKeyAlias!!
-                keyPassword = releaseKeyPassword!!
-            }
-        }
-    }
-
     buildTypes {
         debug {
             versionNameSuffix = "-debug"
@@ -55,10 +28,6 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            check(hasReleaseSigning) {
-                "Release signing credentials are required: KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD."
-            }
-            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt")
             )
