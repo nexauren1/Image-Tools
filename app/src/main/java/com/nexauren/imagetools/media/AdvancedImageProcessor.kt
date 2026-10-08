@@ -109,6 +109,122 @@ object AdvancedImageProcessor {
     fun denoise(bitmap: Bitmap, strength: Int): Bitmap =
         blur(bitmap, (strength.coerceIn(0, 100) / 34f).toInt().coerceIn(1, 3))
 
+    fun filmGrain(bitmap: Bitmap, strength: Int): Bitmap {
+        val amount = strength.coerceIn(0, 100) / 100f
+        val w = bitmap.width
+        val h = bitmap.height
+        val src = IntArray(w * h)
+        val dst = IntArray(src.size)
+        bitmap.getPixels(src, 0, w, 0, 0, w, h)
+        for (i in src.indices) {
+            val p = src[i]
+            var n = i * -1640531525 + 1013904223
+            n = n xor (n ushr 16)
+            val noise = ((n and 0xFF) - 128)
+            val delta = (noise * amount * 0.55f).roundToInt()
+            dst[i] = Color.argb(
+                Color.alpha(p),
+                (Color.red(p) + delta).coerceIn(0, 255),
+                (Color.green(p) + delta).coerceIn(0, 255),
+                (Color.blue(p) + delta).coerceIn(0, 255)
+            )
+        }
+        return Bitmap.createBitmap(dst, w, h, Bitmap.Config.ARGB_8888)
+    }
+
+    fun colorPop(bitmap: Bitmap, strength: Int): Bitmap {
+        val amount = strength.coerceIn(0, 100) / 100f
+        val w = bitmap.width
+        val h = bitmap.height
+        val src = IntArray(w * h)
+        val dst = IntArray(src.size)
+        val hsv = FloatArray(3)
+        bitmap.getPixels(src, 0, w, 0, 0, w, h)
+        for (i in src.indices) {
+            val p = src[i]
+            Color.colorToHSV(p, hsv)
+            val keep = (hsv[1] * amount * 1.55f).coerceIn(0f, 1f)
+            val gray = (0.2126f * Color.red(p) + 0.7152f * Color.green(p) + 0.0722f * Color.blue(p)).roundToInt()
+            dst[i] = Color.argb(
+                Color.alpha(p),
+                (gray + (Color.red(p) - gray) * keep).roundToInt().coerceIn(0, 255),
+                (gray + (Color.green(p) - gray) * keep).roundToInt().coerceIn(0, 255),
+                (gray + (Color.blue(p) - gray) * keep).roundToInt().coerceIn(0, 255)
+            )
+        }
+        return Bitmap.createBitmap(dst, w, h, Bitmap.Config.ARGB_8888)
+    }
+
+    fun outline(bitmap: Bitmap, strength: Int): Bitmap {
+        val amount = strength.coerceIn(0, 100) / 100f
+        val w = bitmap.width
+        val h = bitmap.height
+        val src = IntArray(w * h)
+        val dst = IntArray(src.size)
+        bitmap.getPixels(src, 0, w, 0, 0, w, h)
+
+        fun gray(p: Int): Float =
+            0.2126f * Color.red(p) + 0.7152f * Color.green(p) + 0.0722f * Color.blue(p)
+
+        for (y in 0 until h) for (x in 0 until w) {
+            fun g(dx: Int, dy: Int): Float {
+                val xx = (x + dx).coerceIn(0, w - 1)
+                val yy = (y + dy).coerceIn(0, h - 1)
+                return gray(src[yy * w + xx])
+            }
+            val gx = -g(-1, -1) + g(1, -1) - 2f * g(-1, 0) + 2f * g(1, 0) - g(-1, 1) + g(1, 1)
+            val gy = -g(-1, -1) - 2f * g(0, -1) - g(1, -1) + g(-1, 1) + 2f * g(0, 1) + g(1, 1)
+            val edge = (kotlin.math.sqrt(gx * gx + gy * gy) * (0.8f + amount * 2.4f))
+                .roundToInt()
+                .coerceIn(0, 255)
+            val ink = edge
+            val paper = (255 - edge * (0.55f + amount * 0.35f)).roundToInt().coerceIn(0, 255)
+            val r = (paper - ink * 0.42f).roundToInt().coerceIn(0, 255)
+            val gg = (paper - ink * 0.36f).roundToInt().coerceIn(0, 255)
+            val b = (paper - ink * 0.18f).roundToInt().coerceIn(0, 255)
+            dst[y * w + x] = Color.rgb(r, gg, b)
+        }
+        return Bitmap.createBitmap(dst, w, h, Bitmap.Config.ARGB_8888)
+    }
+
+    fun glitch(bitmap: Bitmap, strength: Int): Bitmap {
+        val amount = strength.coerceIn(0, 100) / 100f
+        val w = bitmap.width
+        val h = bitmap.height
+        val src = IntArray(w * h)
+        val dst = IntArray(src.size)
+        bitmap.getPixels(src, 0, w, 0, 0, w, h)
+        val maxShift = (w * 0.06f * amount).roundToInt().coerceAtMost(w / 4)
+        val stripe = 12
+        for (y in 0 until h) {
+            val band = (y / stripe)
+            val shift = if (band % 4 == 0) {
+                (((band * 37) % (maxShift * 2 + 1)) - maxShift)
+            } else 0
+            for (x in 0 until w) {
+                val srcX = (x - shift).coerceIn(0, w - 1)
+                val p = src[y * w + srcX]
+                val channelShift = if (band % 5 == 0) {
+                    (((x + band * 11) % (4 + (amount * 8).roundToInt())) - 2).coerceIn(-6, 6)
+                } else 0
+                dst[y * w + x] = Color.rgb(
+                    (Color.red(p) + channelShift * 8).coerceIn(0, 255),
+                    Color.green(p),
+                    (Color.blue(p) - channelShift * 8).coerceIn(0, 255)
+                )
+            }
+        }
+        return Bitmap.createBitmap(dst, w, h, Bitmap.Config.ARGB_8888)
+    }
+
+    fun scanDocument(bitmap: Bitmap, strength: Int): Bitmap {
+        val amount = strength.coerceIn(0, 100) / 100f
+        val contrast = 1.15f + amount * 2.7f
+        val brightness = -22f + amount * 15f
+        val out = adjustColor(bitmap, brightness.roundToInt(), ((contrast - 1f) * 100f).roundToInt(), -100, 0)
+        return sharpen(out, 2)
+    }
+
     fun negative(bitmap: Bitmap): Bitmap = drawWithMatrix(bitmap, ColorMatrix(floatArrayOf(
         -1f,0f,0f,0f,255f, 0f,-1f,0f,0f,255f, 0f,0f,-1f,0f,255f, 0f,0f,0f,1f,0f
     )))
