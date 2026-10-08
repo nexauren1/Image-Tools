@@ -25,7 +25,7 @@ object PaymentRepository {
         runCatching {
             val connection = open("/paypal/create-subscription", token, "POST")
             connection.outputStream.bufferedWriter().use { it.write("{}") }
-            val data = JSONObject(read(connection))
+            val data = readJsonObject(connection, read(connection), "subscription-create")
             requirePaymentOk(connection, data, "subscription-create")
             SubscriptionStart(
                 subscriptionId = data.getString("subscriptionId"),
@@ -44,7 +44,7 @@ object PaymentRepository {
                         URLEncoder.encode(subscriptionId, "UTF-8")
                 }
                 val connection = open(path, token, "GET")
-                val data = JSONObject(read(connection))
+                val data = readJsonObject(connection, read(connection), "subscription-status")
                 requirePaymentOk(connection, data, "subscription-status")
                 data.optBoolean("premium")
             }
@@ -60,7 +60,7 @@ object PaymentRepository {
                 if (!subscriptionId.isNullOrBlank()) put("subscriptionId", subscriptionId)
             }
             connection.outputStream.bufferedWriter().use { it.write(payload.toString()) }
-            val data = JSONObject(read(connection))
+            val data = readJsonObject(connection, read(connection), "subscription-cancel")
             requirePaymentOk(connection, data, "subscription-cancel")
             data.optString("status").ifBlank { "CANCELLED" }
         }
@@ -75,6 +75,39 @@ object PaymentRepository {
             readTimeout = 20000
             setRequestProperty("Authorization", "Bearer " + token)
             setRequestProperty("Content-Type", "application/json")
+        }
+    }
+
+    private fun readJsonObject(
+        connection: HttpURLConnection,
+        raw: String,
+        stage: String
+    ): JSONObject {
+        val trimmed = raw.trim()
+        if (trimmed.isBlank()) {
+            throw PaymentException(
+                code = "EMPTY_PAYMENT_RESPONSE",
+                stage = stage,
+                httpStatus = connection.responseCode,
+                message = "The payment service returned an empty response."
+            )
+        }
+        return try {
+            val parsedValue = org.json.JSONTokener(trimmed).nextValue()
+            when (parsedValue) {
+                is JSONObject -> parsedValue
+                is String -> JSONObject(parsedValue)
+                else -> throw IllegalArgumentException(
+                    "Unsupported JSON response type: " + parsedValue.javaClass.simpleName
+                )
+            }
+        } catch (_: Exception) {
+            throw PaymentException(
+                code = "INVALID_PAYMENT_RESPONSE",
+                stage = stage,
+                httpStatus = connection.responseCode,
+                message = "Invalid payment service response (" + connection.responseCode + ")."
+            )
         }
     }
 
