@@ -679,9 +679,22 @@ async function subscriptionStatus(request, env, url) {
 async function cancelSubscription(request, env) {
   const user = await firebaseUser(request, env);
   const paypal = await paypalToken(env);
-  const fields = await firestoreUser(env, user.localId);
-  const subscriptionId = fieldString(fields, "paypalSubscriptionId");
-  if (!subscriptionId) return reply({ ok: false, error: "No active subscription found" }, 404);
+  const body = await request.json().catch(() => ({}));
+  let subscriptionId = String(body.subscriptionId || "").trim();
+
+  if (!subscriptionId) {
+    const fields = await firestoreUser(env, user.localId);
+    subscriptionId = fieldString(fields, "paypalSubscriptionId");
+  }
+
+  if (!subscriptionId) {
+    return reply({
+      ok: false,
+      error: "No PayPal subscription is linked to this account",
+      code: "SUBSCRIPTION_NOT_FOUND",
+      stage: "subscription-lookup"
+    }, 404);
+  }
 
   const current = await getPayPalSubscription(paypal, subscriptionId);
   if (current.custom_id && current.custom_id !== user.localId) {
@@ -693,7 +706,7 @@ async function cancelSubscription(request, env) {
     return reply({ ok: true, premium: false, status: current.status });
   }
 
-  const r = await fetch(
+  const response = await fetch(
     paypal.base + "/v1/billing/subscriptions/" + encodeURIComponent(subscriptionId) + "/cancel",
     {
       method: "POST",
@@ -701,23 +714,20 @@ async function cancelSubscription(request, env) {
         "Authorization": "Bearer " + paypal.token,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ reason: "User requested cancellation" })
+      body: JSON.stringify({ reason: "User requested cancellation from Image Tools" })
     }
   );
 
-  if (!r.ok) {
-    const data = await r.json();
-    throw new Error(data.message || "PayPal subscription cancellation failed");
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.message || "PayPal subscription cancellation failed");
+    error.code = data.name || "PAYPAL_CANCEL_FAILED";
+    error.stage = "paypal-cancel";
+    error.debugId = data.debug_id || "";
+    throw error;
   }
 
-  await setSubscriptionEntitlement(
-    env,
-    user.localId,
-    subscriptionId,
-    "CANCELLED",
-    false
-  );
-
+  await setSubscriptionEntitlement(env, user.localId, subscriptionId, "CANCELLED", false);
   return reply({ ok: true, premium: false, status: "CANCELLED" });
 }
 
