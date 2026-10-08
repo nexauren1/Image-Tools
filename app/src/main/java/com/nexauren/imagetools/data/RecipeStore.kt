@@ -11,6 +11,7 @@ data class Recipe(
 object RecipeStore {
     private const val PREFS = "image_tools_recipes"
     private const val KEY = "recipes"
+    private const val PENDING_KEY = "pending_recipe"
 
     fun list(context: Context): List<Recipe> {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -27,6 +28,20 @@ object RecipeStore {
         set.removeIf { decode(it)?.name == recipe.name }
         set.add(encoded)
         prefs.edit().putStringSet(KEY, set).apply()
+    }
+
+    fun setPending(context: Context, recipe: Recipe) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(PENDING_KEY, encode(recipe))
+            .apply()
+    }
+
+    fun consumePending(context: Context): Recipe? {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val encoded = prefs.getString(PENDING_KEY, null) ?: return null
+        prefs.edit().remove(PENDING_KEY).apply()
+        return decode(encoded)
     }
 
     fun delete(context: Context, name: String) {
