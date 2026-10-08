@@ -21,10 +21,10 @@ class FirestoreRepository {
     }
 
     /*
-     * Premium entitlement is exposed at:
-     * users/{uid}/entitlement/premium
+     * Premium entitlement is stored by the trusted backend directly on:
+     * users/{uid}.premium
      *
-     * The client may read this document but cannot write it.
+     * The client may read this field but cannot write it.
      */
     fun observePremium(callback: (Boolean) -> Unit) {
         listener?.remove()
@@ -37,8 +37,6 @@ class FirestoreRepository {
 
         listener = db.collection("users")
             .document(user.uid)
-            .collection("entitlement")
-            .document("premium")
             .addSnapshotListener { snapshot, _ ->
                 callback(snapshot?.getBoolean("premium") == true)
             }
