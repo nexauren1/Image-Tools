@@ -331,7 +331,58 @@ class UiText(private val language: AppLanguage) {
         )
     }
 
-    fun get(key: String): String = extra[key] ?: map[key] ?: en[key] ?: key
+    private val productExtra = when (language) {
+        AppLanguage.PT -> mapOf(
+            "tool.film_grain.title" to "Grão de filme",
+            "tool.film_grain.subtitle" to "Textura analógica e acabamento cinematográfico",
+            "tool.color_pop.title" to "Color Pop",
+            "tool.color_pop.subtitle" to "Destacar cores e suavizar o fundo",
+            "tool.outline.title" to "Contorno artístico",
+            "tool.outline.subtitle" to "Transformar a imagem num desenho de linhas",
+            "tool.glitch.title" to "Glitch",
+            "tool.glitch.subtitle" to "Distorção digital com cortes e deslocamentos",
+            "tool.scan_document.title" to "Scanner documental",
+            "tool.scan_document.subtitle" to "Limpar, reforçar e preparar documentos",
+        )
+        AppLanguage.ES -> mapOf(
+            "tool.film_grain.title" to "Grano de película",
+            "tool.film_grain.subtitle" to "Textura analógica con acabado cinematográfico",
+            "tool.color_pop.title" to "Color Pop",
+            "tool.color_pop.subtitle" to "Resaltar colores y suavizar el fondo",
+            "tool.outline.title" to "Contorno artístico",
+            "tool.outline.subtitle" to "Convertir la imagen en un dibujo de líneas",
+            "tool.glitch.title" to "Glitch",
+            "tool.glitch.subtitle" to "Distorsión digital con cortes y desplazamientos",
+            "tool.scan_document.title" to "Escáner documental",
+            "tool.scan_document.subtitle" to "Limpiar, reforzar y preparar documentos",
+        )
+        AppLanguage.FR -> mapOf(
+            "tool.film_grain.title" to "Grain de film",
+            "tool.film_grain.subtitle" to "Texture analogique et finition cinéma",
+            "tool.color_pop.title" to "Color Pop",
+            "tool.color_pop.subtitle" to "Faire ressortir les couleurs et adoucir le fond",
+            "tool.outline.title" to "Contour artistique",
+            "tool.outline.subtitle" to "Transformer l’image en dessin de lignes",
+            "tool.glitch.title" to "Glitch",
+            "tool.glitch.subtitle" to "Distorsion numérique par bandes et décalages",
+            "tool.scan_document.title" to "Scanner documentaire",
+            "tool.scan_document.subtitle" to "Nettoyer et renforcer les documents",
+        )
+        AppLanguage.EN -> mapOf(
+            "tool.film_grain.title" to "Film grain",
+            "tool.film_grain.subtitle" to "Analog texture with a cinematic finish",
+            "tool.color_pop.title" to "Color Pop",
+            "tool.color_pop.subtitle" to "Make colors stand out while muting the background",
+            "tool.outline.title" to "Artistic outline",
+            "tool.outline.subtitle" to "Turn an image into a line-art style drawing",
+            "tool.glitch.title" to "Glitch",
+            "tool.glitch.subtitle" to "Digital distortion with slices and channel shifts",
+            "tool.scan_document.title" to "Document scanner",
+            "tool.scan_document.subtitle" to "Clean, sharpen and prepare document images",
+        )
+    }
+
+    fun get(key: String): String = extra[key] ?: productExtra[key] ?: map[key] ?: en[key] ?: key
 
     fun toolTitle(id: String): String = get("tool.$id.title")
     fun toolSubtitle(id: String): String = get("tool.$id.subtitle")
