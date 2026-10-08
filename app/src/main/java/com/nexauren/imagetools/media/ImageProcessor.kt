@@ -56,6 +56,23 @@ object ImageProcessor {
     fun resize(bitmap: Bitmap, width: Int, height: Int): Bitmap =
         Bitmap.createScaledBitmap(bitmap, width.coerceAtLeast(1), height.coerceAtLeast(1), true)
 
+    fun cropToAspect(bitmap: Bitmap, targetRatio: Float): Bitmap {
+        require(targetRatio > 0f) { "Invalid aspect ratio." }
+        val sourceRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+        val cropWidth: Int
+        val cropHeight: Int
+        if (sourceRatio > targetRatio) {
+            cropHeight = bitmap.height
+            cropWidth = (cropHeight * targetRatio).toInt().coerceAtLeast(1)
+        } else {
+            cropWidth = bitmap.width
+            cropHeight = (cropWidth / targetRatio).toInt().coerceAtLeast(1)
+        }
+        val left = ((bitmap.width - cropWidth) / 2).coerceAtLeast(0)
+        val top = ((bitmap.height - cropHeight) / 2).coerceAtLeast(0)
+        return Bitmap.createBitmap(bitmap, left, top, cropWidth, cropHeight)
+    }
+
     fun cropCenter(bitmap: Bitmap, mode: String): Bitmap {
         if (mode == "Original") return bitmap
         val targetRatio = when (mode) {
@@ -195,6 +212,28 @@ object ImageProcessor {
         return output
     }
 
+    fun encodeJpegUnderSize(
+        bitmap: Bitmap,
+        targetBytes: Int,
+        format: OutputFormat = OutputFormat.JPEG
+    ): ByteArray {
+        require(targetBytes > 0) { "Target size must be greater than zero." }
+        var low = 1
+        var high = 100
+        var best = encode(bitmap, format, 1)
+        while (low <= high) {
+            val mid = (low + high) ushr 1
+            val candidate = encode(bitmap, format, mid)
+            if (candidate.size <= targetBytes) {
+                best = candidate
+                low = mid + 1
+            } else {
+                high = mid - 1
+            }
+        }
+        return best
+    }
+
     fun encode(bitmap: Bitmap, format: OutputFormat, quality: Int): ByteArray {
         val out = ByteArrayOutputStream()
         val type = when (format) {
@@ -283,6 +322,21 @@ object ImageProcessor {
             context.contentResolver.delete(uri, null, null)
             throw error
         }
+    }
+
+    private fun applyExifOrientation(bitmap: Bitmap, orientation: Int): Bitmap {
+        val matrix = Matrix()
+        when (orientation) {
+            androidx.exifinterface.media.ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.setScale(-1f, 1f)
+            androidx.exifinterface.media.ExifInterface.ORIENTATION_ROTATE_180 -> matrix.setRotate(180f)
+            androidx.exifinterface.media.ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.setScale(1f, -1f)
+            androidx.exifinterface.media.ExifInterface.ORIENTATION_TRANSPOSE -> { matrix.setRotate(90f); matrix.postScale(-1f, 1f) }
+            androidx.exifinterface.media.ExifInterface.ORIENTATION_ROTATE_90 -> matrix.setRotate(90f)
+            androidx.exifinterface.media.ExifInterface.ORIENTATION_TRANSVERSE -> { matrix.setRotate(270f); matrix.postScale(-1f, 1f) }
+            androidx.exifinterface.media.ExifInterface.ORIENTATION_ROTATE_270 -> matrix.setRotate(270f)
+            else -> return bitmap
+        }
+        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
     fun humanBytes(bytes: Long): String {
