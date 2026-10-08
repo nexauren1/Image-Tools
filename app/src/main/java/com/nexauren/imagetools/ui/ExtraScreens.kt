@@ -89,11 +89,11 @@ private fun HistoryCardV5(entry: HistoryEntry) {
 fun RecipesScreenV5(
     auth: AuthRepository,
     premium: Boolean,
-    strings: UiText
+    strings: UiText,
+    onApplyRecipe: (Recipe) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var recipes by remember { mutableStateOf(RecipeStore.list(context)) }
-    var name by remember { mutableStateOf("") }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -109,44 +109,11 @@ fun RecipesScreenV5(
             ) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(strings.get("recipes"), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
-                    Text(strings.get("premium.unlock"), fontSize = 12.sp)
-                    if (!premium) {
-                        Text(
-                            strings.get("premium.unlock"),
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(strings.get("recipe.name")) },
-                        singleLine = true
+                    Text(
+                        strings.get("recipe.save") + " • " + strings.get("premium.unlock"),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Button(
-                        onClick = {
-                            val safe = name.trim()
-                            if (safe.isNotEmpty()) {
-                                RecipeStore.save(
-                                    context,
-                                    Recipe(
-                                        safe,
-                                        "general",
-                                        mapOf("createdBy" to (auth.currentUser?.email ?: "account"))
-                                    )
-                                )
-                                recipes = RecipeStore.list(context)
-                                name = ""
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = premium
-                    ) {
-                        Icon(Icons.Default.Save, null)
-                        Spacer(Modifier.width(6.dp))
-                        Text(strings.get("recipe.save"))
-                    }
                 }
             }
         }
@@ -171,13 +138,23 @@ fun RecipesScreenV5(
                         Icon(Icons.Default.AutoAwesome, contentDescription = null)
                     },
                     trailingContent = {
-                        TextButton(
-                            onClick = {
-                                RecipeStore.delete(context, recipe.name)
-                                recipes = RecipeStore.list(context)
+                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                            if (recipe.toolId != "general") {
+                                TextButton(
+                                    onClick = { onApplyRecipe(recipe) },
+                                    enabled = premium
+                                ) {
+                                    Text(strings.get("recipe.apply"))
+                                }
                             }
-                        ) {
-                            Text(strings.get("recipe.delete"))
+                            TextButton(
+                                onClick = {
+                                    RecipeStore.delete(context, recipe.name)
+                                    recipes = RecipeStore.list(context)
+                                }
+                            ) {
+                                Text(strings.get("recipe.delete"))
+                            }
                         }
                     }
                 )
