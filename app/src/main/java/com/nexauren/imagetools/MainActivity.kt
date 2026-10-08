@@ -9,7 +9,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.runtime.*
 import com.nexauren.imagetools.auth.AuthRepository
-import com.nexauren.imagetools.data.AppNotificationHelper
+import com.nexauren.imagetools.data.NotificationCenterStore
 import com.nexauren.imagetools.data.AppNotificationSettings
 import com.nexauren.imagetools.data.FirestoreRepository
 import com.nexauren.imagetools.data.PaymentRepository
@@ -76,10 +76,11 @@ class MainActivity : ComponentActivity() {
                                         val text = com.nexauren.imagetools.ui.UiText(
                                             com.nexauren.imagetools.ui.AppLanguageStore.get(this@MainActivity)
                                         )
-                                        AppNotificationHelper.show(
-                                            this@MainActivity,
-                                            text.get("notification.premium.title"),
-                                            text.get("notification.premium.active")
+                                        NotificationCenterStore.add(
+                                            context = this@MainActivity,
+                                            uid = auth.currentUser?.uid,
+                                            title = text.get("notification.premium.title"),
+                                            message = text.get("notification.premium.active")
                                         )
                                     }
                                 }

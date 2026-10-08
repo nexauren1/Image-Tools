@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -37,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nexauren.imagetools.BuildConfig
 import com.nexauren.imagetools.auth.AuthRepository
-import com.nexauren.imagetools.data.AppNotificationHelper
+import com.nexauren.imagetools.data.NotificationCenterStore
 import com.nexauren.imagetools.data.AppNotificationSettings
 import com.nexauren.imagetools.data.OutputFolderStore
 import com.nexauren.imagetools.data.PaymentException
@@ -129,6 +128,10 @@ fun ImageToolsAppV5(
         }
 
         var page by remember { mutableStateOf("home") }
+        val notificationCount = NotificationCenterStore.unreadCount(
+            context,
+            auth.currentUser?.uid
+        )
         var selectedTool by remember { mutableStateOf<String?>(null) }
         val scope = rememberCoroutineScope()
         val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -162,6 +165,7 @@ fun ImageToolsAppV5(
                     DrawerEntryV5(Icons.Default.WorkspacePremium, strings.get("premium")) { navigate("premium") }
                     DrawerEntryV5(Icons.Default.Person, strings.get("account")) { navigate("account") }
                     DrawerEntryV5(Icons.Default.Settings, strings.get("settings")) { navigate("settings") }
+                    DrawerEntryV5(Icons.Default.Notifications, strings.get("notifications")) { navigate("notifications") }
                     DrawerEntryV5(Icons.Default.History, strings.get("history")) { navigate("history") }
                     DrawerEntryV5(Icons.Default.AutoAwesome, strings.get("recipes")) { navigate("recipes") }
                     DrawerEntryV5(Icons.Default.Info, strings.get("about")) { navigate("about") }
@@ -187,6 +191,26 @@ fun ImageToolsAppV5(
                             }
                         },
                         actions = {
+                            IconButton(onClick = { navigate("notifications") }) {
+                                BadgedBox(
+                                    badge = {
+                                        if (notificationCount > 0) {
+                                            Badge {
+                                                Text(
+                                                    if (notificationCount > 99) "99+" else notificationCount.toString(),
+                                                    fontSize = 8.sp
+                                                )
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        if (notificationCount > 0) Icons.Default.NotificationsActive
+                                        else Icons.Default.NotificationsNone,
+                                        strings.get("notifications")
+                                    )
+                                }
+                            }
                             IconButton(onClick = { navigate("premium") }) {
                                 Icon(
                                     if (premium) Icons.Default.WorkspacePremium else Icons.Default.AutoAwesome,
@@ -244,6 +268,10 @@ fun ImageToolsAppV5(
                         page == "premium" -> PremiumScreenV5(auth, strings, premium, onStartPayment)
                         page == "account" -> AccountScreenV5(auth, strings, premium) { navigate("premium") }
                         page == "history" -> HistoryScreenV5(strings)
+                        page == "notifications" -> NotificationCenterScreenV5(
+                            strings = strings,
+                            uid = auth.currentUser?.uid
+                        )
                         page == "recipes" -> RecipesScreenV5(
                             auth = auth,
                             premium = premium,
@@ -263,6 +291,7 @@ fun ImageToolsAppV5(
                         )
                         page == "settings" -> SettingsScreenV5(
                             strings = strings,
+                            uid = auth.currentUser?.uid,
                             darkMode = darkMode,
                             language = language,
                             onDarkModeChange = onDarkModeChange,
@@ -272,6 +301,154 @@ fun ImageToolsAppV5(
                             }
                         )
                         else -> AboutScreenV5(strings)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NotificationCenterScreenV5(
+    strings: UiText,
+    uid: String?
+) {
+    val context = LocalContext.current
+    var notifications by remember(uid) {
+        mutableStateOf(NotificationCenterStore.list(context, uid))
+    }
+
+    fun refresh() {
+        notifications = NotificationCenterStore.list(context, uid)
+    }
+
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        strings.get("notifications"),
+                        fontSize = 25.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        "${NotificationCenterStore.unreadCount(context, uid)} ${strings.get("notifications.unread")}",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (notifications.any { !it.read }) {
+                    TextButton(
+                        onClick = {
+                            NotificationCenterStore.markAllRead(context, uid)
+                            refresh()
+                        }
+                    ) {
+                        Text(strings.get("notifications.mark_all"))
+                    }
+                }
+                if (notifications.isNotEmpty()) {
+                    IconButton(
+                        onClick = {
+                            NotificationCenterStore.clear(context, uid)
+                            refresh()
+                        }
+                    ) {
+                        Icon(Icons.Default.DeleteSweep, strings.get("notifications.clear"))
+                    }
+                }
+            }
+        }
+
+        if (notifications.isEmpty()) {
+            item {
+                Card(shape = RoundedCornerShape(24.dp)) {
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.NotificationsNone,
+                            null,
+                            modifier = Modifier.size(42.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            strings.get("notifications.empty"),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        } else {
+            items(notifications, key = { it.id }) { item ->
+                val date = java.text.SimpleDateFormat(
+                    "dd/MM HH:mm",
+                    java.util.Locale.getDefault()
+                ).format(java.util.Date(item.createdAt))
+
+                Card(
+                    onClick = {
+                        if (!item.read) {
+                            NotificationCenterStore.markRead(context, uid, item.id)
+                            refresh()
+                        }
+                    },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (item.read) {
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                        } else {
+                            MaterialTheme.colorScheme.primaryContainer
+                        }
+                    )
+                ) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Icon(
+                            if (item.read) Icons.Default.NotificationsNone
+                            else Icons.Default.NotificationsActive,
+                            null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(
+                            Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                item.title,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                            Text(item.message, fontSize = 13.sp)
+                            Text(
+                                date,
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (!item.read) {
+                            Box(
+                                Modifier
+                                    .size(8.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(MaterialTheme.colorScheme.primary)
+                            )
+                        }
                     }
                 }
             }
@@ -2162,6 +2339,7 @@ private fun AccountStatCardV5(
 @Composable
 private fun SettingsScreenV5(
     strings: UiText,
+    uid: String?,
     darkMode: Boolean,
     language: AppLanguage,
     onDarkModeChange: (Boolean) -> Unit,
@@ -2170,21 +2348,6 @@ private fun SettingsScreenV5(
     val context = LocalContext.current
     var folder by remember { mutableStateOf(OutputFolderStore.folderName(context)) }
     var notificationsEnabled by remember { mutableStateOf(AppNotificationSettings.isEnabled(context)) }
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        notificationsEnabled = granted
-        AppNotificationSettings.setEnabled(context, granted)
-        if (granted) {
-            AppNotificationHelper.ensureChannel(context)
-            AppNotificationHelper.show(
-                context,
-                strings.get("notification.premium.title"),
-                strings.get("settings.notifications.help")
-            )
-        }
-    }
-
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
             runCatching {
@@ -2246,39 +2409,28 @@ private fun SettingsScreenV5(
                 Switch(
                     checked = notificationsEnabled,
                     onCheckedChange = { enabled ->
-                        if (!enabled) {
-                            notificationsEnabled = false
-                            AppNotificationSettings.setEnabled(context, false)
-                        } else if (Build.VERSION.SDK_INT >= 33 &&
-                            !AppNotificationHelper.hasPermission(context)
-                        ) {
-                            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-                        } else {
-                            notificationsEnabled = true
-                            AppNotificationSettings.setEnabled(context, true)
-                            AppNotificationHelper.ensureChannel(context)
-                        }
+                        notificationsEnabled = enabled
+                        AppNotificationSettings.setEnabled(context, enabled)
                     }
                 )
             }
         }
 
-        if (notificationsEnabled && AppNotificationHelper.hasPermission(context)) {
-            item {
-                OutlinedButton(
-                    onClick = {
-                        AppNotificationHelper.show(
-                            context,
-                            strings.get("notification.premium.title"),
-                            strings.get("settings.notifications.help")
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.NotificationsActive, null)
-                    Spacer(Modifier.width(7.dp))
-                    Text(strings.get("settings.notifications.test"))
-                }
+        item {
+            OutlinedButton(
+                onClick = {
+                    NotificationCenterStore.add(
+                        context = context,
+                        uid = uid,
+                        title = strings.get("notifications.test.title"),
+                        message = strings.get("notifications.test.message")
+                    )
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.NotificationsActive, null)
+                Spacer(Modifier.width(7.dp))
+                Text(strings.get("settings.notifications.test"))
             }
         }
 
