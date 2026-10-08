@@ -68,6 +68,10 @@ class MainActivity : ComponentActivity() {
                             PaymentRepository.refreshSubscription(token, subscriptionId)
                                 .onSuccess {
                                     active = it
+                                    if (active) {
+                                        premium = true
+                                        paymentSubscription.value = null
+                                    }
                                     if (active && AppNotificationSettings.isEnabled(this@MainActivity)) {
                                         val text = com.nexauren.imagetools.ui.UiText(
                                             com.nexauren.imagetools.ui.AppLanguageStore.get(this@MainActivity)
