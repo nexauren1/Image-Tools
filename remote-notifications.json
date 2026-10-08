@@ -1,1 +1,10 @@
-{"notifications":[]}
+{
+  "notifications": [
+    {
+      "id": "remote-test-2026-10-08-01",
+      "title": "Image Tools • Teste remoto",
+      "message": "Esta é uma notificação enviada remotamente pelo sistema do Image Tools. A ligação remota está funcionando.",
+      "createdAt": 1791490064977
+    }
+  ]
+}
