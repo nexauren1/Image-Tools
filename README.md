@@ -125,3 +125,7 @@ Never commit:
 - Release keystore files or passwords
 - Other production credentials
 
+
+
+### Release 1.12.0
+Build prepared with Favorites, tool categories and the new visual tools.
