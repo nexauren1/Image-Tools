@@ -957,7 +957,7 @@ function termsPage() {
     "<h2>1. Service</h2><p>Image Tools provides image editing and utility features for Android devices. Features may change as the product evolves.</p>" +
     "<h2>2. Your content</h2><p>You remain responsible for the images and other content you choose to process or export. You must have the rights and permissions required to use that content.</p>" +
     "<h2>3. Premium</h2><p>Premium features are provided through a recurring PayPal subscription. The exact price, currency and billing cycle shown during checkout are controlled by the active PayPal plan. Subscription status is verified by our backend.</p>" +
-    "<h2>4. Cancellation</h2><p>You can use the cancellation option in the app while signed in. Payment-provider records and billing terms may also apply.</p>" +
+    "<h2>4. Cancellation</h2><p>Subscription cancellation is handled through the payment provider associated with the subscription. Payment-provider records and billing terms may also apply. For help, use the Support page.</p>" +
     "<h2>5. Availability</h2><p>We aim to keep the service reliable, but we do not guarantee uninterrupted availability or that every image format will be supported on every device.</p>" +
     "<h2>6. Acceptable use</h2><p>You may not use the service for unlawful activity, fraud, infringement of another person's rights, or attempts to compromise the service.</p>" +
     "<h2>7. Changes</h2><p>We may change these terms when the service changes. The current terms are published on this page.</p>" +
