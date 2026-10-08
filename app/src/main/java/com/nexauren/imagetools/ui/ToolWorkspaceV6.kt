@@ -54,7 +54,7 @@ fun ToolWorkspaceV6(
     val strings = LocalUiText.current
     val scope = rememberCoroutineScope()
 
-    var batchMode by remember { mutableStateOf(tool.id == "collage" || tool.id == "gif_creator" || tool.id == "pdf_merge") }
+    var batchMode by remember { mutableStateOf(tool.id == "collage" || tool.id == "gif_creator" || tool.id == "pdf_merge" || tool.id == "split_grid") }
     var sourceUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var previewBitmaps by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
     var pendingItems by remember { mutableStateOf<List<RawExportItem>>(emptyList()) }
@@ -85,6 +85,11 @@ fun ToolWorkspaceV6(
     var smartWidth by remember { mutableStateOf("1920") }
     var smartHeight by remember { mutableStateOf("1920") }
     var gifDelay by remember { mutableFloatStateOf(500f) }
+    var fitBackground by remember { mutableStateOf("white") }
+    var targetKb by remember { mutableFloatStateOf(500f) }
+    var gridRows by remember { mutableIntStateOf(2) }
+    var gridColumns by remember { mutableIntStateOf(2) }
+    var mirrorAxis by remember { mutableStateOf("horizontal") }
 
     LaunchedEffect(tool.id) {
         val recipe = RecipeStore.consumePending(context)
@@ -112,6 +117,11 @@ fun ToolWorkspaceV6(
             cfg["smartWidth"]?.let { smartWidth = it }
             cfg["smartHeight"]?.let { smartHeight = it }
             cfg["gifDelay"]?.toFloatOrNull()?.let { gifDelay = it.coerceIn(100f, 1500f) }
+            cfg["fitBackground"]?.let { fitBackground = it }
+            cfg["targetKb"]?.toFloatOrNull()?.let { targetKb = it.coerceIn(50f, 5000f) }
+            cfg["gridRows"]?.toIntOrNull()?.let { gridRows = it.coerceIn(2, 4) }
+            cfg["gridColumns"]?.toIntOrNull()?.let { gridColumns = it.coerceIn(2, 4) }
+            cfg["mirrorAxis"]?.let { mirrorAxis = it }
             status = strings.get("ready")
         }
     }
@@ -310,9 +320,28 @@ fun ToolWorkspaceV6(
                 RawExportItem(ImageProcessor.encode(out, format, 100), format.mime, format.extension, tool.id)
             }
             "mirror" -> RawExportItem(
-                ImageProcessor.encode(AdvancedImageProcessor.mirror(bitmap, flipH), format, 100),
+                ImageProcessor.encode(AdvancedImageProcessor.mirror(bitmap, mirrorAxis == "horizontal"), format, 100),
                 format.mime, format.extension, tool.id
             )
+            "fit_canvas" -> {
+                val bg = if (fitBackground == "black") android.graphics.Color.BLACK else android.graphics.Color.WHITE
+                val out = SocialImageProcessor.letterbox(
+                    bitmap,
+                    width.toIntOrNull()?.coerceAtLeast(1) ?: 1280,
+                    height.toIntOrNull()?.coerceAtLeast(1) ?: 1280,
+                    bg
+                )
+                RawExportItem(ImageProcessor.encode(out, format, 100), format.mime, format.extension, tool.id)
+            }
+            "target_size" -> {
+                val target = (targetKb * 1024f).toInt().coerceAtLeast(50 * 1024)
+                val outBytes = ImageProcessor.encodeJpegUnderSize(bitmap, target, format)
+                RawExportItem(outBytes, format.mime, format.extension, tool.id)
+            }
+            "split_grid" -> {
+                val tile = SplitImageProcessor.split(bitmap, gridRows, gridColumns).first()
+                RawExportItem(ImageProcessor.encode(tile, OutputFormat.PNG, 100), OutputFormat.PNG.mime, OutputFormat.PNG.extension, "split_1")
+            }
             "noise_reduction" -> RawExportItem(
                 ImageProcessor.encode(AdvancedImageProcessor.denoise(bitmap, amount.toInt()), format, 100),
                 format.mime, format.extension, tool.id
@@ -415,7 +444,12 @@ fun ToolWorkspaceV6(
         "modernFormat" to modernFormat.name,
         "smartWidth" to smartWidth,
         "smartHeight" to smartHeight,
-        "gifDelay" to gifDelay.toInt().toString()
+        "gifDelay" to gifDelay.toInt().toString(),
+        "fitBackground" to fitBackground,
+        "targetKb" to targetKb.toInt().toString(),
+        "gridRows" to gridRows.toString(),
+        "gridColumns" to gridColumns.toString(),
+        "mirrorAxis" to mirrorAxis
     )
 
     fun saveRecipe() {
@@ -495,7 +529,26 @@ fun ToolWorkspaceV6(
                     }
                     if (bitmaps.isEmpty()) error(strings.get("process.error"))
 
-                    if (tool.id == "gif_creator") {
+                    if (tool.id == "split_grid") {
+                        val outputs = mutableListOf<RawExportItem>()
+                        var imageNumber = 1
+                        for ((_, bitmap) in bitmaps) {
+                            val tiles = SplitImageProcessor.split(bitmap, gridRows, gridColumns)
+                            tiles.forEachIndexed { index, tile ->
+                                outputs += RawExportItem(
+                                    ImageProcessor.encode(tile, OutputFormat.PNG, 100),
+                                    OutputFormat.PNG.mime,
+                                    OutputFormat.PNG.extension,
+                                    "split_" + imageNumber + "_" + (index + 1)
+                                )
+                            }
+                            imageNumber++
+                        }
+                        pendingItems = outputs
+                        previewBitmaps = outputs.take(6).mapNotNull {
+                            android.graphics.BitmapFactory.decodeByteArray(it.bytes, 0, it.bytes.size)
+                        }
+                    } else if (tool.id == "gif_creator") {
                         val gif = withContext(Dispatchers.Default) {
                             GifProcessor.encode(bitmaps.map { it.second }, gifDelay.toLong())
                         }
@@ -635,7 +688,12 @@ fun ToolWorkspaceV6(
                             socialPreset, { socialPreset = it },
                             modernFormat, { modernFormat = it },
                             smartWidth, { smartWidth = it }, smartHeight, { smartHeight = it },
-                            gifDelay, { gifDelay = it }
+                            gifDelay, { gifDelay = it },
+                            fitBackground, { fitBackground = it },
+                            targetKb, { targetKb = it },
+                            gridRows, { gridRows = it },
+                            gridColumns, { gridColumns = it },
+                            mirrorAxis, { mirrorAxis = it }
                         )
                     }
                 }
@@ -782,7 +840,12 @@ private fun ToolControlsV6(
     socialPreset: String, onSocialPreset: (String) -> Unit,
     modernFormat: ModernFormat, onModernFormat: (ModernFormat) -> Unit,
     smartWidth: String, onSmartWidth: (String) -> Unit, smartHeight: String, onSmartHeight: (String) -> Unit,
-    gifDelay: Float, onGifDelay: (Float) -> Unit
+    gifDelay: Float, onGifDelay: (Float) -> Unit,
+    fitBackground: String, onFitBackground: (String) -> Unit,
+    targetKb: Float, onTargetKb: (Float) -> Unit,
+    gridRows: Int, onGridRows: (Int) -> Unit,
+    gridColumns: Int, onGridColumns: (Int) -> Unit,
+    mirrorAxis: String, onMirrorAxis: (String) -> Unit
 ) {
     when (tool.id) {
         "resize" -> {
@@ -796,7 +859,7 @@ private fun ToolControlsV6(
             Slider(quality, onQuality, valueRange = 10f..100f)
             FormatChipsV5(format, onFormat, listOf(OutputFormat.JPEG, OutputFormat.WEBP))
         }
-        "convert", "metadata", "smart_resize", "social_presets" -> {
+        "convert", "metadata", "smart_resize", "social_presets", "target_size" -> {
             FormatChipsV5(format, onFormat, listOf(OutputFormat.JPEG, OutputFormat.PNG, OutputFormat.WEBP))
         }
         "crop" -> ChoicesV5(listOf("1:1", "4:5", "16:9", "9:16"), cropRatio, onCropRatio)
@@ -826,6 +889,28 @@ private fun ToolControlsV6(
         "pixelate" -> Slider(pixelSize, onPixelSize, valueRange = 4f..48f)
         "border" -> Slider(borderSize, onBorderSize, valueRange = 4f..120f)
         "round" -> Slider(cornerRadius, onCornerRadius, valueRange = 8f..160f)
+        "mirror" -> ChoicesV5(listOf("horizontal", "vertical"), mirrorAxis, onMirrorAxis)
+        "fit_canvas" -> {
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                OutlinedTextField(width, { onWidth(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("width")) }, singleLine = true)
+                OutlinedTextField(height, { onHeight(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("height")) }, singleLine = true)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                FilterChip(fitBackground == "white", { onFitBackground("white") }, label = { Text(strings.get("background.white")) }, modifier = Modifier.weight(1f))
+                FilterChip(fitBackground == "black", { onFitBackground("black") }, label = { Text(strings.get("background.black")) }, modifier = Modifier.weight(1f))
+            }
+        }
+        "target_size" -> {
+            Text(strings.get("target.kb") + ": " + targetKb.toInt())
+            Slider(targetKb, onTargetKb, valueRange = 50f..5000f, steps = 99)
+            FormatChipsV5(format, onFormat, listOf(OutputFormat.JPEG, OutputFormat.WEBP))
+        }
+        "split_grid" -> {
+            Text(strings.get("grid.rows"))
+            ChoicesV5(listOf("2", "3", "4"), gridRows.toString()) { onGridRows(it.toInt()) }
+            Text(strings.get("grid.columns"))
+            ChoicesV5(listOf("2", "3", "4"), gridColumns.toString()) { onGridColumns(it.toInt()) }
+        }
         "duotone" -> ChoicesV5(listOf(strings.get("duotone.ocean"), strings.get("duotone.sunset"), strings.get("duotone.ink")),
             when (duotonePreset) {
                 "sunset" -> strings.get("duotone.sunset")
