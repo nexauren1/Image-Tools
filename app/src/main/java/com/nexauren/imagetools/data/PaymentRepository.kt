@@ -83,30 +83,40 @@ object PaymentRepository {
         raw: String,
         stage: String
     ): JSONObject {
-        val trimmed = raw.trim()
+        val status = connection.responseCode
+        val trimmed = raw.trim().removePrefix("\uFEFF").trim()
         if (trimmed.isBlank()) {
             throw PaymentException(
                 code = "EMPTY_PAYMENT_RESPONSE",
                 stage = stage,
-                httpStatus = connection.responseCode,
-                message = "The payment service returned an empty response."
+                httpStatus = status,
+                message = "The payment service returned an empty response (HTTP $status)."
             )
         }
+
         return try {
             val parsedValue = org.json.JSONTokener(trimmed).nextValue()
             when (parsedValue) {
                 is JSONObject -> parsedValue
-                is String -> JSONObject(parsedValue)
+                is String -> JSONObject(parsedValue.trim().removePrefix("\uFEFF").trim())
                 else -> throw IllegalArgumentException(
                     "Unsupported JSON response type: " + parsedValue.javaClass.simpleName
                 )
             }
         } catch (_: Exception) {
+            val preview = trimmed
+                .replace(Regex("\\s+"), " ")
+                .take(300)
+
             throw PaymentException(
                 code = "INVALID_PAYMENT_RESPONSE",
                 stage = stage,
-                httpStatus = connection.responseCode,
-                message = "Invalid payment service response (" + connection.responseCode + ")."
+                httpStatus = status,
+                message = if (preview.isBlank()) {
+                    "Invalid payment service response (HTTP $status)."
+                } else {
+                    "Payment service returned HTTP $status with a non-JSON response: $preview"
+                }
             )
         }
     }

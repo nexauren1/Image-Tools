@@ -173,8 +173,17 @@ async function getPayPalSubscription(paypal, subscriptionId) {
       }
     }
   );
-  const data = await r.json();
-  if (!r.ok) throw new Error(data.message || "PayPal subscription lookup failed");
+  const data = await r.json().catch(() => ({}));
+
+  if (!r.ok) {
+    const error = new Error(data.message || "PayPal subscription lookup failed");
+    error.code = data.name || (r.status === 404 ? "SUBSCRIPTION_NOT_FOUND" : "PAYPAL_SUBSCRIPTION_LOOKUP_FAILED");
+    error.stage = "paypal-subscription-lookup";
+    error.debugId = data.debug_id || "";
+    error.httpStatus = r.status === 404 ? 404 : 502;
+    throw error;
+  }
+
   return data;
 }
 
@@ -698,12 +707,41 @@ async function cancelSubscription(request, env) {
 
   const current = await getPayPalSubscription(paypal, subscriptionId);
   if (current.custom_id && current.custom_id !== user.localId) {
-    return reply({ ok: false, error: "Subscription ownership mismatch" }, 403);
+    return reply({
+      ok: false,
+      error: "Subscription ownership mismatch",
+      code: "SUBSCRIPTION_OWNERSHIP_MISMATCH",
+      stage: "subscription-ownership"
+    }, 403);
   }
 
   if (current.status === "CANCELLED" || current.status === "EXPIRED") {
-    await setSubscriptionEntitlement(env, user.localId, subscriptionId, current.status, false);
-    return reply({ ok: true, premium: false, status: current.status });
+    let entitlementSynced = true;
+    try {
+      await setSubscriptionEntitlement(
+        env,
+        user.localId,
+        subscriptionId,
+        current.status,
+        false
+      );
+    } catch (error) {
+      entitlementSynced = false;
+      console.error("Subscription already inactive; Firestore sync failed", {
+        uid: user.localId,
+        subscriptionId,
+        status: current.status,
+        error: error && error.message ? error.message : String(error)
+      });
+    }
+
+    return reply({
+      ok: true,
+      premium: false,
+      status: current.status,
+      subscriptionId,
+      entitlementSynced
+    });
   }
 
   const response = await fetch(
@@ -712,7 +750,8 @@ async function cancelSubscription(request, env) {
       method: "POST",
       headers: {
         "Authorization": "Bearer " + paypal.token,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Accept": "application/json"
       },
       body: JSON.stringify({ reason: "User requested cancellation from Image Tools" })
     }
@@ -724,11 +763,45 @@ async function cancelSubscription(request, env) {
     error.code = data.name || "PAYPAL_CANCEL_FAILED";
     error.stage = "paypal-cancel";
     error.debugId = data.debug_id || "";
+    error.httpStatus = response.status === 404 ? 404 :
+      response.status === 401 || response.status === 403 ? 502 :
+      response.status >= 500 ? 502 :
+      response.status === 409 || response.status === 422 ? 409 :
+      502;
     throw error;
   }
 
-  await setSubscriptionEntitlement(env, user.localId, subscriptionId, "CANCELLED", false);
-  return reply({ ok: true, premium: false, status: "CANCELLED" });
+  // PayPal is the source of truth for the cancellation. Firestore sync is
+  // important, but a sync failure must not turn a successful cancellation
+  // into an HTTP 500 response to the app.
+  let entitlementSynced = true;
+  try {
+    await setSubscriptionEntitlement(
+      env,
+      user.localId,
+      subscriptionId,
+      "CANCELLED",
+      false
+    );
+  } catch (error) {
+    entitlementSynced = false;
+    console.error("PayPal cancellation succeeded; Firestore sync failed", {
+      uid: user.localId,
+      subscriptionId,
+      error: error && error.message ? error.message : String(error)
+    });
+  }
+
+  return reply({
+    ok: true,
+    premium: false,
+    status: "CANCELLED",
+    subscriptionId,
+    entitlementSynced,
+    warning: entitlementSynced
+      ? null
+      : "Subscription cancelled at PayPal, but entitlement sync failed."
+  });
 }
 
 async function createOrder(request, env) {
@@ -966,7 +1039,13 @@ export default {
     } catch (error) {
       const code = error && error.code ? error.code : "UNEXPECTED_ERROR";
       const stage = error && error.stage ? error.stage : "worker";
-      const status = code === "PERMISSION_DENIED" || code === "NOT_AUTHORIZED" ? 403 : 500;
+      const explicitStatus = Number(error && error.httpStatus);
+      const status = explicitStatus >= 400 && explicitStatus <= 599
+        ? explicitStatus
+        : code === "PERMISSION_DENIED" || code === "NOT_AUTHORIZED"
+          ? 403
+          : 500;
+
       return reply({
         ok: false,
         error: error && error.message ? error.message : "Unexpected error",
