@@ -5,6 +5,8 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.runtime.*
 import com.nexauren.imagetools.auth.AuthRepository
 import com.nexauren.imagetools.data.FirestoreRepository
@@ -29,6 +31,7 @@ class MainActivity : ComponentActivity() {
             var darkMode by remember { mutableStateOf(false) }
             val subscriptionId = paymentSubscription.value
             val scope = rememberCoroutineScope()
+            val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
 
             LaunchedEffect(auth.currentUser?.uid) {
                 premium = false
@@ -37,8 +40,17 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            DisposableEffect(auth.currentUser?.uid) {
-                onDispose { firestore.stop() }
+            DisposableEffect(auth.currentUser?.uid, lifecycleOwner) {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_RESUME && auth.currentUser != null) {
+                        firestore.refreshPremiumFromServer { premium = it }
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose {
+                    lifecycleOwner.lifecycle.removeObserver(observer)
+                    firestore.stop()
+                }
             }
 
             // PayPal is reconciled only after returning from checkout.
@@ -79,6 +91,7 @@ class MainActivity : ComponentActivity() {
                                 token,
                                 SubscriptionStore.get(this@MainActivity) ?: paymentSubscription.value
                             ).onSuccess {
+                                premium = false
                                 SubscriptionStore.clear(this@MainActivity)
                                 paymentSubscription.value = null
                                 firestore.refreshPremiumFromServer { premium = it }
