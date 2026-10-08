@@ -1936,13 +1936,6 @@ private fun PremiumScreenV5(
                         fontWeight = FontWeight.ExtraBold
                     )
                 }
-            } else {
-                Text(
-                    "Premium is active. Billing is managed securely through PayPal.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp,
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
         }
 
@@ -2305,7 +2298,7 @@ private fun AboutScreenV5(strings: UiText) {
                     Text(strings.get("about"), fontSize = 25.sp, fontWeight = FontWeight.ExtraBold)
                     Text(strings.get("about.text"))
                     Text(
-                        "Image Tools 1.5.0",
+                        "Image Tools 1.11.4",
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.primary
                     )
