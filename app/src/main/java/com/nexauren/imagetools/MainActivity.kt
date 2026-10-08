@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import com.nexauren.imagetools.auth.AuthRepository
 import com.nexauren.imagetools.data.FirestoreRepository
 import com.nexauren.imagetools.data.PaymentRepository
+import com.nexauren.imagetools.data.SubscriptionStore
 import com.nexauren.imagetools.ui.ImageToolsAppV5
 import com.nexauren.imagetools.ui.theme.ImageToolsTheme
 import kotlinx.coroutines.delay
@@ -16,7 +17,6 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val paymentSubscription = mutableStateOf<String?>(null)
-    private val paymentRefreshNonce = mutableStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,30 +41,23 @@ class MainActivity : ComponentActivity() {
                 onDispose { firestore.stop() }
             }
 
-            LaunchedEffect(subscriptionId, auth.currentUser?.uid, paymentRefreshNonce.value) {
-                if (auth.currentUser != null) {
-                    scope.launch {
-                        var activated = false
-                        repeat(20) { attempt ->
-                            val token = auth.idToken(attempt > 0)
-                            if (!token.isNullOrBlank()) {
-                                PaymentRepository.refreshSubscription(token, subscriptionId)
-                                    .onSuccess { active ->
-                                        // Firestore remains the only source of truth for premium.
-                                        if (active) {
-                                            activated = true
-                                        }
-                                    }
-                            }
+            // PayPal is reconciled only after returning from checkout.
+            // Normal launches do not re-create a deleted Firestore entitlement.
+            LaunchedEffect(subscriptionId, auth.currentUser?.uid) {
+                if (auth.currentUser == null || subscriptionId.isNullOrBlank()) return@LaunchedEffect
 
-                            if (activated) return@launch
-                            if (attempt < 19) delay(3000)
+                scope.launch {
+                    var active = false
+                    repeat(12) { attempt ->
+                        val token = auth.idToken(attempt > 0)
+                        if (!token.isNullOrBlank()) {
+                            PaymentRepository.refreshSubscription(token, subscriptionId)
+                                .onSuccess { active = it }
                         }
-
-                        if (!subscriptionId.isNullOrBlank()) {
-                            paymentSubscription.value = null
-                        }
+                        if (active) return@launch
+                        if (attempt < 11) delay(3000)
                     }
+                    paymentSubscription.value = null
                 }
             }
 
@@ -78,16 +71,17 @@ class MainActivity : ComponentActivity() {
                         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                     },
                     onCancelSubscription = {
-                        scope.launch {
-                            val token = auth.idToken()
-                            if (!token.isNullOrBlank()) {
-                                PaymentRepository.cancelSubscription(token)
-                                    .onSuccess { cancelled ->
-                                        // Firestore will propagate the authoritative entitlement state.
-                                        if (cancelled) {
-                                            firestore.observePremium { premium = it }
-                                        }
-                                    }
+                        val token = auth.idToken()
+                        if (token.isNullOrBlank()) {
+                            Result.failure(IllegalStateException("Please sign in again."))
+                        } else {
+                            PaymentRepository.cancelSubscription(
+                                token,
+                                SubscriptionStore.get(this@MainActivity) ?: paymentSubscription.value
+                            ).onSuccess {
+                                SubscriptionStore.clear(this@MainActivity)
+                                paymentSubscription.value = null
+                                firestore.refreshPremiumFromServer { premium = it }
                             }
                         }
                     }
@@ -101,17 +95,16 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
     }
 
-    override fun onResume() {
-        super.onResume()
-        paymentRefreshNonce.value += 1
-    }
-
     private fun handleIntent(intent: Intent?) {
         val uri = intent?.data ?: return
         if (uri.scheme == "imagetools" && uri.host == "paypal" && uri.path == "/return") {
-            paymentSubscription.value = uri.getQueryParameter("subscriptionId")
+            val id = uri.getQueryParameter("subscriptionId")
                 ?: uri.getQueryParameter("ba_token")
                 ?: uri.getQueryParameter("orderId")
+            if (!id.isNullOrBlank()) {
+                paymentSubscription.value = id
+                SubscriptionStore.save(this, id)
+            }
         }
     }
 }
