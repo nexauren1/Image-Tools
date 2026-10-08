@@ -28,6 +28,19 @@ class FirestoreRepository {
      *
      * The client may read this field but cannot write it.
      */
+    fun refreshPremiumFromServer(callback: (Boolean) -> Unit) {
+        val user = auth.currentUser
+        if (user == null) {
+            callback(false)
+            return
+        }
+        db.collection("users").document(user.uid).get(Source.SERVER)
+            .addOnSuccessListener { snapshot ->
+                callback(snapshot.exists() && snapshot.getBoolean("premium") == true)
+            }
+            .addOnFailureListener { callback(false) }
+    }
+
     fun observePremium(callback: (Boolean) -> Unit) {
         listener?.remove()
 
@@ -39,15 +52,7 @@ class FirestoreRepository {
 
         val userDocument = db.collection("users").document(user.uid)
 
-        // The Firestore document is the single source of truth.
-        // Never promote a cached local value to PRO.
-        userDocument.get(Source.SERVER)
-            .addOnSuccessListener { snapshot ->
-                callback(snapshot.exists() && snapshot.getBoolean("premium") == true)
-            }
-            .addOnFailureListener {
-                callback(false)
-            }
+        refreshPremiumFromServer(callback)
 
         listener = userDocument.addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
             if (error != null || snapshot == null || snapshot.metadata.isFromCache) {
