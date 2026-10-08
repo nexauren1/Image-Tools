@@ -827,7 +827,7 @@ private fun MiniPillV5(value: String, label: String) {
 }
 
 @Composable
-private fun FeatureCardV5(icon: ImageVector, title: String, text: String) {
+internal fun FeatureCardV5(icon: ImageVector, title: String, text: String) {
     Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
             Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
