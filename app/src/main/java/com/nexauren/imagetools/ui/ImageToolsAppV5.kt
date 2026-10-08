@@ -239,7 +239,24 @@ fun ImageToolsAppV5(
                         page == "premium" -> PremiumScreenV5(auth, strings, premium, onStartPayment, onCancelSubscription)
                         page == "account" -> AccountScreenV5(auth, strings, premium) { navigate("premium") }
                         page == "history" -> HistoryScreenV5(strings)
-                        page == "recipes" -> RecipesScreenV5(auth, premium, strings)
+                        page == "recipes" -> RecipesScreenV5(
+                            auth = auth,
+                            premium = premium,
+                            strings = strings,
+                            onApplyRecipe = { recipe ->
+                                val tool = TOOL_CATALOG.firstOrNull { it.id == recipe.toolId }
+                                if (tool == null) {
+                                    return@RecipesScreenV5
+                                }
+                                if (tool.premium && !premium) {
+                                    navigate("premium")
+                                } else {
+                                    RecipeStore.setPending(context, recipe)
+                                    page = "home"
+                                    selectedTool = recipe.toolId
+                                }
+                            }
+                        )
                         page == "settings" -> SettingsScreenV5(
                             strings = strings,
                             darkMode = darkMode,
