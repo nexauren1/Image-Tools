@@ -4,24 +4,47 @@ import android.content.Context
 
 object SubscriptionStore {
     private const val PREFS = "image_tools_subscription"
-    private const val KEY_ID = "paypal_subscription_id"
+    private const val LEGACY_KEY_ID = "paypal_subscription_id"
+    private const val KEY_PREFIX = "paypal_subscription_id_"
 
-    fun get(context: Context): String? =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getString(KEY_ID, null)
-            ?.takeIf { it.isNotBlank() }
+    private fun keyForUser(userUid: String): String = KEY_PREFIX + userUid
 
-    fun save(context: Context, subscriptionId: String) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_ID, subscriptionId)
-            .apply()
+    fun get(context: Context, userUid: String?): String? {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+        if (!userUid.isNullOrBlank()) {
+            prefs.getString(keyForUser(userUid), null)
+                ?.takeIf { it.isNotBlank() }
+                ?.let { return it }
+        }
+
+        // Compatibility with builds that stored one global subscription id.
+        // The backend still verifies PayPal ownership before cancelling.
+        return prefs.getString(LEGACY_KEY_ID, null)?.takeIf { it.isNotBlank() }
     }
 
-    fun clear(context: Context) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .remove(KEY_ID)
-            .apply()
+    fun save(context: Context, userUid: String?, subscriptionId: String) {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+
+        if (!userUid.isNullOrBlank()) {
+            editor.putString(keyForUser(userUid), subscriptionId)
+            editor.remove(LEGACY_KEY_ID)
+        } else {
+            editor.putString(LEGACY_KEY_ID, subscriptionId)
+        }
+
+        editor.apply()
+    }
+
+    fun clear(context: Context, userUid: String?) {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+
+        if (!userUid.isNullOrBlank()) {
+            editor.remove(keyForUser(userUid))
+        }
+        editor.remove(LEGACY_KEY_ID)
+        editor.apply()
     }
 }
