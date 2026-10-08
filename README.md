@@ -127,5 +127,5 @@ Never commit:
 
 
 
-### Release 1.12.0
-Build prepared with Favorites, tool categories and the new visual tools.
+### Release 1.14.0
+Final release with Favorites, categorized tools and the expanded visual toolbox; notification features removed.
