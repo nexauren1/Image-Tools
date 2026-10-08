@@ -3,6 +3,8 @@ package com.nexauren.imagetools.data
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.MetadataChanges
+import com.google.firebase.firestore.Source
 
 class FirestoreRepository {
     private val auth = FirebaseAuth.getInstance()
@@ -35,11 +37,24 @@ class FirestoreRepository {
             return
         }
 
-        listener = db.collection("users")
-            .document(user.uid)
-            .addSnapshotListener { snapshot, _ ->
-                callback(snapshot?.getBoolean("premium") == true)
+        val userDocument = db.collection("users").document(user.uid)
+
+        // The Firestore document is the single source of truth.
+        // Never promote a cached local value to PRO.
+        userDocument.get(Source.SERVER)
+            .addOnSuccessListener { snapshot ->
+                callback(snapshot.exists() && snapshot.getBoolean("premium") == true)
             }
+            .addOnFailureListener {
+                callback(false)
+            }
+
+        listener = userDocument.addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
+            if (error != null || snapshot == null || snapshot.metadata.isFromCache) {
+                return@addSnapshotListener
+            }
+            callback(snapshot.exists() && snapshot.getBoolean("premium") == true)
+        }
     }
 
     /*
