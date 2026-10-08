@@ -689,14 +689,12 @@ async function cancelSubscription(request, env) {
   const user = await firebaseUser(request, env);
   const paypal = await paypalToken(env);
   const body = await request.json().catch(() => ({}));
+  let subscriptionId = String(body.subscriptionId || "").trim();
 
-  // Prefer the server-linked subscription, but allow the locally stored
-  // subscription id as a recovery path when the Firestore entitlement was
-  // deleted manually. Ownership is still verified directly against PayPal.
-  const requestedSubscriptionId = String(body.subscriptionId || "").trim();
-  const fields = await firestoreUser(env, user.localId);
-  const storedSubscriptionId = fieldString(fields, "paypalSubscriptionId").trim();
-  const subscriptionId = storedSubscriptionId || requestedSubscriptionId;
+  if (!subscriptionId) {
+    const fields = await firestoreUser(env, user.localId);
+    subscriptionId = fieldString(fields, "paypalSubscriptionId");
+  }
 
   if (!subscriptionId) {
     return reply({
@@ -718,6 +716,7 @@ async function cancelSubscription(request, env) {
   }
 
   if (current.status === "CANCELLED" || current.status === "EXPIRED") {
+    let entitlementSynced = true;
     try {
       await setSubscriptionEntitlement(
         env,
@@ -727,8 +726,10 @@ async function cancelSubscription(request, env) {
         false
       );
     } catch (error) {
+      entitlementSynced = false;
       console.error("Subscription already inactive; Firestore sync failed", {
         uid: user.localId,
+        subscriptionId,
         status: current.status,
         error: error && error.message ? error.message : String(error)
       });
@@ -738,7 +739,8 @@ async function cancelSubscription(request, env) {
       ok: true,
       premium: false,
       status: current.status,
-      subscriptionId
+      subscriptionId,
+      entitlementSynced
     });
   }
 
