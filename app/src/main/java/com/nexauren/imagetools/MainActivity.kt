@@ -82,22 +82,6 @@ class MainActivity : ComponentActivity() {
                     onStartPayment = { url ->
                         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                     },
-                    onCancelSubscription = {
-                        val token = auth.idToken()
-                        if (token.isNullOrBlank()) {
-                            Result.failure(IllegalStateException("Please sign in again."))
-                        } else {
-                            val uid = auth.currentUser?.uid
-                            PaymentRepository.cancelSubscription(
-                                token,
-                                SubscriptionStore.get(this@MainActivity, uid) ?: paymentSubscription.value
-                            ).onSuccess {
-                                premium = false
-                                SubscriptionStore.clear(this@MainActivity, uid)
-                                paymentSubscription.value = null
-                                firestore.refreshPremiumFromServer { premium = it }
-                            }
-                        }
                     }
                 )
             }
