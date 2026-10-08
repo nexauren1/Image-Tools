@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -36,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nexauren.imagetools.BuildConfig
 import com.nexauren.imagetools.auth.AuthRepository
+import com.nexauren.imagetools.data.AppNotificationHelper
+import com.nexauren.imagetools.data.AppNotificationSettings
 import com.nexauren.imagetools.data.OutputFolderStore
 import com.nexauren.imagetools.data.PaymentException
 import com.nexauren.imagetools.data.ProcessingStatsStore
@@ -2166,6 +2169,22 @@ private fun SettingsScreenV5(
 ) {
     val context = LocalContext.current
     var folder by remember { mutableStateOf(OutputFolderStore.folderName(context)) }
+    var notificationsEnabled by remember { mutableStateOf(AppNotificationSettings.isEnabled(context)) }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        notificationsEnabled = granted
+        AppNotificationSettings.setEnabled(context, granted)
+        if (granted) {
+            AppNotificationHelper.ensureChannel(context)
+            AppNotificationHelper.show(
+                context,
+                strings.get("notification.premium.title"),
+                strings.get("settings.notifications.help")
+            )
+        }
+    }
+
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
             runCatching {
@@ -2215,6 +2234,51 @@ private fun SettingsScreenV5(
                 Icons.Default.DarkMode
             ) {
                 Switch(darkMode, onDarkModeChange)
+            }
+        }
+
+        item {
+            SettingRowV5(
+                strings.get("settings.notifications"),
+                strings.get("settings.notifications.help"),
+                Icons.Default.Notifications
+            ) {
+                Switch(
+                    checked = notificationsEnabled,
+                    onCheckedChange = { enabled ->
+                        if (!enabled) {
+                            notificationsEnabled = false
+                            AppNotificationSettings.setEnabled(context, false)
+                        } else if (Build.VERSION.SDK_INT >= 33 &&
+                            !AppNotificationHelper.hasPermission(context)
+                        ) {
+                            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            notificationsEnabled = true
+                            AppNotificationSettings.setEnabled(context, true)
+                            AppNotificationHelper.ensureChannel(context)
+                        }
+                    }
+                )
+            }
+        }
+
+        if (notificationsEnabled && AppNotificationHelper.hasPermission(context)) {
+            item {
+                OutlinedButton(
+                    onClick = {
+                        AppNotificationHelper.show(
+                            context,
+                            strings.get("notification.premium.title"),
+                            strings.get("settings.notifications.help")
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.NotificationsActive, null)
+                    Spacer(Modifier.width(7.dp))
+                    Text(strings.get("settings.notifications.test"))
+                }
             }
         }
 
