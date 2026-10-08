@@ -859,7 +859,7 @@ private fun ToolControlsV6(
             Slider(quality, onQuality, valueRange = 10f..100f)
             FormatChipsV5(format, onFormat, listOf(OutputFormat.JPEG, OutputFormat.WEBP))
         }
-        "convert", "metadata", "smart_resize", "social_presets", "target_size" -> {
+        "convert", "metadata", "smart_resize", "social_presets" -> {
             FormatChipsV5(format, onFormat, listOf(OutputFormat.JPEG, OutputFormat.PNG, OutputFormat.WEBP))
         }
         "crop" -> ChoicesV5(listOf("1:1", "4:5", "16:9", "9:16"), cropRatio, onCropRatio)
