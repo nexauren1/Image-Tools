@@ -1911,7 +1911,7 @@ private fun PremiumScreenV5(
                             } else {
                                 PaymentRepository.createSubscription(token)
                                     .onSuccess {
-                                        com.nexauren.imagetools.data.SubscriptionStore.save(context, it.subscriptionId)
+                                        com.nexauren.imagetools.data.SubscriptionStore.save(context, auth.currentUser?.uid, it.subscriptionId)
                                         onStartPayment(it.approveUrl)
                                     }
                                     .onFailure {
