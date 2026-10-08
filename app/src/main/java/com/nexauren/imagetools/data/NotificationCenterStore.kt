@@ -15,6 +15,7 @@ data class AppNotification(
 object NotificationCenterStore {
     private const val PREFS = "image_tools_notification_center"
     private const val KEY_PREFIX = "items_"
+    private const val KEY_REMOTE_PREFIX = "remote_seen_"
 
     private fun key(uid: String?): String =
         KEY_PREFIX + (uid?.takeIf { it.isNotBlank() } ?: "guest")
@@ -65,6 +66,43 @@ object NotificationCenterStore {
             )
         )
         save(context, uid, items.take(50))
+    }
+
+    fun addRemote(
+        context: Context,
+        uid: String?,
+        remoteId: String,
+        title: String,
+        message: String,
+        createdAt: Long
+    ): Boolean {
+        val normalizedId = remoteId.trim()
+        if (normalizedId.isBlank()) return false
+
+        val preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val remoteKey = KEY_REMOTE_PREFIX + (uid?.takeIf { it.isNotBlank() } ?: "guest")
+        val seen = preferences.getStringSet(remoteKey, emptySet())?.toMutableSet() ?: mutableSetOf()
+
+        if (!seen.add(normalizedId)) return false
+
+        val items = list(context, uid).toMutableList()
+        val notificationId = normalizedId.hashCode().toLong()
+        items.add(
+            0,
+            AppNotification(
+                id = notificationId,
+                title = title,
+                message = message,
+                createdAt = if (createdAt > 0) createdAt else System.currentTimeMillis(),
+                read = false
+            )
+        )
+
+        preferences.edit()
+            .putStringSet(remoteKey, seen.takeLast(100).toSet())
+            .apply()
+        save(context, uid, items.take(50))
+        return true
     }
 
     fun markRead(context: Context, uid: String?, id: Long) {
