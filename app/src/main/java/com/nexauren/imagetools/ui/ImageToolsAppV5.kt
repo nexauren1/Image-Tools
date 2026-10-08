@@ -113,8 +113,7 @@ fun ImageToolsAppV5(
     premium: Boolean,
     darkMode: Boolean,
     onDarkModeChange: (Boolean) -> Unit,
-    onStartPayment: (String) -> Unit,
-    onCancelSubscription: suspend () -> Result<String>
+    onStartPayment: (String) -> Unit
 ) {
     val context = LocalContext.current
     var language by remember { mutableStateOf(AppLanguageStore.get(context)) }
@@ -239,7 +238,7 @@ fun ImageToolsAppV5(
                             if (tool.premium && !premium) navigate("premium") else selectedTool = id
                         }
                         page == "batch" -> BatchScreen(strings)
-                        page == "premium" -> PremiumScreenV5(auth, strings, premium, onStartPayment, onCancelSubscription)
+                        page == "premium" -> PremiumScreenV5(auth, strings, premium, onStartPayment)
                         page == "account" -> AccountScreenV5(auth, strings, premium) { navigate("premium") }
                         page == "history" -> HistoryScreenV5(strings)
                         page == "recipes" -> RecipesScreenV5(
@@ -1845,8 +1844,7 @@ private fun PremiumScreenV5(
     auth: AuthRepository,
     strings: UiText,
     premium: Boolean,
-    onStartPayment: (String) -> Unit,
-    onCancelSubscription: suspend () -> Result<String>
+    onStartPayment: (String) -> Unit
 ) {
     val context = LocalContext.current
     var busy by remember { mutableStateOf(false) }
@@ -1939,25 +1937,12 @@ private fun PremiumScreenV5(
                     )
                 }
             } else {
-                OutlinedButton(
-                    onClick = {
-                        busy = true
-                        error = null
-                        scope.launch {
-                            onCancelSubscription()
-                                .onSuccess { error = strings.get("subscription.cancelled") }
-                                .onFailure { error = it.message ?: strings.get("subscription.cancel.error") }
-                            busy = false
-                        }
-                    },
-                    enabled = !busy,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(17.dp)
-                ) {
-                    Icon(Icons.Default.Cancel, null)
-                    Spacer(Modifier.width(7.dp))
-                    Text(if (busy) strings.get("working") else strings.get("premium.cancel"))
-                }
+                Text(
+                    "Premium is active. Billing is managed securely through PayPal.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
 
