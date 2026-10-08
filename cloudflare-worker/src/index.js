@@ -688,11 +688,15 @@ async function subscriptionStatus(request, env, url) {
 async function cancelSubscription(request, env) {
   const user = await firebaseUser(request, env);
   const paypal = await paypalToken(env);
+  const body = await request.json().catch(() => ({}));
 
-  // Firestore is the source of truth for the account's linked subscription.
-  // Do not trust a subscription id cached locally by the APK.
+  // Prefer the server-linked subscription, but allow the locally stored
+  // subscription id as a recovery path when the Firestore entitlement was
+  // deleted manually. Ownership is still verified directly against PayPal.
+  const requestedSubscriptionId = String(body.subscriptionId || "").trim();
   const fields = await firestoreUser(env, user.localId);
-  const subscriptionId = fieldString(fields, "paypalSubscriptionId").trim();
+  const storedSubscriptionId = fieldString(fields, "paypalSubscriptionId").trim();
+  const subscriptionId = storedSubscriptionId || requestedSubscriptionId;
 
   if (!subscriptionId) {
     return reply({
