@@ -99,7 +99,7 @@ object NotificationCenterStore {
         )
 
         preferences.edit()
-            .putStringSet(remoteKey, seen.takeLast(100).toSet())
+            .putStringSet(remoteKey, seen.toList().takeLast(100).toSet())
             .apply()
         save(context, uid, items.take(50))
         return true
