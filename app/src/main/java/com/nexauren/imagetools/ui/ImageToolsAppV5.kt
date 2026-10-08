@@ -2651,7 +2651,7 @@ private fun AboutScreenV5(strings: UiText) {
                     Text(strings.get("about"), fontSize = 25.sp, fontWeight = FontWeight.ExtraBold)
                     Text(strings.get("about.text"))
                     Text(
-                        "Image Tools 1.11.4",
+                        "Image Tools ${BuildConfig.VERSION_NAME}",
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.primary
                     )
