@@ -245,15 +245,14 @@ fun ImageToolsAppV5(
                             strings = strings,
                             onApplyRecipe = { recipe ->
                                 val tool = TOOL_CATALOG.firstOrNull { it.id == recipe.toolId }
-                                if (tool == null) {
-                                    return@RecipesScreenV5
-                                }
-                                if (tool.premium && !premium) {
-                                    navigate("premium")
-                                } else {
-                                    RecipeStore.setPending(context, recipe)
-                                    page = "home"
-                                    selectedTool = recipe.toolId
+                                if (tool != null) {
+                                    if (tool.premium && !premium) {
+                                        navigate("premium")
+                                    } else {
+                                        RecipeStore.setPending(context, recipe)
+                                        page = "home"
+                                        selectedTool = recipe.toolId
+                                    }
                                 }
                             }
                         )
