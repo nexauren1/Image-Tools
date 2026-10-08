@@ -9,9 +9,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.runtime.*
 import com.nexauren.imagetools.auth.AuthRepository
-import com.nexauren.imagetools.data.NotificationCenterStore
-import com.nexauren.imagetools.data.RemoteNotificationStore
-import com.nexauren.imagetools.data.AppNotificationSettings
 import com.nexauren.imagetools.data.FirestoreRepository
 import com.nexauren.imagetools.data.PaymentRepository
 import com.nexauren.imagetools.data.SubscriptionStore
@@ -32,7 +29,6 @@ class MainActivity : ComponentActivity() {
             val firestore = remember { FirestoreRepository() }
             var premium by remember { mutableStateOf(false) }
             var darkMode by remember { mutableStateOf(false) }
-            var notificationVersion by remember { mutableLongStateOf(0L) }
             val subscriptionId = paymentSubscription.value
             val scope = rememberCoroutineScope()
             val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
@@ -41,11 +37,6 @@ class MainActivity : ComponentActivity() {
                 premium = false
                 if (auth.currentUser != null) {
                     firestore.observePremium { premium = it }
-                    val added = RemoteNotificationStore.sync(
-                        context = this@MainActivity,
-                        uid = auth.currentUser?.uid
-                    )
-                    if (added > 0) notificationVersion++
                 }
             }
 
@@ -53,13 +44,6 @@ class MainActivity : ComponentActivity() {
                 val observer = LifecycleEventObserver { _, event ->
                     if (event == Lifecycle.Event.ON_RESUME && auth.currentUser != null) {
                         firestore.refreshPremiumFromServer { premium = it }
-                        scope.launch {
-                            val added = RemoteNotificationStore.sync(
-                                context = this@MainActivity,
-                                uid = auth.currentUser?.uid
-                            )
-                            if (added > 0) notificationVersion++
-                        }
                     }
                 }
                 lifecycleOwner.lifecycle.addObserver(observer)
@@ -86,17 +70,6 @@ class MainActivity : ComponentActivity() {
                                         premium = true
                                         paymentSubscription.value = null
                                     }
-                                    if (active && AppNotificationSettings.isEnabled(this@MainActivity)) {
-                                        val text = com.nexauren.imagetools.ui.UiText(
-                                            com.nexauren.imagetools.ui.AppLanguageStore.get(this@MainActivity)
-                                        )
-                                        NotificationCenterStore.add(
-                                            context = this@MainActivity,
-                                            uid = auth.currentUser?.uid,
-                                            title = text.get("notification.premium.title"),
-                                            message = text.get("notification.premium.active")
-                                        )
-                                    }
                                 }
                         }
                         if (active) return@launch
@@ -110,7 +83,6 @@ class MainActivity : ComponentActivity() {
                 ImageToolsAppV5(
                     auth = auth,
                     premium = premium,
-                    notificationVersion = notificationVersion,
                     darkMode = darkMode,
                     onDarkModeChange = { darkMode = it },
                     onStartPayment = { url ->
