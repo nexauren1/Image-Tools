@@ -128,4 +128,4 @@ Never commit:
 
 
 ### Release 1.12.0
-Build prepared with Favorites, tool categories and the new visual tools.
+Production release with Favorites, categorized tools and five new visual processors.
