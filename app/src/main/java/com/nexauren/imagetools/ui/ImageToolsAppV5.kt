@@ -39,6 +39,8 @@ import com.nexauren.imagetools.BuildConfig
 import com.nexauren.imagetools.auth.AuthRepository
 import com.nexauren.imagetools.data.AppNotificationHelper
 import com.nexauren.imagetools.data.AppNotificationSettings
+import com.nexauren.imagetools.data.AppCenterStore
+import com.nexauren.imagetools.data.FavoritesStore
 import com.nexauren.imagetools.data.OutputFolderStore
 import com.nexauren.imagetools.data.PaymentException
 import com.nexauren.imagetools.data.ProcessingStatsStore
@@ -56,7 +58,7 @@ private const val PRIVACY = SITE + "/privacy"
 private const val TERMS = SITE + "/terms"
 private const val SUPPORT = SITE + "/support"
 
-private data class ToolDef(
+internal data class ToolDef(
     val id: String,
     val icon: ImageVector,
     val start: Color,
@@ -64,7 +66,7 @@ private data class ToolDef(
     val premium: Boolean = false
 )
 
-private val TOOL_CATALOG = listOf(
+internal val TOOL_CATALOG = listOf(
     ToolDef("resize", Icons.Default.PhotoSizeSelectLarge, Color(0xFF2563EB), Color(0xFF06B6D4)),
     ToolDef("compress", Icons.Default.Compress, Color(0xFF059669), Color(0xFF22C55E)),
     ToolDef("convert", Icons.Default.SwapHoriz, Color(0xFF7C3AED), Color(0xFFEC4899)),
@@ -106,7 +108,12 @@ private val TOOL_CATALOG = listOf(
     ToolDef("heic_avif", Icons.Default.Image, Color(0xFF475569), Color(0xFF06B6D4), true),
     ToolDef("fit_canvas", Icons.Default.AspectRatio, Color(0xFF0EA5E9), Color(0xFF06B6D4)),
     ToolDef("target_size", Icons.Default.DataUsage, Color(0xFF059669), Color(0xFF0F766E), true),
-    ToolDef("split_grid", Icons.Default.GridOn, Color(0xFFF59E0B), Color(0xFFEA580C), true)
+    ToolDef("split_grid", Icons.Default.GridOn, Color(0xFFF59E0B), Color(0xFFEA580C), true),
+    ToolDef("film_grain", Icons.Default.AutoFixHigh, Color(0xFF7C2D12), Color(0xFFF59E0B)),
+    ToolDef("color_pop", Icons.Default.ColorLens, Color(0xFFDB2777), Color(0xFFF59E0B)),
+    ToolDef("outline", Icons.Default.BorderStyle, Color(0xFF0F172A), Color(0xFF64748B)),
+    ToolDef("glitch", Icons.Default.Bolt, Color(0xFF0891B2), Color(0xFFEC4899)),
+    ToolDef("scan_document", Icons.Default.TextSnippet, Color(0xFF2563EB), Color(0xFF0F766E))
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -130,12 +137,17 @@ fun ImageToolsAppV5(
 
         var page by remember { mutableStateOf("home") }
         var selectedTool by remember { mutableStateOf<String?>(null) }
+        var centerUnread by remember { mutableIntStateOf(AppCenterStore.unreadCount(context)) }
         val scope = rememberCoroutineScope()
         val drawerState = rememberDrawerState(DrawerValue.Closed)
 
         fun navigate(target: String) {
             page = target
             selectedTool = null
+            if (target == "center") {
+                AppCenterStore.markAllSeen(context)
+                centerUnread = 0
+            }
             scope.launch { drawerState.close() }
         }
 
@@ -164,6 +176,8 @@ fun ImageToolsAppV5(
                     DrawerEntryV5(Icons.Default.Settings, strings.get("settings")) { navigate("settings") }
                     DrawerEntryV5(Icons.Default.History, strings.get("history")) { navigate("history") }
                     DrawerEntryV5(Icons.Default.AutoAwesome, strings.get("recipes")) { navigate("recipes") }
+                    DrawerEntryV5(Icons.Default.Notifications, centerLabelV5(context)) { navigate("center") }
+                    DrawerEntryV5(Icons.Default.Favorite, favoritesLabelV5(context)) { navigate("favorites") }
                     DrawerEntryV5(Icons.Default.Info, strings.get("about")) { navigate("about") }
                 }
             }
@@ -187,11 +201,24 @@ fun ImageToolsAppV5(
                             }
                         },
                         actions = {
-                            IconButton(onClick = { navigate("premium") }) {
-                                Icon(
-                                    if (premium) Icons.Default.WorkspacePremium else Icons.Default.AutoAwesome,
-                                    strings.get("premium")
-                                )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                BadgedBox(
+                                    badge = {
+                                        if (centerUnread > 0) {
+                                            Badge { Text(centerUnread.coerceAtMost(9).toString()) }
+                                        }
+                                    }
+                                ) {
+                                    IconButton(onClick = { navigate("center") }) {
+                                        Icon(Icons.Default.Notifications, centerLabelV5(context))
+                                    }
+                                }
+                                IconButton(onClick = { navigate("premium") }) {
+                                    Icon(
+                                        if (premium) Icons.Default.WorkspacePremium else Icons.Default.AutoAwesome,
+                                        strings.get("premium")
+                                    )
+                                }
                             }
                         }
                     )
@@ -244,6 +271,13 @@ fun ImageToolsAppV5(
                         page == "premium" -> PremiumScreenV5(auth, strings, premium, onStartPayment)
                         page == "account" -> AccountScreenV5(auth, strings, premium) { navigate("premium") }
                         page == "history" -> HistoryScreenV5(strings)
+                        page == "center" -> NotificationsCenterScreen(strings)
+                        page == "favorites" -> FavoritesScreen(strings, premium) { id ->
+                            val tool = TOOL_CATALOG.firstOrNull { it.id == id }
+                            if (tool != null) {
+                                if (tool.premium && !premium) navigate("premium") else selectedTool = id
+                            }
+                        }
                         page == "recipes" -> RecipesScreenV5(
                             auth = auth,
                             premium = premium,
@@ -277,6 +311,32 @@ fun ImageToolsAppV5(
             }
         }
     }
+}
+
+private fun centerLabelV5(context: Context): String = when (AppLanguageStore.get(context)) {
+    AppLanguage.PT -> "Novidades"
+    AppLanguage.ES -> "Novedades"
+    AppLanguage.FR -> "Nouveautés"
+    else -> "What's new"
+}
+
+private fun favoritesLabelV5(context: Context): String = when (AppLanguageStore.get(context)) {
+    AppLanguage.PT -> "Favoritos"
+    AppLanguage.ES -> "Favoritos"
+    AppLanguage.FR -> "Favoris"
+    else -> "Favorites"
+}
+
+private fun toolCategoryV5(id: String): String = when {
+    id in setOf("details", "metadata", "exif", "face_blur", "background") -> "privacy"
+    id in setOf("pdf", "pdf_merge", "gif_creator", "ocr", "scan_document") -> "docs"
+    id in setOf(
+        "filter", "watermark", "brightness", "contrast", "saturation", "warmth",
+        "negative", "blur", "sharpen", "pixelate", "border", "round", "auto_enhance",
+        "exposure", "tint", "vignette", "noise_reduction", "resize", "compress",
+        "convert", "crop", "rotate", "mirror", "smart_resize", "fit_canvas", "target_size"
+    ) -> "edit"
+    else -> "creative"
 }
 
 @Composable
@@ -563,9 +623,18 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
 @Composable
 private fun ToolsScreenV5(strings: UiText, premium: Boolean, openTool: (String) -> Unit) {
     var query by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("all") }
     val filtered = TOOL_CATALOG.filter {
-        (strings.toolTitle(it.id) + " " + strings.toolSubtitle(it.id)).contains(query, true)
+        (category == "all" || toolCategoryV5(it.id) == category) &&
+            (strings.toolTitle(it.id) + " " + strings.toolSubtitle(it.id)).contains(query, true)
     }
+    val categories = listOf(
+        "all" to "Todos",
+        "edit" to "Editar",
+        "creative" to "Criativo",
+        "privacy" to "Privacidade",
+        "docs" to "Documentos"
+    )
 
     Column(Modifier.fillMaxSize()) {
         Surface(
@@ -608,7 +677,20 @@ private fun ToolsScreenV5(strings: UiText, premium: Boolean, openTool: (String) 
             shape = RoundedCornerShape(18.dp)
         )
 
-        Spacer(Modifier.height(10.dp))
+        Row(
+            Modifier.padding(horizontal = 14.dp).fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            categories.forEach { (id, label) ->
+                FilterChip(
+                    selected = category == id,
+                    onClick = { category = id },
+                    label = { Text(label, fontSize = 10.sp) }
+                )
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
@@ -625,7 +707,7 @@ private fun ToolsScreenV5(strings: UiText, premium: Boolean, openTool: (String) 
 }
 
 @Composable
-private fun ToolGridCardV5(tool: ToolDef, strings: UiText, premium: Boolean, openTool: (String) -> Unit) {
+internal fun ToolGridCardV5(tool: ToolDef, strings: UiText, premium: Boolean, openTool: (String) -> Unit) {
     Card(
         onClick = { openTool(tool.id) },
         shape = RoundedCornerShape(24.dp)
@@ -634,6 +716,9 @@ private fun ToolGridCardV5(tool: ToolDef, strings: UiText, premium: Boolean, ope
             Modifier.padding(13.dp),
             verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
+            val context = LocalContext.current
+            var favorite by remember(tool.id) { mutableStateOf(FavoritesStore.isFavorite(context, tool.id)) }
+
             Row(
                 Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top
@@ -660,6 +745,16 @@ private fun ToolGridCardV5(tool: ToolDef, strings: UiText, premium: Boolean, ope
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                         )
                     }
+                }
+                IconButton(
+                    onClick = { favorite = FavoritesStore.toggle(context, tool.id) },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        if (favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        null,
+                        tint = if (favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
             Text(
@@ -696,6 +791,18 @@ private fun ToolRowV5(tool: ToolDef, strings: UiText, premium: Boolean, openTool
             }
             if (tool.premium && !premium) {
                 Text(strings.get("pro"), color = Color(0xFF7C3AED), fontWeight = FontWeight.ExtraBold, fontSize = 9.sp)
+            }
+            val context = LocalContext.current
+            var favorite by remember(tool.id) { mutableStateOf(FavoritesStore.isFavorite(context, tool.id)) }
+            IconButton(
+                onClick = { favorite = FavoritesStore.toggle(context, tool.id) },
+                modifier = Modifier.size(34.dp)
+            ) {
+                Icon(
+                    if (favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    null,
+                    tint = if (favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -778,6 +885,17 @@ private fun ToolWorkspaceV5(
     var borderSize by remember { mutableFloatStateOf(24f) }
     var cornerRadius by remember { mutableFloatStateOf(36f) }
     var duotonePreset by remember { mutableStateOf("ocean") }
+
+    LaunchedEffect(tool.id) {
+        amount = when (tool.id) {
+            "film_grain" -> 32f
+            "color_pop" -> 78f
+            "outline" -> 68f
+            "glitch" -> 36f
+            "scan_document" -> 72f
+            else -> amount
+        }
+    }
 
     val singlePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -1091,6 +1209,46 @@ private fun ToolWorkspaceV5(
                     prepareImage(
                         AdvancedImageProcessor.denoise(bitmap, amount.toInt()),
                         format,
+                        100
+                    )
+                }
+
+                "film_grain" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.filmGrain(bitmap, amount.toInt()),
+                        format,
+                        100
+                    )
+                }
+
+                "color_pop" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.colorPop(bitmap, amount.toInt()),
+                        format,
+                        100
+                    )
+                }
+
+                "outline" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.outline(bitmap, amount.toInt()),
+                        format,
+                        100
+                    )
+                }
+
+                "glitch" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.glitch(bitmap, amount.toInt()),
+                        format,
+                        100
+                    )
+                }
+
+                "scan_document" -> {
+                    prepareImage(
+                        AdvancedImageProcessor.scanDocument(bitmap, amount.toInt()),
+                        OutputFormat.PNG,
                         100
                     )
                 }
@@ -1744,7 +1902,8 @@ private fun ToolControlsV5(
             Text(strings.toolSubtitle(tool.id), fontSize = 12.sp)
         }
 
-        "exposure", "tint", "vignette", "noise_reduction" -> {
+        "exposure", "tint", "vignette", "noise_reduction",
+        "film_grain", "color_pop", "outline", "glitch", "scan_document" -> {
             Text(strings.get("strength") + " " + amount.toInt())
             Slider(
                 amount,
