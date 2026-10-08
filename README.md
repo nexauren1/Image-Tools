@@ -4,7 +4,7 @@ Image Tools is a modern Android toolbox for everyday image jobs, with a local-fi
 
 ## Current release
 
-- Version: 1.9.0
+- Version: 1.11.4
 - Version code: 24
 - Package: `com.nexauren.imagetools`
 - Minimum Android: 10 (API 29)
@@ -67,9 +67,11 @@ and verifies entitlement through:
 
 `GET /paypal/subscription-status`
 
-Cancellation is handled through:
+Cancellation remains available through the secure payment backend endpoint:
 
 `POST /paypal/cancel-subscription`
+
+The Android application does not expose an in-app cancellation button in the release build.
 
 The PayPal client secret stays on the Cloudflare Worker. Do not put PayPal credentials in the APK or GitHub source.
 
