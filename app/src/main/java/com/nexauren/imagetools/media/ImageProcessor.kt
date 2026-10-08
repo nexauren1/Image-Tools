@@ -51,7 +51,7 @@ object ImageProcessor {
         val orientation = runCatching {
             context.contentResolver.openInputStream(uri)?.use {
                 ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
-            }
+            } ?: ExifInterface.ORIENTATION_NORMAL
         }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
         return applyExifOrientation(bitmap, orientation)
     }
