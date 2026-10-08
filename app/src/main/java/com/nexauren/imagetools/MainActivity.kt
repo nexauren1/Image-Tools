@@ -87,12 +87,13 @@ class MainActivity : ComponentActivity() {
                         if (token.isNullOrBlank()) {
                             Result.failure(IllegalStateException("Please sign in again."))
                         } else {
+                            val uid = auth.currentUser?.uid
                             PaymentRepository.cancelSubscription(
                                 token,
-                                SubscriptionStore.get(this@MainActivity) ?: paymentSubscription.value
+                                SubscriptionStore.get(this@MainActivity, uid) ?: paymentSubscription.value
                             ).onSuccess {
                                 premium = false
-                                SubscriptionStore.clear(this@MainActivity)
+                                SubscriptionStore.clear(this@MainActivity, uid)
                                 paymentSubscription.value = null
                                 firestore.refreshPremiumFromServer { premium = it }
                             }
@@ -116,7 +117,8 @@ class MainActivity : ComponentActivity() {
                 ?: uri.getQueryParameter("orderId")
             if (!id.isNullOrBlank()) {
                 paymentSubscription.value = id
-                SubscriptionStore.save(this, id)
+                val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                SubscriptionStore.save(this, uid, id)
             }
         }
     }
