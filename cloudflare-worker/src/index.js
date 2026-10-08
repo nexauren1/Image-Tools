@@ -688,13 +688,11 @@ async function subscriptionStatus(request, env, url) {
 async function cancelSubscription(request, env) {
   const user = await firebaseUser(request, env);
   const paypal = await paypalToken(env);
-  const body = await request.json().catch(() => ({}));
-  let subscriptionId = String(body.subscriptionId || "").trim();
 
-  if (!subscriptionId) {
-    const fields = await firestoreUser(env, user.localId);
-    subscriptionId = fieldString(fields, "paypalSubscriptionId");
-  }
+  // Firestore is the source of truth for the account's linked subscription.
+  // Do not trust a subscription id cached locally by the APK.
+  const fields = await firestoreUser(env, user.localId);
+  const subscriptionId = fieldString(fields, "paypalSubscriptionId").trim();
 
   if (!subscriptionId) {
     return reply({
@@ -716,7 +714,6 @@ async function cancelSubscription(request, env) {
   }
 
   if (current.status === "CANCELLED" || current.status === "EXPIRED") {
-    let entitlementSynced = true;
     try {
       await setSubscriptionEntitlement(
         env,
@@ -726,10 +723,8 @@ async function cancelSubscription(request, env) {
         false
       );
     } catch (error) {
-      entitlementSynced = false;
       console.error("Subscription already inactive; Firestore sync failed", {
         uid: user.localId,
-        subscriptionId,
         status: current.status,
         error: error && error.message ? error.message : String(error)
       });
@@ -739,8 +734,7 @@ async function cancelSubscription(request, env) {
       ok: true,
       premium: false,
       status: current.status,
-      subscriptionId,
-      entitlementSynced
+      subscriptionId
     });
   }
 
@@ -771,9 +765,6 @@ async function cancelSubscription(request, env) {
     throw error;
   }
 
-  // PayPal is the source of truth for the cancellation. Firestore sync is
-  // important, but a sync failure must not turn a successful cancellation
-  // into an HTTP 500 response to the app.
   let entitlementSynced = true;
   try {
     await setSubscriptionEntitlement(
@@ -803,7 +794,6 @@ async function cancelSubscription(request, env) {
       : "Subscription cancelled at PayPal, but entitlement sync failed."
   });
 }
-
 async function createOrder(request, env) {
   const user = await firebaseUser(request, env);
   const paypal = await paypalToken(env);
