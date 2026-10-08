@@ -628,13 +628,12 @@ private fun ToolsScreenV5(strings: UiText, premium: Boolean, openTool: (String) 
         (category == "all" || toolCategoryV5(it.id) == category) &&
             (strings.toolTitle(it.id) + " " + strings.toolSubtitle(it.id)).contains(query, true)
     }
-    val categories = listOf(
-        "all" to "Todos",
-        "edit" to "Editar",
-        "creative" to "Criativo",
-        "privacy" to "Privacidade",
-        "docs" to "Documentos"
-    )
+    val categories = when (AppLanguageStore.get(LocalContext.current)) {
+        AppLanguage.PT -> listOf("all" to "Todos", "edit" to "Editar", "creative" to "Criativo", "privacy" to "Privacidade", "docs" to "Documentos")
+        AppLanguage.ES -> listOf("all" to "Todos", "edit" to "Editar", "creative" to "Creativo", "privacy" to "Privacidad", "docs" to "Documentos")
+        AppLanguage.FR -> listOf("all" to "Tous", "edit" to "Éditer", "creative" to "Créatif", "privacy" to "Confidentialité", "docs" to "Documents")
+        AppLanguage.EN -> listOf("all" to "All", "edit" to "Edit", "creative" to "Creative", "privacy" to "Privacy", "docs" to "Documents")
+    }
 
     Column(Modifier.fillMaxSize()) {
         Surface(
