@@ -86,6 +86,36 @@ fun ToolWorkspaceV6(
     var smartHeight by remember { mutableStateOf("1920") }
     var gifDelay by remember { mutableFloatStateOf(500f) }
 
+    LaunchedEffect(tool.id) {
+        val recipe = RecipeStore.consumePending(context)
+        if (recipe != null && recipe.toolId == tool.id) {
+            val cfg = recipe.config
+            cfg["width"]?.let { width = it }
+            cfg["height"]?.let { height = it }
+            cfg["quality"]?.toFloatOrNull()?.let { quality = it.coerceIn(10f, 100f) }
+            cfg["format"]?.let { value -> runCatching { format = OutputFormat.valueOf(value) } }
+            cfg["cropRatio"]?.let { cropRatio = it }
+            cfg["angle"]?.toIntOrNull()?.let { angle = it }
+            cfg["flipH"]?.toBooleanStrictOrNull()?.let { flipH = it }
+            cfg["flipV"]?.toBooleanStrictOrNull()?.let { flipV = it }
+            cfg["imageFilter"]?.let { value -> runCatching { imageFilter = ImageFilter.valueOf(value) } }
+            cfg["watermark"]?.let { watermark = it }
+            cfg["opacity"]?.toFloatOrNull()?.let { opacity = it.coerceIn(10f, 100f) }
+            cfg["position"]?.let { position = it }
+            cfg["amount"]?.toFloatOrNull()?.let { amount = it }
+            cfg["pixelSize"]?.toFloatOrNull()?.let { pixelSize = it }
+            cfg["borderSize"]?.toFloatOrNull()?.let { borderSize = it }
+            cfg["cornerRadius"]?.toFloatOrNull()?.let { cornerRadius = it }
+            cfg["duotonePreset"]?.let { duotonePreset = it }
+            cfg["socialPreset"]?.let { socialPreset = it }
+            cfg["modernFormat"]?.let { value -> runCatching { modernFormat = ModernFormat.valueOf(value) } }
+            cfg["smartWidth"]?.let { smartWidth = it }
+            cfg["smartHeight"]?.let { smartHeight = it }
+            cfg["gifDelay"]?.toFloatOrNull()?.let { gifDelay = it.coerceIn(100f, 1500f) }
+            status = strings.get("ready")
+        }
+    }
+
     val singlePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
@@ -370,14 +400,22 @@ fun ToolWorkspaceV6(
         "format" to format.name,
         "cropRatio" to cropRatio,
         "angle" to angle.toString(),
+        "flipH" to flipH.toString(),
+        "flipV" to flipV.toString(),
+        "imageFilter" to imageFilter.name,
+        "watermark" to watermark,
+        "opacity" to opacity.toInt().toString(),
+        "position" to position,
         "amount" to amount.toInt().toString(),
         "pixelSize" to pixelSize.toInt().toString(),
         "borderSize" to borderSize.toInt().toString(),
         "cornerRadius" to cornerRadius.toInt().toString(),
+        "duotonePreset" to duotonePreset,
         "socialPreset" to socialPreset,
         "modernFormat" to modernFormat.name,
         "smartWidth" to smartWidth,
-        "smartHeight" to smartHeight
+        "smartHeight" to smartHeight,
+        "gifDelay" to gifDelay.toInt().toString()
     )
 
     fun saveRecipe() {
