@@ -919,7 +919,7 @@ function homePage() {
   return htmlPage("Image Tools", 
     "<p>A focused Android image toolbox for resizing, compression, conversion, cropping, filters, privacy cleanup, collage, PDF export and more.</p>" +
     "<p>Core image editing runs locally on the device. Premium features use a secure PayPal checkout and server-side entitlement verification.</p>" +
-    "<p><strong>Android:</strong> package <code>com.nexauren.imagetools</code> · version 1.5.0</p>" +
+    "<p><strong>Android:</strong> package <code>com.nexauren.imagetools</code> · version 1.11.4</p>" +
     "<p><a href=\"" + SITE + "/privacy\">Read the Privacy Policy</a></p>" +
     "<p><a href=\"" + SITE + "/terms\">Read the Terms of Service</a></p>" +
     "<p><a href=\"" + SITE + "/support\">Support and account deletion requests</a></p>");
