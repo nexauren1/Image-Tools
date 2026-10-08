@@ -81,7 +81,6 @@ class MainActivity : ComponentActivity() {
                     onDarkModeChange = { darkMode = it },
                     onStartPayment = { url ->
                         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                    },
                     }
                 )
             }
