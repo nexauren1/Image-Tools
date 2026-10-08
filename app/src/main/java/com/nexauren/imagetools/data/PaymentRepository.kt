@@ -50,22 +50,6 @@ object PaymentRepository {
             }
         }
 
-    suspend fun cancelSubscription(
-        token: String,
-        subscriptionId: String? = null
-    ): Result<String> = withContext(Dispatchers.IO) {
-        runCatching {
-            val connection = open("/paypal/cancel-subscription", token, "POST")
-            val payload = JSONObject().apply {
-                if (!subscriptionId.isNullOrBlank()) put("subscriptionId", subscriptionId)
-            }
-            connection.outputStream.bufferedWriter().use { it.write(payload.toString()) }
-            val data = readJsonObject(connection, read(connection), "subscription-cancel")
-            requirePaymentOk(connection, data, "subscription-cancel")
-            data.optString("status").ifBlank { "CANCELLED" }
-        }
-    }
-
     private fun open(path: String, token: String, method: String): HttpURLConnection {
         require(!BuildConfig.WORKER_URL.contains("YOUR-IMAGE-TOOLS-WORKER"))
         return (URL(BuildConfig.WORKER_URL.trimEnd('/') + path).openConnection() as HttpURLConnection).apply {
