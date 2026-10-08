@@ -29,8 +29,8 @@ android {
         applicationId = "com.nexauren.imagetools"
         minSdk = 29
         targetSdk = 36
-        versionCode = 29
-        versionName = "1.11.0"
+        versionCode = 30
+        versionName = "1.11.1"
         vectorDrawables { useSupportLibrary = true }
 
         buildConfigField("String", "WORKER_URL", "\"${System.getenv("WORKER_URL") ?: "https://steep-pine-34fe.nexaurenstore.workers.dev"}\"")
