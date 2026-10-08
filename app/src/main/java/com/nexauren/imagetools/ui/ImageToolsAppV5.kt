@@ -291,6 +291,7 @@ fun ImageToolsAppV5(
                         )
                         page == "settings" -> SettingsScreenV5(
                             strings = strings,
+                            uid = auth.currentUser?.uid,
                             darkMode = darkMode,
                             language = language,
                             onDarkModeChange = onDarkModeChange,
@@ -313,12 +314,12 @@ private fun NotificationCenterScreenV5(
     uid: String?
 ) {
     val context = LocalContext.current
-    var items by remember(uid) {
+    var notifications by remember(uid) {
         mutableStateOf(NotificationCenterStore.list(context, uid))
     }
 
     fun refresh() {
-        items = NotificationCenterStore.list(context, uid)
+        notifications = NotificationCenterStore.list(context, uid)
     }
 
     LazyColumn(
@@ -343,7 +344,7 @@ private fun NotificationCenterScreenV5(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                if (items.any { !it.read }) {
+                if (notifications.any { !it.read }) {
                     TextButton(
                         onClick = {
                             NotificationCenterStore.markAllRead(context, uid)
@@ -353,7 +354,7 @@ private fun NotificationCenterScreenV5(
                         Text(strings.get("notifications.mark_all"))
                     }
                 }
-                if (items.isNotEmpty()) {
+                if (notifications.isNotEmpty()) {
                     IconButton(
                         onClick = {
                             NotificationCenterStore.clear(context, uid)
@@ -366,7 +367,7 @@ private fun NotificationCenterScreenV5(
             }
         }
 
-        if (items.isEmpty()) {
+        if (notifications.isEmpty()) {
             item {
                 Card(shape = RoundedCornerShape(24.dp)) {
                     Column(
@@ -390,7 +391,7 @@ private fun NotificationCenterScreenV5(
                 }
             }
         } else {
-            items(items, key = { it.id }) { item ->
+            items(notifications, key = { it.id }) { item ->
                 val date = java.text.SimpleDateFormat(
                     "dd/MM HH:mm",
                     java.util.Locale.getDefault()
@@ -2338,6 +2339,7 @@ private fun AccountStatCardV5(
 @Composable
 private fun SettingsScreenV5(
     strings: UiText,
+    uid: String?,
     darkMode: Boolean,
     language: AppLanguage,
     onDarkModeChange: (Boolean) -> Unit,
@@ -2419,7 +2421,7 @@ private fun SettingsScreenV5(
                 onClick = {
                     NotificationCenterStore.add(
                         context = context,
-                        uid = null,
+                        uid = uid,
                         title = strings.get("notifications.test.title"),
                         message = strings.get("notifications.test.message")
                     )
