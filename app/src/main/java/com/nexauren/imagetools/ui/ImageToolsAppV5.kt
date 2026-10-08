@@ -119,6 +119,7 @@ internal val TOOL_CATALOG = listOf(
 fun ImageToolsAppV5(
     auth: AuthRepository,
     premium: Boolean,
+    notificationVersion: Long = 0L,
     darkMode: Boolean,
     onDarkModeChange: (Boolean) -> Unit,
     onStartPayment: (String) -> Unit
@@ -134,10 +135,9 @@ fun ImageToolsAppV5(
         }
 
         var page by remember { mutableStateOf("home") }
-        val notificationCount = NotificationCenterStore.unreadCount(
-            context,
-            auth.currentUser?.uid
-        )
+        val notificationCount = remember(notificationVersion, auth.currentUser?.uid) {
+            NotificationCenterStore.unreadCount(context, auth.currentUser?.uid)
+        }
         var selectedTool by remember { mutableStateOf<String?>(null) }
         val scope = rememberCoroutineScope()
         val drawerState = rememberDrawerState(DrawerValue.Closed)
