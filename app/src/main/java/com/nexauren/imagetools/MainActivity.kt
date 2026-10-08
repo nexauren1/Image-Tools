@@ -31,11 +31,14 @@ class MainActivity : ComponentActivity() {
             val scope = rememberCoroutineScope()
 
             LaunchedEffect(auth.currentUser?.uid) {
-                if (auth.currentUser == null) {
-                    premium = false
-                } else {
+                premium = false
+                if (auth.currentUser != null) {
                     firestore.observePremium { premium = it }
                 }
+            }
+
+            DisposableEffect(auth.currentUser?.uid) {
+                onDispose { firestore.stop() }
             }
 
             LaunchedEffect(subscriptionId, auth.currentUser?.uid, paymentRefreshNonce.value) {
@@ -47,8 +50,8 @@ class MainActivity : ComponentActivity() {
                             if (!token.isNullOrBlank()) {
                                 PaymentRepository.refreshSubscription(token, subscriptionId)
                                     .onSuccess { active ->
+                                        // Firestore remains the only source of truth for premium.
                                         if (active) {
-                                            premium = true
                                             activated = true
                                         }
                                     }
@@ -80,7 +83,10 @@ class MainActivity : ComponentActivity() {
                             if (!token.isNullOrBlank()) {
                                 PaymentRepository.cancelSubscription(token)
                                     .onSuccess { cancelled ->
-                                        if (cancelled) premium = false
+                                        // Firestore will propagate the authoritative entitlement state.
+                                        if (cancelled) {
+                                            firestore.observePremium { premium = it }
+                                        }
                                     }
                             }
                         }
