@@ -37,6 +37,28 @@ async function signJwt(input, privateKey) {
   return crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(input));
 }
 
+function requireEnv(env, name) {
+  const value = String(env[name] || "").trim();
+  if (!value) {
+    const error = new Error(name + " is not configured");
+    error.code = "CONFIG_MISSING_" + name;
+    error.stage = "configuration";
+    throw error;
+  }
+  return value;
+}
+
+function paypalEnvironment(env) {
+  const value = String(env.PAYPAL_ENVIRONMENT || "").trim().toLowerCase();
+  if (value !== "live" && value !== "sandbox") {
+    const error = new Error("PAYPAL_ENVIRONMENT must be explicitly set to live or sandbox");
+    error.code = "INVALID_PAYPAL_ENVIRONMENT";
+    error.stage = "configuration";
+    throw error;
+  }
+  return value;
+}
+
 async function googleAccessToken(env) {
   if (!env.FIREBASE_CLIENT_EMAIL || !env.FIREBASE_PRIVATE_KEY) {
     const error = new Error("Firebase server credentials are not configured");
@@ -70,10 +92,11 @@ async function googleAccessToken(env) {
 
 async function firebaseUser(request, env) {
   const header = request.headers.get("Authorization") || "";
+  const firebaseApiKey = requireEnv(env, "FIREBASE_WEB_API_KEY");
   if (!header.startsWith("Bearer ")) throw new Error("Missing Firebase ID token");
   const idToken = header.slice(7);
   const r = await fetch(
-    "https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=" + encodeURIComponent(env.FIREBASE_WEB_API_KEY || "AIzaSyCtO5UOedU4qtdZBgQERMhygWYLUxybVTo"),
+    "https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=" + encodeURIComponent(firebaseApiKey),
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -88,7 +111,7 @@ async function firebaseUser(request, env) {
 }
 
 async function paypalToken(env) {
-  const base = env.PAYPAL_ENVIRONMENT === "live"
+  const base = paypalEnvironment(env) === "live"
     ? "https://api-m.paypal.com"
     : "https://api-m.sandbox.paypal.com";
   const basic = btoa(env.PAYPAL_CLIENT_ID + ":" + env.PAYPAL_CLIENT_SECRET);
@@ -107,9 +130,10 @@ async function paypalToken(env) {
 
 async function firestoreUser(env, uid) {
   const access = await googleAccessToken(env);
+  const projectId = requireEnv(env, "FIREBASE_PROJECT_ID");
   const url =
     "https://firestore.googleapis.com/v1/projects/" +
-    encodeURIComponent(env.FIREBASE_PROJECT_ID || "nexauren-story") +
+    encodeURIComponent(projectId) +
     "/databases/(default)/documents/users/" +
     encodeURIComponent(uid);
 
@@ -126,9 +150,10 @@ const fieldString = (fields, name) => fields && fields[name] && fields[name].str
 
 async function setSubscriptionEntitlement(env, uid, subscriptionId, status, premium) {
   const access = await googleAccessToken(env);
+  const projectId = requireEnv(env, "FIREBASE_PROJECT_ID");
   const url =
     "https://firestore.googleapis.com/v1/projects/" +
-    encodeURIComponent(env.FIREBASE_PROJECT_ID || "nexauren-story") +
+    encodeURIComponent(projectId) +
     "/databases/(default)/documents/users/" +
     encodeURIComponent(uid) +
     "?updateMask.fieldPaths=plan" +

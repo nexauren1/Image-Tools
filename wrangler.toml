@@ -1,4 +1,4 @@
 name = "steep-pine-34fe"
 main = "cloudflare-worker/src/index.js"
-compatibility_date = "2026-10-01"
+compatibility_date = "2026-10-06"
 workers_dev = true

@@ -2,7 +2,7 @@ name: Deploy Cloudflare Worker
 
 on:
   push:
-    branches: ["v*"]
+    branches: ["main", "v*"]
   workflow_dispatch:
 
 permissions:
