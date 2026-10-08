@@ -100,7 +100,10 @@ private val TOOL_CATALOG = listOf(
     ToolDef("face_blur", Icons.Default.Face, Color(0xFF0F766E), Color(0xFF06B6D4), true),
     ToolDef("pdf_merge", Icons.Default.MergeType, Color(0xFFB91C1C), Color(0xFFF97316), true),
     ToolDef("gif_creator", Icons.Default.Gif, Color(0xFF7C3AED), Color(0xFFEC4899), true),
-    ToolDef("heic_avif", Icons.Default.Image, Color(0xFF475569), Color(0xFF06B6D4), true)
+    ToolDef("heic_avif", Icons.Default.Image, Color(0xFF475569), Color(0xFF06B6D4), true),
+    ToolDef("fit_canvas", Icons.Default.AspectRatio, Color(0xFF0EA5E9), Color(0xFF06B6D4)),
+    ToolDef("target_size", Icons.Default.DataUsage, Color(0xFF059669), Color(0xFF0F766E), true),
+    ToolDef("split_grid", Icons.Default.GridOn, Color(0xFFF59E0B), Color(0xFFEA580C), true)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -111,7 +114,7 @@ fun ImageToolsAppV5(
     darkMode: Boolean,
     onDarkModeChange: (Boolean) -> Unit,
     onStartPayment: (String) -> Unit,
-    onCancelSubscription: () -> Unit
+    onCancelSubscription: suspend () -> Result<String>
 ) {
     val context = LocalContext.current
     var language by remember { mutableStateOf(AppLanguageStore.get(context)) }
@@ -1843,8 +1846,9 @@ private fun PremiumScreenV5(
     strings: UiText,
     premium: Boolean,
     onStartPayment: (String) -> Unit,
-    onCancelSubscription: () -> Unit
+    onCancelSubscription: suspend () -> Result<String>
 ) {
+    val context = LocalContext.current
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -1908,7 +1912,10 @@ private fun PremiumScreenV5(
                                 error = "Please sign in again."
                             } else {
                                 PaymentRepository.createSubscription(token)
-                                    .onSuccess { onStartPayment(it.approveUrl) }
+                                    .onSuccess {
+                                        com.nexauren.imagetools.data.SubscriptionStore.save(context, it.subscriptionId)
+                                        onStartPayment(it.approveUrl)
+                                    }
                                     .onFailure {
                                         error = if (it is PaymentException) {
                                             it.message
@@ -1933,11 +1940,23 @@ private fun PremiumScreenV5(
                 }
             } else {
                 OutlinedButton(
-                    onClick = onCancelSubscription,
+                    onClick = {
+                        busy = true
+                        error = null
+                        scope.launch {
+                            onCancelSubscription()
+                                .onSuccess { error = strings.get("subscription.cancelled") }
+                                .onFailure { error = it.message ?: strings.get("subscription.cancel.error") }
+                            busy = false
+                        }
+                    },
+                    enabled = !busy,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(17.dp)
                 ) {
-                    Text(strings.get("premium.cancel"))
+                    Icon(Icons.Default.Cancel, null)
+                    Spacer(Modifier.width(7.dp))
+                    Text(if (busy) strings.get("working") else strings.get("premium.cancel"))
                 }
             }
         }
