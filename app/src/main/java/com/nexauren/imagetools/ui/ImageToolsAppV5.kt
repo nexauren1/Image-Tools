@@ -527,7 +527,7 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
         item {
             SectionTitleV5(strings.get("popular"), strings.get("home.subtitle"))
         }
-        items(popular) { tool -> ToolRowV5(tool, strings, openTool) }
+        items(popular) { tool -> ToolRowV5(tool, strings, premium, openTool) }
         item {
             Row(
                 Modifier.fillMaxWidth(),
@@ -544,7 +544,7 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
                 }
             }
         }
-        items(filtered.take(10)) { tool -> ToolRowV5(tool, strings, openTool) }
+        items(filtered.take(10)) { tool -> ToolRowV5(tool, strings, premium, openTool) }
         item {
             FeatureCardV5(
                 if (premium) Icons.Default.Verified else Icons.Default.Lock,
