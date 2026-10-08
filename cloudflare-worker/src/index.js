@@ -955,10 +955,10 @@ function supportPage() {
 
 export default {
   async fetch(request, env) {
-    if (request.method === "OPTIONS") return new Response(null, { headers: HEADERS });
-    const url = new URL(request.url);
-
     try {
+      if (request.method === "OPTIONS") return new Response(null, { headers: HEADERS });
+      const url = new URL(request.url);
+
       if (request.method === "GET" && url.pathname === "/") return homePage();
       if (request.method === "GET" && (url.pathname === "/privacy" || url.pathname === "/privacy-policy")) return privacyPage();
       if (request.method === "GET" && (url.pathname === "/terms" || url.pathname === "/terms-of-service")) return termsPage();
@@ -1037,6 +1037,7 @@ export default {
 
       return reply({ ok: false, error: "Not found" }, 404);
     } catch (error) {
+      console.error("Unhandled Image Tools Worker request exception", error);
       const code = error && error.code ? error.code : "UNEXPECTED_ERROR";
       const stage = error && error.stage ? error.stage : "worker";
       const explicitStatus = Number(error && error.httpStatus);
