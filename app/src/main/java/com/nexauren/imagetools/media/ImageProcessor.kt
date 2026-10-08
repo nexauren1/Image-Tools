@@ -1,5 +1,6 @@
 package com.nexauren.imagetools.media
 
+import androidx.exifinterface.media.ExifInterface
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
@@ -45,8 +46,15 @@ data class ImageResult(
 )
 
 object ImageProcessor {
-    fun decode(context: Context, uri: Uri): Bitmap? =
-        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+    fun decode(context: Context, uri: Uri): Bitmap? {
+        val bitmap = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) } ?: return null
+        val orientation = runCatching {
+            context.contentResolver.openInputStream(uri)?.use {
+                ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+            }
+        }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+        return applyExifOrientation(bitmap, orientation)
+    }
 
     fun sourceBytes(context: Context, uri: Uri): Long? =
         context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
