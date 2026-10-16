@@ -138,7 +138,7 @@ fun ToolWorkspaceV6(
             val thumbnails = withContext(Dispatchers.IO) {
                 uris.take(4).mapNotNull { uri ->
                     runCatching {
-                        ImageProcessor.decode(context, uri)?.let { createToolThumbnail(it) }
+                        decodeToolThumbnail(context, uri)
                     }.getOrNull()
                 }
             }
@@ -572,7 +572,7 @@ fun ToolWorkspaceV6(
                                 imageNumber++
                             }
                             val previews = outputs.take(6).mapNotNull {
-                                android.graphics.BitmapFactory.decodeByteArray(it.bytes, 0, it.bytes.size)
+                                decodeToolPreview(it.bytes)
                             }
                             outputs.toList() to previews
                         }
@@ -583,7 +583,7 @@ fun ToolWorkspaceV6(
                             GifProcessor.encode(bitmaps.map { it.second }, gifDelay.toLong())
                         }
                         pendingItems = listOf(RawExportItem(gif, "image/gif", "gif", "animation"))
-                        previewBitmaps = bitmaps.take(4).map { it.second }
+                        previewBitmaps = bitmaps.take(4).map { createToolThumbnail(it.second) }
                     } else if (tool.id == "collage") {
                         val collage = withContext(Dispatchers.Default) {
                             AdvancedImageProcessor.collage(bitmaps.take(4).map { it.second })
@@ -606,11 +606,9 @@ fun ToolWorkspaceV6(
                         textResult = items.firstOrNull { it.mime == "text/plain" }
                             ?.let { String(it.bytes, Charsets.UTF_8) }
                         val decodedResults = items.take(6).mapNotNull { item ->
-                            if (item.mime.startsWith("image/")) {
-                                android.graphics.BitmapFactory.decodeByteArray(item.bytes, 0, item.bytes.size)
-                            } else null
+                            if (item.mime.startsWith("image/")) decodeToolPreview(item.bytes) else null
                         }
-                        previewBitmaps = if (decodedResults.isNotEmpty()) decodedResults.map { createToolThumbnail(it) }
+                        previewBitmaps = if (decodedResults.isNotEmpty()) decodedResults
                         else bitmaps.take(6).map { createToolThumbnail(it.second) }
                     }
 
@@ -853,7 +851,7 @@ fun ToolWorkspaceV6(
                     Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                         Text("4. " + strings.get("preview"), fontWeight = FontWeight.ExtraBold)
                         textResult?.let { result ->
-                            Text(strings.get("base64.result"), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text(strings.get("result.content"), fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             Surface(
                                 color = MaterialTheme.colorScheme.surfaceVariant,
                                 shape = RoundedCornerShape(14.dp)
@@ -1177,6 +1175,39 @@ private fun ChoicesV6(
     }
 }
 
+
+private fun decodeToolThumbnail(context: Context, uri: Uri, maxEdge: Int = 180): Bitmap? {
+    val resolver = context.contentResolver
+    val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    val boundsStream = resolver.openInputStream(uri) ?: return null
+    boundsStream.use { android.graphics.BitmapFactory.decodeStream(it, null, bounds) }
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+    var sampleSize = 1
+    while (bounds.outWidth / sampleSize > maxEdge * 2 || bounds.outHeight / sampleSize > maxEdge * 2) {
+        sampleSize *= 2
+    }
+    val options = android.graphics.BitmapFactory.Options().apply {
+        inSampleSize = sampleSize
+    }
+    val stream = resolver.openInputStream(uri) ?: return null
+    val decoded = stream.use { android.graphics.BitmapFactory.decodeStream(it, null, options) } ?: return null
+    return createToolThumbnail(decoded, maxEdge)
+}
+
+private fun decodeToolPreview(bytes: ByteArray, maxEdge: Int = 180): Bitmap? {
+    val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+    var sampleSize = 1
+    while (bounds.outWidth / sampleSize > maxEdge * 2 || bounds.outHeight / sampleSize > maxEdge * 2) {
+        sampleSize *= 2
+    }
+    val options = android.graphics.BitmapFactory.Options().apply { inSampleSize = sampleSize }
+    val decoded = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) ?: return null
+    return createToolThumbnail(decoded, maxEdge)
+}
 
 private fun createToolThumbnail(source: Bitmap, maxEdge: Int = 180): Bitmap {
     val longestEdge = maxOf(source.width, source.height)
