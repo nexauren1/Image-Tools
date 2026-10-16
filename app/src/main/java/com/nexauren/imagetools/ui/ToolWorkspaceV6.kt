@@ -626,7 +626,7 @@ fun ToolWorkspaceV6(
                     } else {
                         val items = bitmaps.map { (uri, bitmap) -> analyzeBitmap(bitmap, uri) }
                         pendingItems = items
-                        textResult = items.firstOrNull { it.mime == "text/plain" }
+                        textResult = items.firstOrNull { it.mime == "text/plain" || it.mime == "text/css" }
                             ?.let { String(it.bytes, Charsets.UTF_8) }
                         val decodedResults = items.take(6).mapNotNull { item ->
                             if (item.mime.startsWith("image/")) decodeToolPreview(item.bytes) else null
