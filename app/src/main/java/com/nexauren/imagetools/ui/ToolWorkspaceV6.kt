@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,6 +15,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -28,6 +30,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nexauren.imagetools.data.HistoryEntry
@@ -62,6 +66,8 @@ fun ToolWorkspaceV6(
     var exportedMime by remember { mutableStateOf("image/*") }
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<String?>(null) }
+    var textResult by remember { mutableStateOf<String?>(null) }
+    var sourcePreviewBitmaps by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
 
     var width by remember { mutableStateOf("1280") }
     var height by remember { mutableStateOf("1280") }
@@ -92,6 +98,14 @@ fun ToolWorkspaceV6(
     var mirrorAxis by remember { mutableStateOf("horizontal") }
 
     LaunchedEffect(tool.id) {
+        batchMode = tool.id in listOf("collage", "gif_creator", "pdf_merge", "split_grid")
+        sourceUris = emptyList()
+        sourcePreviewBitmaps = emptyList()
+        previewBitmaps = emptyList()
+        pendingItems = emptyList()
+        textResult = null
+        exportedUri = null
+        status = null
         val recipe = RecipeStore.consumePending(context)
         if (recipe != null && recipe.toolId == tool.id) {
             val cfg = recipe.config
@@ -126,6 +140,20 @@ fun ToolWorkspaceV6(
         }
     }
 
+    fun loadSourceThumbnails(uris: List<Uri>) {
+        sourcePreviewBitmaps = emptyList()
+        scope.launch {
+            val thumbnails = withContext(Dispatchers.IO) {
+                uris.take(4).mapNotNull { uri ->
+                    runCatching {
+                        decodeToolThumbnail(context, uri)
+                    }.getOrNull()
+                }
+            }
+            sourcePreviewBitmaps = thumbnails
+        }
+    }
+
     val singlePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
@@ -133,7 +161,9 @@ fun ToolWorkspaceV6(
             sourceUris = listOf(uri)
             previewBitmaps = emptyList()
             pendingItems = emptyList()
+            textResult = null
             status = strings.get("ready")
+            loadSourceThumbnails(listOf(uri))
         }
     }
 
@@ -144,7 +174,9 @@ fun ToolWorkspaceV6(
             sourceUris = uris.take(20)
             previewBitmaps = emptyList()
             pendingItems = emptyList()
+            textResult = null
             status = strings.get("ready")
+            loadSourceThumbnails(sourceUris)
         }
     }
 
@@ -155,6 +187,8 @@ fun ToolWorkspaceV6(
             sourceUris = uris.take(20)
             previewBitmaps = emptyList()
             pendingItems = emptyList()
+            textResult = null
+            sourcePreviewBitmaps = emptyList()
             status = strings.get("ready")
         }
     }
@@ -166,6 +200,9 @@ fun ToolWorkspaceV6(
         }
         when (tool.id) {
             "pdf_merge" -> pdfPicker.launch(arrayOf("application/pdf"))
+            "base64" -> singlePicker.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
             "gif_creator", "collage" -> multiPicker.launch(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
             )
@@ -275,15 +312,6 @@ fun ToolWorkspaceV6(
                 ImageProcessor.encode(AdvancedImageProcessor.roundCorners(bitmap, cornerRadius), OutputFormat.PNG, 100),
                 OutputFormat.PNG.mime, OutputFormat.PNG.extension, tool.id
             )
-            "background" -> {
-                val out = withContext(Dispatchers.Default) {
-                    BackgroundRemovalProcessor.removeBackground(bitmap)
-                }
-                RawExportItem(
-                    ImageProcessor.encode(out, OutputFormat.PNG, 100),
-                    OutputFormat.PNG.mime, OutputFormat.PNG.extension, tool.id
-                )
-            }
             "pdf" -> {
                 val pdf = withContext(Dispatchers.Default) {
                     AdvancedImageProcessor.pdfBytes(bitmap)
@@ -418,7 +446,27 @@ fun ToolWorkspaceV6(
                 val text = colors.joinToString("\n") { "#%06X".format(it and 0xFFFFFF) }
                 RawExportItem(text.toByteArray(), "text/plain", "txt", "palette")
             }
-            else -> transformBitmap(bitmap, uri)
+            "css_palette" -> {
+                val colors = withContext(Dispatchers.Default) { AdvancedImageProcessor.palette(bitmap, 5) }
+                val css = buildString {
+                    append(":root {\n")
+                    colors.forEachIndexed { index, color ->
+                        append("  --image-tools-color-").append(index + 1).append(": #")
+                            .append("%06X".format(color and 0xFFFFFF)).append(";\n")
+                    }
+                    append("}\n")
+                }
+                RawExportItem(css.toByteArray(Charsets.UTF_8), "text/css", "css", "css_palette")
+            }
+            "base64" -> {
+                val dataUrl = withContext(Dispatchers.Default) {
+                    val bytes = ImageProcessor.encode(bitmap, format, quality.toInt())
+                    require(bytes.size <= 4 * 1024 * 1024) { strings.get("base64.too.large") }
+                    "data:${format.mime};base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
+                }
+                RawExportItem(dataUrl.toByteArray(Charsets.UTF_8), "text/plain", "txt", "base64")
+            }
+            else -> withContext(Dispatchers.Default) { transformBitmap(bitmap, uri) }
         }
     }
 
@@ -506,6 +554,7 @@ fun ToolWorkspaceV6(
             busy = true
             pendingItems = emptyList()
             previewBitmaps = emptyList()
+            textResult = null
             exportedUri = null
             status = strings.get("processing")
             try {
@@ -530,52 +579,60 @@ fun ToolWorkspaceV6(
                     if (bitmaps.isEmpty()) error(strings.get("process.error"))
 
                     if (tool.id == "split_grid") {
-                        val outputs = mutableListOf<RawExportItem>()
-                        var imageNumber = 1
-                        for ((_, bitmap) in bitmaps) {
-                            val tiles = SplitImageProcessor.split(bitmap, gridRows, gridColumns)
-                            tiles.forEachIndexed { index, tile ->
-                                outputs += RawExportItem(
-                                    ImageProcessor.encode(tile, OutputFormat.PNG, 100),
-                                    OutputFormat.PNG.mime,
-                                    OutputFormat.PNG.extension,
-                                    "split_" + imageNumber + "_" + (index + 1)
-                                )
+                        val splitResults = withContext(Dispatchers.Default) {
+                            val outputs = mutableListOf<RawExportItem>()
+                            var imageNumber = 1
+                            for ((_, bitmap) in bitmaps) {
+                                val tiles = SplitImageProcessor.split(bitmap, gridRows, gridColumns)
+                                tiles.forEachIndexed { index, tile ->
+                                    outputs += RawExportItem(
+                                        ImageProcessor.encode(tile, OutputFormat.PNG, 100),
+                                        OutputFormat.PNG.mime,
+                                        OutputFormat.PNG.extension,
+                                        "split_" + imageNumber + "_" + (index + 1)
+                                    )
+                                }
+                                imageNumber++
                             }
-                            imageNumber++
+                            val previews = outputs.take(6).mapNotNull {
+                                decodeToolPreview(it.bytes)
+                            }
+                            outputs.toList() to previews
                         }
-                        pendingItems = outputs
-                        previewBitmaps = outputs.take(6).mapNotNull {
-                            android.graphics.BitmapFactory.decodeByteArray(it.bytes, 0, it.bytes.size)
-                        }
+                        pendingItems = splitResults.first
+                        previewBitmaps = splitResults.second
                     } else if (tool.id == "gif_creator") {
                         val gif = withContext(Dispatchers.Default) {
                             GifProcessor.encode(bitmaps.map { it.second }, gifDelay.toLong())
                         }
                         pendingItems = listOf(RawExportItem(gif, "image/gif", "gif", "animation"))
-                        previewBitmaps = bitmaps.take(4).map { it.second }
+                        previewBitmaps = bitmaps.take(4).map { createToolThumbnail(it.second) }
                     } else if (tool.id == "collage") {
                         val collage = withContext(Dispatchers.Default) {
                             AdvancedImageProcessor.collage(bitmaps.take(4).map { it.second })
                         }
+                        val collageBytes = withContext(Dispatchers.Default) {
+                            ImageProcessor.encode(collage, OutputFormat.PNG, 100)
+                        }
                         pendingItems = listOf(
                             RawExportItem(
-                                ImageProcessor.encode(collage, OutputFormat.PNG, 100),
+                                collageBytes,
                                 OutputFormat.PNG.mime,
                                 OutputFormat.PNG.extension,
                                 "collage"
                             )
                         )
-                        previewBitmaps = listOf(collage)
+                        previewBitmaps = listOf(createToolThumbnail(collage))
                     } else {
                         val items = bitmaps.map { (uri, bitmap) -> analyzeBitmap(bitmap, uri) }
                         pendingItems = items
+                        textResult = items.firstOrNull { it.mime == "text/plain" || it.mime == "text/css" }
+                            ?.let { String(it.bytes, Charsets.UTF_8) }
                         val decodedResults = items.take(6).mapNotNull { item ->
-                            if (item.mime.startsWith("image/")) {
-                                android.graphics.BitmapFactory.decodeByteArray(item.bytes, 0, item.bytes.size)
-                            } else null
+                            if (item.mime.startsWith("image/")) decodeToolPreview(item.bytes) else null
                         }
-                        previewBitmaps = if (decodedResults.isNotEmpty()) decodedResults else bitmaps.take(6).map { it.second }
+                        previewBitmaps = if (decodedResults.isNotEmpty()) decodedResults
+                        else bitmaps.take(6).map { createToolThumbnail(it.second) }
                     }
 
                     ProcessingStatsStore.recordProcessed(context, bitmaps.size)
@@ -595,25 +652,82 @@ fun ToolWorkspaceV6(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, strings.get("back"))
-                }
+            Card(shape = RoundedCornerShape(28.dp)) {
                 Box(
-                    Modifier.size(50.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Brush.linearGradient(listOf(tool.start, tool.end))),
-                    contentAlignment = Alignment.Center
+                    Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF10162B), tool.start, tool.end)))
                 ) {
-                    Icon(tool.icon, null, tint = Color.White)
-                }
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(strings.toolTitle(tool.id), fontSize = 21.sp, fontWeight = FontWeight.ExtraBold)
-                    Text(strings.toolSubtitle(tool.id), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if (tool.premium) {
-                    Text(strings.get("pro"), color = Color(0xFF7C3AED), fontWeight = FontWeight.ExtraBold, fontSize = 9.sp)
+                    Column(
+                        Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = onBack) {
+                                Icon(Icons.Default.ArrowBack, strings.get("back"), tint = Color.White)
+                            }
+                            Box(
+                                Modifier.size(48.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(Color.White.copy(alpha = 0.14f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(tool.icon, null, tint = Color.White, modifier = Modifier.size(25.dp))
+                            }
+                            Spacer(Modifier.width(11.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    strings.toolTitle(tool.id),
+                                    color = Color.White,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    strings.toolSubtitle(tool.id),
+                                    color = Color.White.copy(alpha = 0.80f),
+                                    fontSize = 11.sp,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            if (tool.premium) {
+                                Surface(color = Color.White.copy(alpha = 0.14f), shape = RoundedCornerShape(10.dp)) {
+                                    Text(
+                                        strings.get("pro"),
+                                        Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                        color = Color.White,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 9.sp
+                                    )
+                                }
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Surface(color = Color.White.copy(alpha = 0.12f), shape = RoundedCornerShape(12.dp)) {
+                                Row(
+                                    Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Security, null, tint = Color.White, modifier = Modifier.size(15.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(strings.get("local"), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                            if (tool.id in listOf("collage", "gif_creator", "pdf_merge", "split_grid")) {
+                                Surface(color = Color.White.copy(alpha = 0.12f), shape = RoundedCornerShape(12.dp)) {
+                                    Text(
+                                        strings.get("batch"),
+                                        Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                        color = Color.White,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -622,7 +736,7 @@ fun ToolWorkspaceV6(
             Card(shape = RoundedCornerShape(22.dp)) {
                 Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("1. " + strings.get("choose.image"), fontWeight = FontWeight.ExtraBold)
-                    if (tool.id !in listOf("pdf_merge", "gif_creator", "collage")) {
+                    if (tool.id !in listOf("pdf_merge", "gif_creator", "collage", "base64")) {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             FilterChip(
                                 selected = !batchMode,
@@ -665,6 +779,28 @@ fun ToolWorkspaceV6(
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp
                         )
+                        if (sourcePreviewBitmaps.isNotEmpty()) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                sourcePreviewBitmaps.forEach { thumbnail ->
+                                    Image(
+                                        bitmap = thumbnail.asImageBitmap(),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(68.dp).clip(RoundedCornerShape(14.dp)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                                if (sourceUris.size > sourcePreviewBitmaps.size) {
+                                    Box(
+                                        Modifier.size(68.dp)
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("+${sourceUris.size - sourcePreviewBitmaps.size}", fontWeight = FontWeight.ExtraBold)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -737,6 +873,37 @@ fun ToolWorkspaceV6(
                 Card(shape = RoundedCornerShape(22.dp)) {
                     Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                         Text("4. " + strings.get("preview"), fontWeight = FontWeight.ExtraBold)
+                        textResult?.let { result ->
+                            Text(strings.get("result.content"), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Text(
+                                    result.take(900) + if (result.length > 900) "…" else "",
+                                    Modifier.fillMaxWidth().padding(11.dp),
+                                    fontSize = 10.sp,
+                                    maxLines = 5,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            if (result.length > 900) {
+                                Text(strings.get("base64.truncated"), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            if (result.length <= 250_000) {
+                                OutlinedButton(onClick = {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    clipboard.setPrimaryClip(ClipData.newPlainText(strings.get("result.content"), result))
+                                    status = strings.get("base64.copy")
+                                }) {
+                                    Icon(Icons.Default.ContentCopy, null)
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(strings.get("base64.copy"))
+                                }
+                            } else {
+                                Text(strings.get("base64.copy.too.large"), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             previewBitmaps.take(4).forEach { bmp ->
                                 Image(
@@ -780,7 +947,7 @@ fun ToolWorkspaceV6(
 
         exportedUri?.let { uri ->
             item {
-                Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF5))) {
+                Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                     Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = {
                             runCatching {
@@ -806,9 +973,10 @@ fun ToolWorkspaceV6(
     }
 
     if (busy) {
-        ProcessingGearDialog(
+        PolishedProcessingDialogV7(
             title = strings.get("processing.title"),
-            subtitle = if (batchMode) strings.get("processing.batch") else strings.get("processing.subtitle")
+            subtitle = if (batchMode) strings.get("processing.batch") else strings.get("processing.subtitle"),
+            localMessage = strings.get("local")
         )
     }
 }
@@ -820,6 +988,59 @@ data class AnyToolDef(
     val end: Color,
     val premium: Boolean
 )
+
+@Composable
+private fun PolishedProcessingDialogV7(title: String, subtitle: String, localMessage: String) {
+    Dialog(onDismissRequest = {}) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(30.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Box(
+                    Modifier.size(82.dp)
+                        .clip(CircleShape)
+                        .background(Brush.linearGradient(listOf(Color(0xFF6D28D9), Color(0xFF0891B2)))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(62.dp),
+                        color = Color.White,
+                        strokeWidth = 3.dp
+                    )
+                    Icon(Icons.Default.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(25.dp))
+                }
+                Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Text(
+                    subtitle,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = RoundedCornerShape(13.dp)
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.Security, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text(localMessage, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun ToolControlsV6(
@@ -858,6 +1079,12 @@ private fun ToolControlsV6(
             Text(strings.get("quality") + " " + quality.toInt() + "%", fontWeight = FontWeight.Bold)
             Slider(quality, onQuality, valueRange = 10f..100f)
             FormatChipsV5(format, onFormat, listOf(OutputFormat.JPEG, OutputFormat.WEBP))
+        }
+        "base64" -> {
+            Text(strings.get("format"), fontWeight = FontWeight.Bold)
+            FormatChipsV5(format, onFormat, listOf(OutputFormat.JPEG, OutputFormat.PNG, OutputFormat.WEBP))
+            Text(strings.get("quality") + " " + quality.toInt() + "%", fontWeight = FontWeight.Bold)
+            Slider(quality, onQuality, valueRange = 10f..100f)
         }
         "convert", "metadata", "smart_resize", "social_presets" -> {
             FormatChipsV5(format, onFormat, listOf(OutputFormat.JPEG, OutputFormat.PNG, OutputFormat.WEBP))
@@ -969,4 +1196,52 @@ private fun ChoicesV6(
             }
         }
     }
+}
+
+
+private fun decodeToolThumbnail(context: Context, uri: Uri, maxEdge: Int = 180): Bitmap? {
+    val resolver = context.contentResolver
+    val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    val boundsStream = resolver.openInputStream(uri) ?: return null
+    boundsStream.use { android.graphics.BitmapFactory.decodeStream(it, null, bounds) }
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+    var sampleSize = 1
+    while (bounds.outWidth / sampleSize > maxEdge * 2 || bounds.outHeight / sampleSize > maxEdge * 2) {
+        sampleSize *= 2
+    }
+    val options = android.graphics.BitmapFactory.Options().apply {
+        inSampleSize = sampleSize
+    }
+    val stream = resolver.openInputStream(uri) ?: return null
+    val decoded = stream.use { android.graphics.BitmapFactory.decodeStream(it, null, options) } ?: return null
+    return createToolThumbnail(decoded, maxEdge)
+}
+
+private fun decodeToolPreview(bytes: ByteArray, maxEdge: Int = 180): Bitmap? {
+    val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+    var sampleSize = 1
+    while (bounds.outWidth / sampleSize > maxEdge * 2 || bounds.outHeight / sampleSize > maxEdge * 2) {
+        sampleSize *= 2
+    }
+    val options = android.graphics.BitmapFactory.Options().apply { inSampleSize = sampleSize }
+    val decoded = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) ?: return null
+    return createToolThumbnail(decoded, maxEdge)
+}
+
+private fun createToolThumbnail(source: Bitmap, maxEdge: Int = 180): Bitmap {
+    val longestEdge = maxOf(source.width, source.height)
+    if (longestEdge <= maxEdge) return source
+    val scale = maxEdge.toFloat() / longestEdge.toFloat()
+    val thumbnail = Bitmap.createScaledBitmap(
+        source,
+        (source.width * scale).toInt().coerceAtLeast(1),
+        (source.height * scale).toInt().coerceAtLeast(1),
+        true
+    )
+    if (thumbnail !== source && !source.isRecycled) source.recycle()
+    return thumbnail
 }
