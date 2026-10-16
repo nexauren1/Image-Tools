@@ -85,6 +85,7 @@ internal val TOOL_CATALOG = listOf(
     ToolDef("metadata", Icons.Default.Security, Color(0xFF059669), Color(0xFF0F766E)),
     ToolDef("pdf", Icons.Default.PictureAsPdf, Color(0xFFDC2626), Color(0xFFEA580C), true),
     ToolDef("palette", Icons.Default.ColorLens, Color(0xFF0EA5E9), Color(0xFF8B5CF6)),
+    ToolDef("css_palette", Icons.Default.Code, Color(0xFF0F766E), Color(0xFF22C55E)),
     ToolDef("collage", Icons.Default.Collections, Color(0xFFDB2777), Color(0xFFF97316), true),
     ToolDef("ocr", Icons.Default.TextSnippet, Color(0xFF2563EB), Color(0xFF8B5CF6)),
     ToolDef("base64", Icons.Default.Code, Color(0xFF334155), Color(0xFF3B82F6)),
@@ -478,7 +479,7 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
     val filtered = TOOL_CATALOG.filter {
         (strings.toolTitle(it.id) + " " + strings.toolSubtitle(it.id)).contains(query, true)
     }
-    val popularIds = listOf("resize", "compress", "auto_enhance", "ocr", "collage", "base64")
+    val popularIds = listOf("resize", "compress", "auto_enhance", "ocr", "collage", "base64", "css_palette")
     val popular = popularIds.mapNotNull { id -> filtered.firstOrNull { it.id == id } }
 
     LazyColumn(
