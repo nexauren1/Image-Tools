@@ -4,8 +4,8 @@ Image Tools is a modern Android toolbox for everyday image jobs, with a local-fi
 
 ## Current release
 
-- Version: 1.11.4
-- Version code: 24
+- Version: 1.15.0
+- Version code: 37
 - Package: `com.nexauren.imagetools`
 - Minimum Android: 10 (API 29)
 - Target Android: API 36
@@ -39,6 +39,7 @@ Image Tools is a modern Android toolbox for everyday image jobs, with a local-fi
 - Image to PDF
 - Dominant color palette
 - Quick collage for 2–4 images
+- Image to Base64 data URL with TXT export
 
 The expanded toolbox follows common patterns found in modern image utility apps—grouped tools, batch-oriented workflows, privacy/metadata controls, collage/stitching concepts and utility exports—while keeping the implementation lightweight and original.
 
@@ -127,5 +128,5 @@ Never commit:
 
 
 
-### Release 1.14.0
-Final release with Favorites, categorized tools and the expanded visual toolbox; notification features removed.
+### Release 1.15.0
+Refreshed tool discovery and workspace UI, source-image thumbnails, improved processing feedback, image-to-Base64 utility with copy/TXT export, and CPU-heavy image transformations moved off the UI thread. Background removal retired. Notifications remain removed.
