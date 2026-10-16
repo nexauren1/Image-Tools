@@ -870,7 +870,7 @@ fun ToolWorkspaceV6(
                             if (result.length <= 250_000) {
                                 OutlinedButton(onClick = {
                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    clipboard.setPrimaryClip(ClipData.newPlainText(strings.get("base64.result"), result))
+                                    clipboard.setPrimaryClip(ClipData.newPlainText(strings.get("result.content"), result))
                                     status = strings.get("base64.copy")
                                 }) {
                                     Icon(Icons.Default.ContentCopy, null)
