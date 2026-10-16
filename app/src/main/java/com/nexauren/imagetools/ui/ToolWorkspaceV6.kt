@@ -446,6 +446,18 @@ fun ToolWorkspaceV6(
                 val text = colors.joinToString("\n") { "#%06X".format(it and 0xFFFFFF) }
                 RawExportItem(text.toByteArray(), "text/plain", "txt", "palette")
             }
+            "css_palette" -> {
+                val colors = withContext(Dispatchers.Default) { AdvancedImageProcessor.palette(bitmap, 5) }
+                val css = buildString {
+                    append(":root {\n")
+                    colors.forEachIndexed { index, color ->
+                        append("  --image-tools-color-").append(index + 1).append(": #")
+                            .append("%06X".format(color and 0xFFFFFF)).append(";\n")
+                    }
+                    append("}\n")
+                }
+                RawExportItem(css.toByteArray(Charsets.UTF_8), "text/css", "css", "css_palette")
+            }
             "base64" -> {
                 val dataUrl = withContext(Dispatchers.Default) {
                     val bytes = ImageProcessor.encode(bitmap, format, quality.toInt())
