@@ -98,6 +98,14 @@ fun ToolWorkspaceV6(
     var mirrorAxis by remember { mutableStateOf("horizontal") }
 
     LaunchedEffect(tool.id) {
+        batchMode = tool.id in listOf("collage", "gif_creator", "pdf_merge", "split_grid")
+        sourceUris = emptyList()
+        sourcePreviewBitmaps = emptyList()
+        previewBitmaps = emptyList()
+        pendingItems = emptyList()
+        textResult = null
+        exportedUri = null
+        status = null
         val recipe = RecipeStore.consumePending(context)
         if (recipe != null && recipe.toolId == tool.id) {
             val cfg = recipe.config
@@ -192,6 +200,9 @@ fun ToolWorkspaceV6(
         }
         when (tool.id) {
             "pdf_merge" -> pdfPicker.launch(arrayOf("application/pdf"))
+            "base64" -> singlePicker.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
             "gif_creator", "collage" -> multiPicker.launch(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
             )
