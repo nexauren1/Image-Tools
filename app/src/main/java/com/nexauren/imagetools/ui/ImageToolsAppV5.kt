@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -86,7 +87,7 @@ internal val TOOL_CATALOG = listOf(
     ToolDef("palette", Icons.Default.ColorLens, Color(0xFF0EA5E9), Color(0xFF8B5CF6)),
     ToolDef("collage", Icons.Default.Collections, Color(0xFFDB2777), Color(0xFFF97316), true),
     ToolDef("ocr", Icons.Default.TextSnippet, Color(0xFF2563EB), Color(0xFF8B5CF6)),
-    ToolDef("background", Icons.Default.AutoFixNormal, Color(0xFF0EA5E9), Color(0xFF14B8A6), true),
+    ToolDef("base64", Icons.Default.Code, Color(0xFF334155), Color(0xFF3B82F6)),
     ToolDef("exif", Icons.Default.DataObject, Color(0xFF475569), Color(0xFF06B6D4)),
     ToolDef("auto_enhance", Icons.Default.AutoAwesome, Color(0xFF7C3AED), Color(0xFF06B6D4), true),
     ToolDef("exposure", Icons.Default.Exposure, Color(0xFFF59E0B), Color(0xFFEF4444)),
@@ -297,8 +298,8 @@ private fun favoritesLabelV5(context: Context): String = when (AppLanguageStore.
 }
 
 private fun toolCategoryV5(id: String): String = when {
-    id in setOf("details", "metadata", "exif", "face_blur", "background") -> "privacy"
-    id in setOf("pdf", "pdf_merge", "gif_creator", "ocr", "scan_document") -> "docs"
+    id in setOf("details", "metadata", "exif", "face_blur") -> "privacy"
+    id in setOf("pdf", "pdf_merge", "gif_creator", "ocr", "scan_document", "base64") -> "docs"
     id in setOf(
         "filter", "watermark", "brightness", "contrast", "saturation", "warmth",
         "negative", "blur", "sharpen", "pixelate", "border", "round", "auto_enhance",
@@ -477,7 +478,7 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
     val filtered = TOOL_CATALOG.filter {
         (strings.toolTitle(it.id) + " " + strings.toolSubtitle(it.id)).contains(query, true)
     }
-    val popularIds = listOf("resize", "compress", "auto_enhance", "background", "ocr", "collage")
+    val popularIds = listOf("resize", "compress", "auto_enhance", "ocr", "collage", "base64")
     val popular = popularIds.mapNotNull { id -> filtered.firstOrNull { it.id == id } }
 
     LazyColumn(
@@ -537,7 +538,7 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                             MiniPillV5(
-                                TOOL_CATALOG.size.toString() + "+",
+                                TOOL_CATALOG.size.toString(),
                                 strings.get("tools")
                             )
                             MiniPillV5(strings.get("local"), strings.get("processing"))
@@ -561,7 +562,18 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
         item {
             SectionTitleV5(strings.get("popular"), strings.get("home.subtitle"))
         }
-        items(popular) { tool -> ToolRowV5(tool, strings, premium, openTool) }
+        item {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(end = 4.dp)
+            ) {
+                items(popular, key = { it.id }) { tool ->
+                    Box(Modifier.width(204.dp)) {
+                        ToolGridCardV5(tool, strings, premium, openTool)
+                    }
+                }
+            }
+        }
         item {
             Row(
                 Modifier.fillMaxWidth(),
@@ -1275,13 +1287,6 @@ private fun ToolWorkspaceV5(
                     }
                     previewBitmap = bitmap
                     status = strings.get("exif.title")
-                }
-
-                "background" -> {
-                    val foreground = withContext(Dispatchers.Default) {
-                        BackgroundRemovalProcessor.removeBackground(bitmap)
-                    }
-                    prepareImage(foreground, OutputFormat.PNG, 100)
                 }
 
                 "pdf" -> {
