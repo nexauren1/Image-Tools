@@ -1222,110 +1222,304 @@ private fun ToolControlsV6(
     gridColumns: Int, onGridColumns: (Int) -> Unit,
     mirrorAxis: String, onMirrorAxis: (String) -> Unit
 ) {
-    when (tool.id) {
-        "resize" -> {
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                OutlinedTextField(width, { onWidth(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("width")) }, singleLine = true)
-                OutlinedTextField(height, { onHeight(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("height")) }, singleLine = true)
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+        when (tool.id) {
+            "resize" -> StudioControlPanelV8(strings.get("width") + " × " + strings.get("height"), strings.get("aspect"), Icons.Default.AspectRatio, tool.start) {
+                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    OutlinedTextField(
+                        value = width, onValueChange = { onWidth(it.filter(Char::isDigit)) },
+                        modifier = Modifier.weight(1f), label = { Text(strings.get("width")) },
+                        suffix = { Text("px") }, singleLine = true, shape = RoundedCornerShape(14.dp)
+                    )
+                    OutlinedTextField(
+                        value = height, onValueChange = { onHeight(it.filter(Char::isDigit)) },
+                        modifier = Modifier.weight(1f), label = { Text(strings.get("height")) },
+                        suffix = { Text("px") }, singleLine = true, shape = RoundedCornerShape(14.dp)
+                    )
+                }
+            }
+            "compress" -> {
+                StudioSliderPanelV8(strings.get("quality"), quality, 10f..100f, tool.start, Icons.Default.Compress, { onQuality(it) }, quality.toInt().toString() + "%")
+                StudioChoicePanelV8(strings.get("format"), listOf("JPEG" to "JPEG", "WEBP" to "WEBP"), format.name, tool.start, Icons.Default.Image) {
+                    onFormat(OutputFormat.valueOf(it))
+                }
+            }
+            "base64" -> {
+                StudioChoicePanelV8(strings.get("format"), listOf("JPEG" to "JPEG", "PNG" to "PNG", "WEBP" to "WEBP"), format.name, tool.start, Icons.Default.Code) {
+                    onFormat(OutputFormat.valueOf(it))
+                }
+                StudioSliderPanelV8(strings.get("quality"), quality, 10f..100f, tool.start, Icons.Default.Tune, { onQuality(it) }, quality.toInt().toString() + "%")
+            }
+            "convert", "metadata" -> StudioChoicePanelV8(
+                strings.get("format"), listOf("JPEG" to "JPEG", "PNG" to "PNG", "WEBP" to "WEBP"),
+                format.name, tool.start, Icons.Default.SwapHoriz
+            ) { onFormat(OutputFormat.valueOf(it)) }
+
+            "crop" -> StudioChoicePanelV8(
+                strings.get("tool.crop.title"),
+                listOf("Original" to "Original", "1:1" to "1:1", "4:5" to "4:5", "16:9" to "16:9", "9:16" to "9:16"),
+                cropRatio, tool.start, Icons.Default.Crop
+            ) { onCropRatio(it) }
+
+            "rotate" -> {
+                StudioChoicePanelV8(
+                    strings.get("tool.rotate.title"), listOf("90" to "90°", "180" to "180°", "270" to "270°"),
+                    angle.toString(), tool.start, Icons.Default.Rotate90DegreesCw
+                ) { onAngle(it.toInt()) }
+                StudioControlPanelV8(strings.get("mirror.h") + " / " + strings.get("mirror.v"), null, Icons.Default.Flip, tool.start) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        StudioToggleV8(strings.get("mirror.h"), flipH, tool.start, Modifier.weight(1f)) { onFlipH(!flipH) }
+                        StudioToggleV8(strings.get("mirror.v"), flipV, tool.start, Modifier.weight(1f)) { onFlipV(!flipV) }
+                    }
+                }
+            }
+            "filter" -> StudioChoicePanelV8(
+                strings.get("tool.filter.title"),
+                ImageFilter.entries.map { it.name to strings.filterTitle(it.name.lowercase()) },
+                imageFilter.name, tool.start, Icons.Default.FilterVintage
+            ) { selected -> onFilter(ImageFilter.valueOf(selected)) }
+
+            "watermark" -> {
+                StudioControlPanelV8(strings.get("text"), strings.get("tool.watermark.subtitle"), Icons.Default.TextFields, tool.start) {
+                    OutlinedTextField(
+                        value = watermark, onValueChange = onWatermark, modifier = Modifier.fillMaxWidth(),
+                        label = { Text(strings.get("text")) }, singleLine = true, shape = RoundedCornerShape(14.dp)
+                    )
+                }
+                StudioSliderPanelV8(strings.get("opacity"), opacity, 10f..100f, tool.start, Icons.Default.Opacity, { onOpacity(it) }, opacity.toInt().toString() + "%")
+                StudioChoicePanelV8(
+                    strings.get("position"),
+                    listOf(
+                        "top_left" to strings.get("position.top_left"),
+                        "top_right" to strings.get("position.top_right"),
+                        "center" to strings.get("position.center"),
+                        "bottom_left" to strings.get("position.bottom_left"),
+                        "bottom_right" to strings.get("position.bottom_right")
+                    ),
+                    position, tool.start, Icons.Default.ControlCamera
+                ) { onPosition(it) }
+            }
+
+            "brightness", "contrast", "saturation", "warmth", "exposure", "tint" -> {
+                val title = strings.get("tool." + tool.id + ".title")
+                StudioSliderPanelV8(title, amount, -100f..100f, tool.start, tool.icon, { onAmount(it) }, amount.toInt().toString())
+                StudioNoteV8(strings.get("tool." + tool.id + ".subtitle"), tool.start)
+            }
+            "blur", "sharpen", "noise_reduction", "face_blur", "vignette", "film_grain", "color_pop", "glitch", "outline", "scan_document" -> {
+                StudioSliderPanelV8(
+                    strings.get("strength"), amount, 5f..100f, tool.start, tool.icon, { onAmount(it) },
+                    amount.toInt().toString() + "%"
+                )
+                StudioNoteV8(strings.toolSubtitle(tool.id), tool.start)
+            }
+            "posterize" -> StudioSliderPanelV8(strings.get("strength"), amount, 2f..12f, tool.start, tool.icon, { onAmount(it) }, amount.toInt().toString() + " levels")
+            "pixelate" -> StudioSliderPanelV8(strings.get("tool.pixelate.title"), pixelSize, 4f..48f, tool.start, tool.icon, { onPixelSize(it) }, pixelSize.toInt().toString())
+            "border" -> StudioSliderPanelV8(strings.get("tool.border.title"), borderSize, 4f..120f, tool.start, tool.icon, { onBorderSize(it) }, borderSize.toInt().toString() + " px")
+            "round" -> StudioSliderPanelV8(strings.get("tool.round.title"), cornerRadius, 8f..160f, tool.start, tool.icon, { onCornerRadius(it) }, cornerRadius.toInt().toString() + " px")
+            "mirror" -> StudioChoicePanelV8(
+                strings.get("tool.mirror.title"), listOf("horizontal" to strings.get("mirror.h"), "vertical" to strings.get("mirror.v")),
+                mirrorAxis, tool.start, Icons.Default.Flip
+            ) { onMirrorAxis(it) }
+            "fit_canvas" -> {
+                StudioControlPanelV8(strings.get("width") + " × " + strings.get("height"), strings.get("tool.fit_canvas.subtitle"), Icons.Default.AspectRatio, tool.start) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        OutlinedTextField(width, { onWidth(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("width")) }, suffix = { Text("px") }, singleLine = true, shape = RoundedCornerShape(14.dp))
+                        OutlinedTextField(height, { onHeight(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("height")) }, suffix = { Text("px") }, singleLine = true, shape = RoundedCornerShape(14.dp))
+                    }
+                }
+                StudioChoicePanelV8(
+                    strings.get("background"), listOf("white" to strings.get("background.white"), "black" to strings.get("background.black")),
+                    fitBackground, tool.start, Icons.Default.Palette
+                ) { onFitBackground(it) }
+            }
+            "target_size" -> {
+                StudioSliderPanelV8(strings.get("target.kb"), targetKb, 50f..5000f, tool.start, Icons.Default.DataUsage, { onTargetKb(it) }, targetKb.toInt().toString() + " KB", steps = 48)
+                StudioChoicePanelV8(strings.get("format"), listOf("JPEG" to "JPEG", "WEBP" to "WEBP"), format.name, tool.start, Icons.Default.Image) {
+                    onFormat(OutputFormat.valueOf(it))
+                }
+            }
+            "split_grid" -> {
+                StudioChoicePanelV8(strings.get("grid.rows"), listOf("2" to "2", "3" to "3", "4" to "4"), gridRows.toString(), tool.start, Icons.Default.GridOn) { onGridRows(it.toInt()) }
+                StudioChoicePanelV8(strings.get("grid.columns"), listOf("2" to "2", "3" to "3", "4" to "4"), gridColumns.toString(), tool.start, Icons.Default.GridOn) { onGridColumns(it.toInt()) }
+            }
+            "duotone" -> StudioChoicePanelV8(
+                strings.get("tool.duotone.title"),
+                listOf("ocean" to strings.get("duotone.ocean"), "sunset" to strings.get("duotone.sunset"), "ink" to strings.get("duotone.ink")),
+                duotonePreset, tool.start, Icons.Default.ColorLens
+            ) { onDuotonePreset(it) }
+
+            "social_presets" -> StudioChoicePanelV8(
+                strings.get("preset.social"),
+                SocialImageProcessor.presets.map { it.id to it.title }, socialPreset, tool.start, Icons.Default.PhoneAndroid
+            ) { onSocialPreset(it) }
+
+            "smart_resize" -> {
+                StudioControlPanelV8(strings.get("smart.resize"), strings.get("tool.smart_resize.subtitle"), Icons.Default.AspectRatio, tool.start) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        OutlinedTextField(smartWidth, { onSmartWidth(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("width")) }, suffix = { Text("px") }, singleLine = true, shape = RoundedCornerShape(14.dp))
+                        OutlinedTextField(smartHeight, { onSmartHeight(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("height")) }, suffix = { Text("px") }, singleLine = true, shape = RoundedCornerShape(14.dp))
+                    }
+                }
+                StudioChoicePanelV8(strings.get("format"), listOf("JPEG" to "JPEG", "PNG" to "PNG", "WEBP" to "WEBP"), format.name, tool.start, Icons.Default.Image) {
+                    onFormat(OutputFormat.valueOf(it))
+                }
+            }
+            "heic_avif" -> {
+                StudioChoicePanelV8(
+                    strings.get("modern.formats"), listOf("HEIC" to "HEIC", "AVIF" to "AVIF"), modernFormat.name, tool.start, Icons.Default.Image
+                ) { onModernFormat(ModernFormat.valueOf(it)) }
+                StudioSliderPanelV8(strings.get("quality"), quality, 10f..100f, tool.start, Icons.Default.Tune, { onQuality(it) }, quality.toInt().toString() + "%")
+            }
+            "gif_creator" -> StudioSliderPanelV8(strings.get("quality"), gifDelay, 100f..1500f, tool.start, Icons.Default.Gif, { onGifDelay(it) }, gifDelay.toInt().toString() + " ms")
+            "css_palette" -> StudioNoteV8(strings.get("tool.css_palette.subtitle"), tool.start)
+            "palette" -> StudioNoteV8(strings.get("tool.palette.subtitle"), tool.start)
+            "ocr" -> StudioNoteV8(strings.get("tool.ocr.subtitle"), tool.start)
+            "exif" -> StudioNoteV8(strings.get("tool.exif.subtitle"), tool.start)
+            "details" -> StudioNoteV8(strings.get("tool.details.subtitle"), tool.start)
+            "negative", "auto_enhance", "pdf", "collage" -> StudioNoteV8(strings.toolSubtitle(tool.id), tool.start)
+            else -> StudioNoteV8(strings.toolSubtitle(tool.id), tool.start)
+        }
+    }
+}
+
+@Composable
+private fun StudioControlPanelV8(
+    title: String, subtitle: String?, icon: ImageVector, accent: Color,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val shape = RoundedCornerShape(20.dp)
+    Card(
+        modifier = Modifier.fillMaxWidth().border(BorderStroke(1.dp, accent.copy(alpha = 0.18f)), shape),
+        shape = shape,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f))
+    ) {
+        Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(accent.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+                    Icon(icon, null, tint = accent, modifier = Modifier.size(19.dp))
+                }
+                Spacer(Modifier.width(9.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                    if (!subtitle.isNullOrBlank()) Text(subtitle, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 14.sp)
+                }
+            }
+            content()
+        }
+    }
+}
+
+@Composable
+private fun StudioSliderPanelV8(
+    title: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    accent: Color,
+    icon: ImageVector,
+    onValue: (Float) -> Unit,
+    valueLabel: String = value.toInt().toString(),
+    steps: Int = 0
+) {
+    StudioControlPanelV8(title, null, icon, accent) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(title, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            Surface(color = accent.copy(alpha = 0.13f), shape = RoundedCornerShape(10.dp)) {
+                Text(valueLabel, Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = accent, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp)
             }
         }
-        "compress" -> {
-            Text(strings.get("quality") + " " + quality.toInt() + "%", fontWeight = FontWeight.Bold)
-            Slider(quality, onQuality, valueRange = 10f..100f)
-            FormatChipsV5(format, onFormat, listOf(OutputFormat.JPEG, OutputFormat.WEBP))
-        }
-        "base64" -> {
-            Text(strings.get("format"), fontWeight = FontWeight.Bold)
-            FormatChipsV5(format, onFormat, listOf(OutputFormat.JPEG, OutputFormat.PNG, OutputFormat.WEBP))
-            Text(strings.get("quality") + " " + quality.toInt() + "%", fontWeight = FontWeight.Bold)
-            Slider(quality, onQuality, valueRange = 10f..100f)
-        }
-        "convert", "metadata", "smart_resize", "social_presets" -> {
-            FormatChipsV5(format, onFormat, listOf(OutputFormat.JPEG, OutputFormat.PNG, OutputFormat.WEBP))
-        }
-        "crop" -> ChoicesV5(listOf("1:1", "4:5", "16:9", "9:16"), cropRatio, onCropRatio)
-        "rotate" -> {
-            ChoicesV5(listOf("90", "180", "270"), angle.toString()) { onAngle(it.toInt()) }
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                FilterChip(flipH, { onFlipH(!flipH) }, label = { Text(strings.get("mirror.h")) }, modifier = Modifier.weight(1f))
-                FilterChip(flipV, { onFlipV(!flipV) }, label = { Text(strings.get("mirror.v")) }, modifier = Modifier.weight(1f))
-            }
-        }
-        "filter" -> ChoicesV5(
-            ImageFilter.entries.map { strings.filterTitle(it.name.lowercase()) },
-            strings.filterTitle(imageFilter.name.lowercase())
-        ) { selected -> onFilter(ImageFilter.entries.first { strings.filterTitle(it.name.lowercase()) == selected }) }
-        "watermark" -> {
-            OutlinedTextField(watermark, onWatermark, Modifier.fillMaxWidth(), label = { Text(strings.get("text")) }, singleLine = true)
-            Slider(opacity, onOpacity, valueRange = 10f..100f)
-        }
-        "brightness", "contrast", "saturation", "warmth", "blur", "sharpen", "exposure", "tint", "vignette", "noise_reduction", "face_blur" -> {
-            Text(strings.get("strength") + " " + amount.toInt())
-            Slider(
-                amount,
-                onAmount,
-                valueRange = if (tool.id in listOf("brightness", "contrast", "saturation", "warmth", "exposure", "tint")) -100f..100f else 5f..100f
+        Slider(
+            value = value.coerceIn(range.start, range.endInclusive),
+            onValueChange = onValue,
+            valueRange = range,
+            steps = steps,
+            colors = SliderDefaults.colors(
+                thumbColor = accent,
+                activeTrackColor = accent,
+                inactiveTrackColor = accent.copy(alpha = 0.20f),
+                activeTickColor = Color.White,
+                inactiveTickColor = accent.copy(alpha = 0.28f)
             )
-        }
-        "pixelate" -> Slider(pixelSize, onPixelSize, valueRange = 4f..48f)
-        "border" -> Slider(borderSize, onBorderSize, valueRange = 4f..120f)
-        "round" -> Slider(cornerRadius, onCornerRadius, valueRange = 8f..160f)
-        "mirror" -> ChoicesV5(listOf("horizontal", "vertical"), mirrorAxis, onMirrorAxis)
-        "fit_canvas" -> {
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                OutlinedTextField(width, { onWidth(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("width")) }, singleLine = true)
-                OutlinedTextField(height, { onHeight(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("height")) }, singleLine = true)
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                FilterChip(fitBackground == "white", { onFitBackground("white") }, label = { Text(strings.get("background.white")) }, modifier = Modifier.weight(1f))
-                FilterChip(fitBackground == "black", { onFitBackground("black") }, label = { Text(strings.get("background.black")) }, modifier = Modifier.weight(1f))
-            }
-        }
-        "target_size" -> {
-            Text(strings.get("target.kb") + ": " + targetKb.toInt())
-            Slider(targetKb, onTargetKb, valueRange = 50f..5000f, steps = 99)
-            FormatChipsV5(format, onFormat, listOf(OutputFormat.JPEG, OutputFormat.WEBP))
-        }
-        "split_grid" -> {
-            Text(strings.get("grid.rows"))
-            ChoicesV5(listOf("2", "3", "4"), gridRows.toString()) { onGridRows(it.toInt()) }
-            Text(strings.get("grid.columns"))
-            ChoicesV5(listOf("2", "3", "4"), gridColumns.toString()) { onGridColumns(it.toInt()) }
-        }
-        "duotone" -> ChoicesV5(listOf(strings.get("duotone.ocean"), strings.get("duotone.sunset"), strings.get("duotone.ink")),
-            when (duotonePreset) {
-                "sunset" -> strings.get("duotone.sunset")
-                "ink" -> strings.get("duotone.ink")
-                else -> strings.get("duotone.ocean")
-            }
-        ) { selected ->
-            onDuotonePreset(when (selected) {
-                strings.get("duotone.sunset") -> "sunset"
-                strings.get("duotone.ink") -> "ink"
-                else -> "ocean"
-            })
-        }
-        "social_presets" -> ChoicesV6(
-            SocialImageProcessor.presets.map { it.id to it.title },
-            socialPreset,
-            onSocialPreset
         )
-        "smart_resize" -> {
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                OutlinedTextField(smartWidth, { onSmartWidth(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("width")) }, singleLine = true)
-                OutlinedTextField(smartHeight, { onSmartHeight(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("height")) }, singleLine = true)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(range.start.toInt().toString(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp)
+            Text(range.endInclusive.toInt().toString(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp)
+        }
+    }
+}
+
+@Composable
+private fun StudioChoicePanelV8(
+    title: String,
+    options: List<Pair<String, String>>,
+    selected: String,
+    accent: Color,
+    icon: ImageVector,
+    onSelect: (String) -> Unit
+) {
+    StudioControlPanelV8(title, null, icon, accent) {
+        options.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { (value, label) ->
+                    val isSelected = value == selected
+                    Surface(
+                        onClick = { onSelect(value) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(13.dp),
+                        color = if (isSelected) accent else MaterialTheme.colorScheme.surface,
+                        contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 9.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (isSelected) {
+                                Icon(Icons.Default.Check, null, modifier = Modifier.size(14.dp))
+                                Spacer(Modifier.width(5.dp))
+                            }
+                            Text(label, fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium, fontSize = 11.sp, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        }
+                    }
+                }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
-        "heic_avif" -> ChoicesV5(
-            listOf(ModernFormat.HEIC.name, ModernFormat.AVIF.name),
-            modernFormat.name,
-            { onModernFormat(ModernFormat.valueOf(it)) }
-        )
-        "gif_creator" -> {
-            Text(strings.get("quality") + " " + gifDelay.toInt() + " ms")
-            Slider(gifDelay, onGifDelay, valueRange = 100f..1500f)
+    }
+}
+
+@Composable
+private fun StudioToggleV8(title: String, selected: Boolean, accent: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = if (selected) accent else MaterialTheme.colorScheme.surface,
+        contentColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurface,
+        border = BorderStroke(1.dp, if (selected) accent else MaterialTheme.colorScheme.outline.copy(alpha = 0.24f))
+    ) {
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 13.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            Icon(if (selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked, null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(title, fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
-        else -> Text(strings.toolSubtitle(tool.id), fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun StudioNoteV8(text: String, accent: Color) {
+    StudioControlPanelV8(
+        title = LocalUiText.current.get("processing.title"),
+        subtitle = text,
+        icon = Icons.Default.AutoAwesome,
+        accent = accent
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Security, null, tint = accent, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(LocalUiText.current.get("local"), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+            Spacer(Modifier.weight(1f))
+            Icon(Icons.Default.CheckCircle, null, tint = accent)
+        }
     }
 }
 
