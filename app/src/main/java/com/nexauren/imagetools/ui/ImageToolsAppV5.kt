@@ -90,7 +90,7 @@ internal val TOOL_CATALOG = listOf(
     ToolDef("ocr", Icons.Default.TextSnippet, Color(0xFF2563EB), Color(0xFF8B5CF6)),
     ToolDef("base64", Icons.Default.Code, Color(0xFF334155), Color(0xFF3B82F6)),
     ToolDef("exif", Icons.Default.DataObject, Color(0xFF475569), Color(0xFF06B6D4)),
-    ToolDef("auto_enhance", Icons.Default.AutoAwesome, Color(0xFF7C3AED), Color(0xFF06B6D4), true),
+    ToolDef("auto_enhance", Icons.Default.AutoAwesome, Color(0xFF6548E8), Color(0xFF087F8C), true),
     ToolDef("exposure", Icons.Default.Exposure, Color(0xFFF59E0B), Color(0xFFEF4444)),
     ToolDef("tint", Icons.Default.Tune, Color(0xFF14B8A6), Color(0xFF3B82F6)),
     ToolDef("vignette", Icons.Default.BlurOn, Color(0xFF111827), Color(0xFF7C3AED), true),
@@ -376,7 +376,7 @@ private fun AuthScreenV5(auth: AuthRepository) {
             item {
                 Box(
                     Modifier.size(86.dp).clip(RoundedCornerShape(26.dp))
-                        .background(Brush.linearGradient(listOf(Color(0xFF7C3AED), Color(0xFF06B6D4)))),
+                        .background(Brush.linearGradient(listOf(Color(0xFF6548E8), Color(0xFF087F8C)))),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Default.AutoFixHigh, null, tint = Color.White, modifier = Modifier.size(42.dp))
@@ -619,32 +619,30 @@ private fun ToolsScreenV5(strings: UiText, premium: Boolean, openTool: (String) 
     }
 
     Column(Modifier.fillMaxSize()) {
-        Surface(
-            tonalElevation = 2.dp,
-            shape = RoundedCornerShape(24.dp),
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+            shape = RoundedCornerShape(23.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF101426))
         ) {
             Row(
-                Modifier.fillMaxWidth().padding(14.dp),
+                Modifier.fillMaxWidth()
+                    .background(Brush.linearGradient(listOf(Color(0xFF101426), Color(0xFF6548E8), Color(0xFF087F8C))))
+                    .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Build, null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(strings.get("tools"), fontWeight = FontWeight.ExtraBold)
-                    Text(
-                        filtered.size.toString() + " " + strings.get("tools"),
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Box(
+                    Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(Color.White.copy(alpha = 0.14f)),
+                    contentAlignment = Alignment.Center
+                ) { Icon(Icons.Default.GridView, null, tint = Color.White, modifier = Modifier.size(23.dp)) }
+                Spacer(Modifier.width(11.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(strings.get("tools"), fontWeight = FontWeight.ExtraBold, color = Color.White, fontSize = 17.sp)
+                    Text(filtered.size.toString() + " " + strings.get("tools"), fontSize = 10.sp, color = Color.White.copy(alpha = 0.76f))
                 }
                 if (filtered.any { it.premium }) {
-                    Text(
-                        strings.get("pro"),
-                        color = Color(0xFF7C3AED),
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 10.sp
-                    )
+                    Surface(color = Color.White.copy(alpha = 0.14f), shape = RoundedCornerShape(10.dp)) {
+                        Text(strings.get("pro"), modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp), color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp)
+                    }
                 }
             }
         }
@@ -690,106 +688,150 @@ private fun ToolsScreenV5(strings: UiText, premium: Boolean, openTool: (String) 
 
 @Composable
 internal fun ToolGridCardV5(tool: ToolDef, strings: UiText, premium: Boolean, openTool: (String) -> Unit) {
+    val context = LocalContext.current
+    var favorite by remember(tool.id) { mutableStateOf(FavoritesStore.isFavorite(context, tool.id)) }
+    val shape = RoundedCornerShape(26.dp)
+
     Card(
         onClick = { openTool(tool.id) },
-        shape = RoundedCornerShape(24.dp)
+        modifier = Modifier.fillMaxWidth().border(
+            BorderStroke(1.dp, tool.start.copy(alpha = 0.23f)), shape
+        ),
+        shape = shape,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Column(
-            Modifier.padding(13.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
-        ) {
-            val context = LocalContext.current
-            var favorite by remember(tool.id) {
-                mutableStateOf(FavoritesStore.isFavorite(context, tool.id))
-            }
-
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
+        Column {
+            Box(
+                Modifier.fillMaxWidth().height(83.dp)
+                    .clip(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp, bottomStart = 0.dp, bottomEnd = 0.dp))
+                    .background(Brush.linearGradient(listOf(tool.start, tool.end, tool.start.copy(alpha = 0.78f))))
             ) {
                 Box(
-                    Modifier.size(44.dp)
-                        .clip(RoundedCornerShape(15.dp))
-                        .background(Brush.linearGradient(listOf(tool.start, tool.end))),
+                    Modifier.align(Alignment.CenterEnd).padding(end = 8.dp)
+                        .size(80.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.10f))
+                )
+                Box(
+                    Modifier.align(Alignment.CenterStart).padding(start = 14.dp)
+                        .size(52.dp).clip(RoundedCornerShape(17.dp))
+                        .background(Color.White.copy(alpha = 0.18f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(tool.icon, null, tint = Color.White)
+                    Icon(tool.icon, null, tint = Color.White, modifier = Modifier.size(29.dp))
                 }
-                Spacer(Modifier.weight(1f))
                 if (tool.premium && !premium) {
                     Surface(
+                        modifier = Modifier.align(Alignment.TopEnd).padding(top = 10.dp, end = 8.dp),
                         shape = RoundedCornerShape(9.dp),
-                        color = Color(0xFFEDE9FE)
+                        color = Color.White.copy(alpha = 0.94f),
+                        contentColor = tool.start
                     ) {
-                        Text(
-                            strings.get("pro"),
-                            color = Color(0xFF6D28D9),
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 8.sp,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                        )
+                        Row(Modifier.padding(horizontal = 7.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.WorkspacePremium, null, modifier = Modifier.size(11.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(strings.get("pro"), fontWeight = FontWeight.ExtraBold, fontSize = 8.sp)
+                        }
                     }
                 }
                 IconButton(
                     onClick = { favorite = FavoritesStore.toggle(context, tool.id) },
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = 7.dp, bottom = 4.dp)
+                        .size(35.dp).clip(RoundedCornerShape(12.dp))
+                        .background(Color.Black.copy(alpha = 0.13f))
                 ) {
                     Icon(
                         if (favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         null,
-                        tint = if (favorite) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
-            Text(
-                strings.toolTitle(tool.id),
-                fontWeight = FontWeight.ExtraBold,
-                maxLines = 1
-            )
-            Text(
-                strings.toolSubtitle(tool.id),
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                minLines = 2
-            )
+
+            Column(Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 13.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        strings.toolTitle(tool.id),
+                        modifier = Modifier.weight(1f),
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Icon(Icons.Default.ChevronRight, null, tint = tool.start, modifier = Modifier.size(17.dp))
+                }
+                Text(
+                    strings.toolSubtitle(tool.id),
+                    fontSize = 10.sp,
+                    lineHeight = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    minLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Surface(
+                    color = tool.start.copy(alpha = 0.09f),
+                    shape = RoundedCornerShape(9.dp)
+                ) {
+                    Text(
+                        when {
+                            tool.premium && !premium -> strings.get("pro")
+                            tool.id in listOf("base64", "css_palette", "ocr", "exif", "palette", "details") -> strings.get("local")
+                            else -> strings.get("tools")
+                        },
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                        color = tool.start,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
 private fun ToolRowV5(tool: ToolDef, strings: UiText, premium: Boolean, openTool: (String) -> Unit) {
-    Card(onClick = { openTool(tool.id) }, shape = RoundedCornerShape(21.dp)) {
-        Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+    val context = LocalContext.current
+    var favorite by remember(tool.id) { mutableStateOf(FavoritesStore.isFavorite(context, tool.id)) }
+    val shape = RoundedCornerShape(22.dp)
+    Card(
+        onClick = { openTool(tool.id) },
+        modifier = Modifier.fillMaxWidth().border(BorderStroke(1.dp, tool.start.copy(alpha = 0.18f)), shape),
+        shape = shape,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             Box(
-                Modifier.size(50.dp).clip(RoundedCornerShape(17.dp))
+                Modifier.size(55.dp).clip(RoundedCornerShape(18.dp))
                     .background(Brush.linearGradient(listOf(tool.start, tool.end))),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(tool.icon, null, tint = Color.White)
+                Icon(tool.icon, null, tint = Color.White, modifier = Modifier.size(26.dp))
             }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(strings.toolTitle(tool.id), fontWeight = FontWeight.ExtraBold)
-                Text(strings.toolSubtitle(tool.id), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(strings.toolTitle(tool.id), fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    if (tool.premium && !premium) {
+                        Surface(color = tool.start.copy(alpha = 0.12f), shape = RoundedCornerShape(8.dp)) {
+                            Text(strings.get("pro"), modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp), color = tool.start, fontWeight = FontWeight.ExtraBold, fontSize = 8.sp)
+                        }
+                    }
+                }
+                Text(strings.toolSubtitle(tool.id), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            if (tool.premium && !premium) {
-                Text(strings.get("pro"), color = Color(0xFF7C3AED), fontWeight = FontWeight.ExtraBold, fontSize = 9.sp)
-            }
-            val context = LocalContext.current
-            var favorite by remember(tool.id) {
-                mutableStateOf(FavoritesStore.isFavorite(context, tool.id))
-            }
-            IconButton(
-                onClick = { favorite = FavoritesStore.toggle(context, tool.id) },
-                modifier = Modifier.size(34.dp)
-            ) {
+            IconButton(onClick = { favorite = FavoritesStore.toggle(context, tool.id) }, modifier = Modifier.size(36.dp)) {
                 Icon(
                     if (favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     null,
-                    tint = if (favorite) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = if (favorite) tool.start else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
