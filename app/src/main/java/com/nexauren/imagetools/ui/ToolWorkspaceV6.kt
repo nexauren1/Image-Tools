@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -1508,7 +1509,7 @@ private fun StudioToggleV8(title: String, selected: Boolean, accent: Color, modi
 @Composable
 private fun StudioNoteV8(text: String, accent: Color) {
     StudioControlPanelV8(
-        title = LocalUiText.current.get("processing.title"),
+        title = LocalUiText.current.get("local"),
         subtitle = text,
         icon = Icons.Default.AutoAwesome,
         accent = accent
