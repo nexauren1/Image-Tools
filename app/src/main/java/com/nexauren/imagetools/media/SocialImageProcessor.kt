@@ -43,13 +43,21 @@ object SocialImageProcessor {
     }
 
     fun letterbox(bitmap: Bitmap, width: Int, height: Int, background: Int = android.graphics.Color.BLACK): Bitmap {
+        ImageProcessor.requireSafeOutputDimensions(width, height)
         val scaled = smartResize(bitmap, width, height, false)
         val out = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(out)
-        canvas.drawColor(background)
-        val left = (width - scaled.width) / 2f
-        val top = (height - scaled.height) / 2f
-        canvas.drawBitmap(scaled, left, top, null)
-        return out
+        try {
+            val canvas = Canvas(out)
+            canvas.drawColor(background)
+            val left = (width - scaled.width) / 2f
+            val top = (height - scaled.height) / 2f
+            canvas.drawBitmap(scaled, left, top, null)
+            return out
+        } catch (error: Exception) {
+            out.recycle()
+            throw error
+        } finally {
+            if (scaled !== bitmap && !scaled.isRecycled) scaled.recycle()
+        }
     }
 }
