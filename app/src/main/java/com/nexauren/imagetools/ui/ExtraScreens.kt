@@ -25,6 +25,35 @@ import java.util.Date
 fun HistoryScreenV5(strings: UiText) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var entries by remember { mutableStateOf(HistoryStore.list(context)) }
+    var showClearConfirmation by remember { mutableStateOf(false) }
+
+    if (showClearConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirmation = false },
+            title = { Text(strings.get("history.clear.title")) },
+            text = { Text(strings.get("history.clear.body")) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        HistoryStore.clear(context)
+                        entries = emptyList()
+                        showClearConfirmation = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text(strings.get("history.clear.confirm"))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirmation = false }) {
+                    Text(strings.get("cancel"))
+                }
+            }
+        )
+    }
+
     Column(Modifier.fillMaxSize()) {
         Row(
             Modifier.fillMaxWidth().padding(16.dp),
@@ -32,13 +61,20 @@ fun HistoryScreenV5(strings: UiText) {
         ) {
             Column {
                 Text(strings.get("history"), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
-                Text(strings.get("history.empty"), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    strings.get("history.subtitle"),
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            IconButton(onClick = {
-                HistoryStore.clear(context)
-                entries = emptyList()
-            }) {
-                Icon(Icons.Default.DeleteSweep, contentDescription = null)
+            IconButton(
+                enabled = entries.isNotEmpty(),
+                onClick = { showClearConfirmation = true }
+            ) {
+                Icon(
+                    Icons.Default.DeleteSweep,
+                    contentDescription = strings.get("history.clear")
+                )
             }
         }
         if (entries.isEmpty()) {
@@ -54,7 +90,7 @@ fun HistoryScreenV5(strings: UiText) {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(entries) { entry ->
-                    HistoryCardV5(entry)
+                    HistoryCardV5(entry, strings)
                 }
             }
         }
@@ -62,7 +98,7 @@ fun HistoryScreenV5(strings: UiText) {
 }
 
 @Composable
-private fun HistoryCardV5(entry: HistoryEntry) {
+private fun HistoryCardV5(entry: HistoryEntry, strings: UiText) {
     Card(shape = RoundedCornerShape(20.dp)) {
         ListItem(
             leadingContent = {
@@ -73,7 +109,7 @@ private fun HistoryCardV5(entry: HistoryEntry) {
             },
             supportingContent = {
                 Text(
-                    entry.inputCount.toString() + " input(s) • " +
+                    entry.inputCount.toString() + " " + strings.get("history.inputs") + " • " +
                         DateFormat.getDateTimeInstance().format(Date(entry.timestamp)),
                     fontSize = 10.sp
                 )
