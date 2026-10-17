@@ -58,6 +58,30 @@ object PaymentRepository {
             }
         }
 
+    /**
+     * Returns true when PayPal cancellation and the server-side entitlement update both succeeded.
+     * A false result means PayPal accepted cancellation but the entitlement sync needs retrying.
+     */
+    suspend fun cancelSubscription(
+        token: String,
+        subscriptionId: String? = null
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        runCatching {
+            val connection = open("/paypal/cancel-subscription", token, "POST")
+            try {
+                val body = JSONObject()
+                    .put("subscriptionId", subscriptionId.orEmpty())
+                    .toString()
+                connection.outputStream.bufferedWriter().use { it.write(body) }
+                val data = readJsonObject(connection, read(connection), "subscription-cancel")
+                requirePaymentOk(connection, data, "subscription-cancel")
+                data.optBoolean("entitlementSynced", true)
+            } finally {
+                connection.disconnect()
+            }
+        }
+    }
+
     private fun open(path: String, token: String, method: String): HttpURLConnection {
         require(!BuildConfig.WORKER_URL.contains("YOUR-IMAGE-TOOLS-WORKER"))
         val workerUrl = URL(BuildConfig.WORKER_URL.trimEnd('/') + path)
