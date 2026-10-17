@@ -737,6 +737,7 @@ async function resolveOwnedSubscription(paypal, userId, candidates, storedSubscr
         const error = new Error("Subscription ownership mismatch");
         error.code = "SUBSCRIPTION_OWNERSHIP_MISMATCH";
         error.stage = "subscription-ownership";
+        error.httpStatus = 403;
         lastError = error;
         continue;
       }
@@ -745,6 +746,7 @@ async function resolveOwnedSubscription(paypal, userId, candidates, storedSubscr
         const error = new Error("Subscription ownership could not be verified");
         error.code = "SUBSCRIPTION_OWNER_UNVERIFIED";
         error.stage = "subscription-ownership";
+        error.httpStatus = 403;
         lastError = error;
         continue;
       }
