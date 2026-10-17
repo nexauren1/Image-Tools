@@ -28,6 +28,22 @@ object AppLanguageStore {
     }
 }
 
+object AppThemeStore {
+    private const val PREFS = "image_tools_preferences"
+    private const val KEY_DARK_MODE = "dark_mode"
+
+    fun get(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_DARK_MODE, false)
+
+    fun save(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_DARK_MODE, enabled)
+            .apply()
+    }
+}
+
 class UiText(private val language: AppLanguage) {
     private val map = when (language) {
         AppLanguage.PT -> pt
@@ -52,6 +68,25 @@ class UiText(private val language: AppLanguage) {
             "auth.generic" to "Não foi possível concluir o início de sessão.",
             "premium.active" to "PRO ativo",
             "premium.unlock" to "Desbloquear ferramentas avançadas",
+            "history.subtitle" to "Ferramentas e operações de imagem recentes",
+            "history.inputs" to "entrada(s)",
+            "history.clear" to "Limpar histórico",
+            "history.clear.title" to "Limpar o histórico?",
+            "history.clear.body" to "Isto remove todos os registos de histórico guardados neste dispositivo.",
+            "history.clear.confirm" to "Limpar histórico",
+            "favorites.title" to "Favoritos",
+            "favorites.empty.title" to "Ainda está vazio",
+            "favorites.empty.body" to "Toque na estrela de uma ferramenta para a guardar nesta página.",
+            "favorites.clear" to "Limpar favoritos",
+            "favorites.add" to "Adicionar aos favoritos",
+            "favorites.remove" to "Remover dos favoritos",
+            "subscription.cancel" to "Cancelar assinatura",
+            "subscription.cancel.title" to "Cancelar assinatura Premium?",
+            "subscription.cancel.body" to "O PayPal vai parar a renovação da assinatura. O acesso Premium pode demorar um pouco a atualizar.",
+            "subscription.cancel.confirm" to "Confirmar cancelamento",
+            "subscription.cancel.done" to "Assinatura cancelada.",
+            "subscription.cancel.warning" to "O PayPal cancelou a assinatura, mas o estado da conta ainda não sincronizou. Tenta atualizar mais tarde.",
+            "subscription.cancel.error" to "Não foi possível cancelar a assinatura.",
             "background.white" to "Branco",
             "canvas.background" to "Fundo da tela",
             "background.black" to "Preto",
@@ -124,6 +159,25 @@ class UiText(private val language: AppLanguage) {
             "auth.generic" to "We could not complete sign-in.",
             "premium.active" to "PRO active",
             "premium.unlock" to "Unlock advanced image tools",
+            "history.subtitle" to "Your recent tools and image operations",
+            "history.inputs" to "input(s)",
+            "history.clear" to "Clear history",
+            "history.clear.title" to "Clear your history?",
+            "history.clear.body" to "This removes all history entries stored on this device.",
+            "history.clear.confirm" to "Clear history",
+            "favorites.title" to "Favorites",
+            "favorites.empty.title" to "Nothing here yet",
+            "favorites.empty.body" to "Tap the star on any tool to save it here.",
+            "favorites.clear" to "Clear favorites",
+            "favorites.add" to "Add to favorites",
+            "favorites.remove" to "Remove from favorites",
+            "subscription.cancel" to "Cancel subscription",
+            "subscription.cancel.title" to "Cancel Premium subscription?",
+            "subscription.cancel.body" to "PayPal will stop renewing the subscription. Your Premium access status may take a moment to update.",
+            "subscription.cancel.confirm" to "Confirm cancellation",
+            "subscription.cancel.done" to "Subscription cancelled.",
+            "subscription.cancel.warning" to "PayPal cancelled the subscription, but account status has not synced yet. Try refreshing later.",
+            "subscription.cancel.error" to "Could not cancel the subscription.",
             "background.white" to "White",
             "canvas.background" to "Canvas background",
             "background.black" to "Black",
@@ -202,6 +256,25 @@ class UiText(private val language: AppLanguage) {
             "auth.generic" to "No se pudo completar el inicio de sesión.",
             "premium.active" to "PRO activo",
             "premium.unlock" to "Desbloquear herramientas avanzadas",
+            "history.subtitle" to "Tus herramientas y operaciones de imagen recientes",
+            "history.inputs" to "entrada(s)",
+            "history.clear" to "Borrar historial",
+            "history.clear.title" to "¿Borrar el historial?",
+            "history.clear.body" to "Esto elimina todos los registros del historial guardados en este dispositivo.",
+            "history.clear.confirm" to "Borrar historial",
+            "favorites.title" to "Favoritos",
+            "favorites.empty.title" to "Todavía está vacío",
+            "favorites.empty.body" to "Toca la estrella de una herramienta para guardarla aquí.",
+            "favorites.clear" to "Limpiar favoritos",
+            "favorites.add" to "Añadir a favoritos",
+            "favorites.remove" to "Quitar de favoritos",
+            "subscription.cancel" to "Cancelar suscripción",
+            "subscription.cancel.title" to "¿Cancelar la suscripción Premium?",
+            "subscription.cancel.body" to "PayPal dejará de renovar la suscripción. El estado de acceso Premium puede tardar un momento en actualizarse.",
+            "subscription.cancel.confirm" to "Confirmar cancelación",
+            "subscription.cancel.done" to "Suscripción cancelada.",
+            "subscription.cancel.warning" to "PayPal canceló la suscripción, pero el estado de la cuenta aún no se ha sincronizado. Inténtalo de nuevo más tarde.",
+            "subscription.cancel.error" to "No se pudo cancelar la suscripción.",
             "background.white" to "Blanco",
             "canvas.background" to "Fondo del lienzo",
             "background.black" to "Negro",
@@ -264,12 +337,6 @@ class UiText(private val language: AppLanguage) {
             "tool.target_size.subtitle" to "Comprimir hacia un límite de tamaño",
             "tool.split_grid.title" to "Dividir en cuadrícula",
             "tool.split_grid.subtitle" to "Dividir una imagen en varios archivos",
-            "tool.fit_canvas.title" to "Ajustar a um quadro",
-            "tool.fit_canvas.subtitle" to "Manter a imagem inteira sem deformar",
-            "tool.target_size.title" to "Tamanho alvo",
-            "tool.target_size.subtitle" to "Comprimir para um limite de tamanho",
-            "tool.split_grid.title" to "Dividir em grelha",
-            "tool.split_grid.subtitle" to "Dividir uma imagem em vários ficheiros",
         )
         AppLanguage.FR -> mapOf(
             "auth.google" to "Continuer avec Google",
@@ -286,6 +353,25 @@ class UiText(private val language: AppLanguage) {
             "auth.generic" to "Impossible de terminer la connexion.",
             "premium.active" to "PRO actif",
             "premium.unlock" to "Débloquer les outils avancés",
+            "history.subtitle" to "Vos outils et opérations d’image récents",
+            "history.inputs" to "entrée(s)",
+            "history.clear" to "Effacer l’historique",
+            "history.clear.title" to "Effacer l’historique ?",
+            "history.clear.body" to "Tous les éléments d’historique enregistrés sur cet appareil seront supprimés.",
+            "history.clear.confirm" to "Effacer l’historique",
+            "favorites.title" to "Favoris",
+            "favorites.empty.title" to "C’est encore vide",
+            "favorites.empty.body" to "Touchez l’étoile d’un outil pour l’enregistrer ici.",
+            "favorites.clear" to "Vider les favoris",
+            "favorites.add" to "Ajouter aux favoris",
+            "favorites.remove" to "Retirer des favoris",
+            "subscription.cancel" to "Annuler l’abonnement",
+            "subscription.cancel.title" to "Annuler l’abonnement Premium ?",
+            "subscription.cancel.body" to "PayPal arrêtera le renouvellement de l’abonnement. Le statut Premium peut prendre un moment à se mettre à jour.",
+            "subscription.cancel.confirm" to "Confirmer l’annulation",
+            "subscription.cancel.done" to "Abonnement annulé.",
+            "subscription.cancel.warning" to "PayPal a annulé l’abonnement, mais le statut du compte n’est pas encore synchronisé. Réessayez plus tard.",
+            "subscription.cancel.error" to "Impossible d’annuler l’abonnement.",
             "background.white" to "Blanc",
             "canvas.background" to "Fond du canevas",
             "background.black" to "Noir",

@@ -46,14 +46,70 @@ data class ImageResult(
 )
 
 object ImageProcessor {
-    fun decode(context: Context, uri: Uri): Bitmap? {
-        val bitmap = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) } ?: return null
+    private const val MAX_SOURCE_PIXELS = 40_000_000L
+    private const val MAX_SOURCE_EDGE = 32_768
+    private const val MAX_OUTPUT_PIXELS = 24_000_000L
+    private const val MAX_OUTPUT_EDGE = 12_000
+
+    fun decode(context: Context, uri: Uri, maxEdge: Int? = null): Bitmap? {
+        val resolver = context.contentResolver
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        val boundsStream = resolver.openInputStream(uri) ?: return null
+        boundsStream.use { BitmapFactory.decodeStream(it, null, bounds) }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+        if (maxEdge == null) {
+            val pixels = bounds.outWidth.toLong() * bounds.outHeight.toLong()
+            require(
+                bounds.outWidth <= MAX_SOURCE_EDGE &&
+                    bounds.outHeight <= MAX_SOURCE_EDGE &&
+                    pixels <= MAX_SOURCE_PIXELS
+            ) {
+                "This image is too large to process safely on this device. Try a smaller image."
+            }
+        }
+
+        val edgeLimit = (maxEdge ?: MAX_SOURCE_EDGE).coerceIn(1, MAX_SOURCE_EDGE)
+        val pixelLimit = if (maxEdge == null) {
+            MAX_SOURCE_PIXELS
+        } else {
+            edgeLimit.toLong() * edgeLimit.toLong()
+        }
+        var sampleSize = 1
+        while (
+            bounds.outWidth / sampleSize > edgeLimit ||
+            bounds.outHeight / sampleSize > edgeLimit ||
+            (bounds.outWidth.toLong() / sampleSize) *
+                (bounds.outHeight.toLong() / sampleSize) > pixelLimit
+        ) {
+            sampleSize *= 2
+        }
+
+        val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+        val bitmap = resolver.openInputStream(uri)?.use {
+            BitmapFactory.decodeStream(it, null, options)
+        } ?: return null
         val orientation = runCatching {
-            context.contentResolver.openInputStream(uri)?.use {
-                ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+            resolver.openInputStream(uri)?.use {
+                ExifInterface(it).getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.ORIENTATION_NORMAL
+                )
             } ?: ExifInterface.ORIENTATION_NORMAL
         }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
-        return applyExifOrientation(bitmap, orientation)
+        val oriented = applyExifOrientation(bitmap, orientation)
+        if (oriented !== bitmap && !bitmap.isRecycled) bitmap.recycle()
+        return oriented
+    }
+
+    fun requireSafeOutputDimensions(width: Int, height: Int) {
+        require(
+            width in 1..MAX_OUTPUT_EDGE &&
+                height in 1..MAX_OUTPUT_EDGE &&
+                width.toLong() * height.toLong() <= MAX_OUTPUT_PIXELS
+        ) {
+            "Output dimensions are too large. Use no more than 12,000 pixels per side and 24 megapixels total."
+        }
     }
 
     fun sourceBytes(context: Context, uri: Uri): Long? =
@@ -61,8 +117,10 @@ object ImageProcessor {
             descriptor.length.takeIf { it >= 0L }
         }
 
-    fun resize(bitmap: Bitmap, width: Int, height: Int): Bitmap =
-        Bitmap.createScaledBitmap(bitmap, width.coerceAtLeast(1), height.coerceAtLeast(1), true)
+    fun resize(bitmap: Bitmap, width: Int, height: Int): Bitmap {
+        requireSafeOutputDimensions(width, height)
+        return Bitmap.createScaledBitmap(bitmap, width, height, true)
+    }
 
     fun cropToAspect(bitmap: Bitmap, targetRatio: Float): Bitmap {
         require(targetRatio > 0f) { "Invalid aspect ratio." }

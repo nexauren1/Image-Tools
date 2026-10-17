@@ -12,6 +12,7 @@ import com.nexauren.imagetools.auth.AuthRepository
 import com.nexauren.imagetools.data.FirestoreRepository
 import com.nexauren.imagetools.data.PaymentRepository
 import com.nexauren.imagetools.data.SubscriptionStore
+import com.nexauren.imagetools.ui.AppThemeStore
 import com.nexauren.imagetools.ui.ImageToolsAppV5
 import com.nexauren.imagetools.ui.theme.ImageToolsTheme
 import kotlinx.coroutines.delay
@@ -26,9 +27,12 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val auth = remember { AuthRepository(this@MainActivity) }
+            DisposableEffect(auth) {
+                onDispose { auth.dispose() }
+            }
             val firestore = remember { FirestoreRepository() }
             var premium by remember { mutableStateOf(false) }
-            var darkMode by remember { mutableStateOf(false) }
+            var darkMode by remember { mutableStateOf(AppThemeStore.get(this@MainActivity)) }
             val subscriptionId = paymentSubscription.value
             val scope = rememberCoroutineScope()
             val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
@@ -84,7 +88,10 @@ class MainActivity : ComponentActivity() {
                     auth = auth,
                     premium = premium,
                     darkMode = darkMode,
-                    onDarkModeChange = { darkMode = it },
+                    onDarkModeChange = {
+                        darkMode = it
+                        AppThemeStore.save(this@MainActivity, it)
+                    },
                     onStartPayment = { url ->
                         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                     }

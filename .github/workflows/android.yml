@@ -1,5 +1,8 @@
 name: Android Build
+
 on:
+  pull_request:
+    branches: ["main"]
   push:
     branches: ["main", "v*"]
   workflow_dispatch:
@@ -8,35 +11,65 @@ on:
         description: Create GitHub release after a successful signed build
         required: false
         default: "false"
+
 permissions:
   contents: write
+
+# Keep one validation build for the latest revision of each PR/branch.
+concurrency:
+  group: android-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
+
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
+
       - name: Install Android SDK packages
         run: sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
-      - name: Gradle
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate Cloudflare Worker syntax
+        run: node --check cloudflare-worker/src/index.js
+
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.5.0"
-      - name: Build unsigned release APK
-        run: gradle assembleRelease --no-daemon --stacktrace
+
+      - name: Compile and build Android release APK
+        run: gradle :app:assembleRelease --no-daemon --stacktrace
+
+      - name: Verify release metadata
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/release/app-release-unsigned.apk"
+          "$ANDROID_HOME/build-tools/37.0.0/aapt2" dump badging "$APK" > "$RUNNER_TEMP/apk-badging.txt"
+          grep -F "package: name='com.nexauren.imagetools' versionCode='39' versionName='1.17.0'" "$RUNNER_TEMP/apk-badging.txt"
+
       - name: Sign aligned release APK
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        id: sign_apk
+        if: github.event_name != 'pull_request' && env.KEYSTORE_BASE64 != '' && env.KEYSTORE_PASSWORD != '' && env.KEY_ALIAS != '' && env.KEY_PASSWORD != ''
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/image-tools-signing"
@@ -56,20 +89,33 @@ jobs:
             --v4-signing-enabled false \
             --out "$SIGNED" \
             "$ALIGNED"
-      - name: Verify release APK
+
+      - name: Verify signed APK
+        if: steps.sign_apk.outcome == 'success'
         run: |
           set -euo pipefail
           APK="app/build/outputs/apk/release/app-release.apk"
           "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --verbose --print-certs "$APK"
           "$ANDROID_HOME/build-tools/37.0.0/zipalign" -c -P 16 -v 4 "$APK"
-          "$ANDROID_HOME/build-tools/37.0.0/aapt2" dump badging "$APK" | head -n 20
+          "$ANDROID_HOME/build-tools/37.0.0/aapt2" dump badging "$APK" > "$RUNNER_TEMP/signed-apk-badging.txt"
+          head -n 20 "$RUNNER_TEMP/signed-apk-badging.txt"
+
       - name: Upload signed APK
+        if: steps.sign_apk.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: image-tools-release-apk
           path: app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload unsigned validation APK
+        if: steps.sign_apk.outcome == 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-tools-unsigned-validation-apk
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
+
       - name: Release
-        if: startsWith(github.ref, 'refs/heads/v') || (github.event_name == 'workflow_dispatch' && inputs.release == 'true')
+        if: (startsWith(github.ref, 'refs/heads/v') || (github.event_name == 'workflow_dispatch' && inputs.release == 'true')) && env.KEYSTORE_BASE64 != '' && env.KEYSTORE_PASSWORD != '' && env.KEY_ALIAS != '' && env.KEY_PASSWORD != ''
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}

@@ -672,25 +672,35 @@ async function adminCatalog(request, env) {
 async function subscriptionStatus(request, env, url) {
   const user = await firebaseUser(request, env);
   const paypal = await paypalToken(env);
+  let storedSubscriptionId = "";
   let subscriptionId = url.searchParams.get("subscriptionId") || "";
 
   if (!subscriptionId) {
     const fields = await firestoreUser(env, user.localId);
-    subscriptionId = fieldString(fields, "paypalSubscriptionId");
+    storedSubscriptionId = fieldString(fields, "paypalSubscriptionId");
+    subscriptionId = storedSubscriptionId;
   }
 
   if (!subscriptionId) {
     return reply({ ok: true, premium: false, status: "NONE" });
   }
 
-  let data;
-  try {
-    data = await getPayPalSubscription(paypal, subscriptionId);
-  } catch (error) {
-    throw error;
-  }
-  if (data.custom_id && data.custom_id !== user.localId) {
+  const data = await getPayPalSubscription(paypal, subscriptionId);
+  const ownerUid = String(data.custom_id || "").trim();
+  if (ownerUid && ownerUid !== user.localId) {
     return reply({ ok: false, error: "Subscription ownership mismatch" }, 403);
+  }
+
+  // Old subscriptions may not carry custom_id. In that case, accept them only
+  // when Firestore already links that exact PayPal ID to the authenticated user.
+  if (!ownerUid) {
+    if (!storedSubscriptionId) {
+      const fields = await firestoreUser(env, user.localId);
+      storedSubscriptionId = fieldString(fields, "paypalSubscriptionId");
+    }
+    if (storedSubscriptionId !== subscriptionId) {
+      return reply({ ok: false, error: "Subscription ownership could not be verified" }, 403);
+    }
   }
 
   const premium = data.status === "ACTIVE";
@@ -710,7 +720,7 @@ async function subscriptionStatus(request, env, url) {
   });
 }
 
-async function resolveOwnedSubscription(paypal, userId, candidates) {
+async function resolveOwnedSubscription(paypal, userId, candidates, storedSubscriptionId = "") {
   const seen = new Set();
   let lastError = null;
 
@@ -721,11 +731,22 @@ async function resolveOwnedSubscription(paypal, userId, candidates) {
 
     try {
       const current = await getPayPalSubscription(paypal, subscriptionId);
+      const ownerUid = String(current.custom_id || "").trim();
 
-      if (current.custom_id && current.custom_id !== userId) {
+      if (ownerUid && ownerUid !== userId) {
         const error = new Error("Subscription ownership mismatch");
         error.code = "SUBSCRIPTION_OWNERSHIP_MISMATCH";
         error.stage = "subscription-ownership";
+        error.httpStatus = 403;
+        lastError = error;
+        continue;
+      }
+
+      if (!ownerUid && subscriptionId !== storedSubscriptionId) {
+        const error = new Error("Subscription ownership could not be verified");
+        error.code = "SUBSCRIPTION_OWNER_UNVERIFIED";
+        error.stage = "subscription-ownership";
+        error.httpStatus = 403;
         lastError = error;
         continue;
       }
@@ -759,7 +780,8 @@ async function cancelSubscription(request, env) {
   const resolved = await resolveOwnedSubscription(
     paypal,
     user.localId,
-    [storedSubscriptionId, requestedSubscriptionId]
+    [storedSubscriptionId, requestedSubscriptionId],
+    storedSubscriptionId
   );
   const subscriptionId = resolved.subscriptionId;
   const current = resolved.current;

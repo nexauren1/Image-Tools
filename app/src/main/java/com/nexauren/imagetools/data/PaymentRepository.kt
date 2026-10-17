@@ -24,13 +24,17 @@ object PaymentRepository {
     suspend fun createSubscription(token: String): Result<SubscriptionStart> = withContext(Dispatchers.IO) {
         runCatching {
             val connection = open("/paypal/create-subscription", token, "POST")
-            connection.outputStream.bufferedWriter().use { it.write("{}") }
-            val data = readJsonObject(connection, read(connection), "subscription-create")
-            requirePaymentOk(connection, data, "subscription-create")
-            SubscriptionStart(
-                subscriptionId = data.getString("subscriptionId"),
-                approveUrl = data.getString("approveUrl")
-            )
+            try {
+                connection.outputStream.bufferedWriter().use { it.write("{}") }
+                val data = readJsonObject(connection, read(connection), "subscription-create")
+                requirePaymentOk(connection, data, "subscription-create")
+                SubscriptionStart(
+                    subscriptionId = data.getString("subscriptionId"),
+                    approveUrl = data.getString("approveUrl")
+                )
+            } finally {
+                connection.disconnect()
+            }
         }
     }
 
@@ -44,15 +48,47 @@ object PaymentRepository {
                         URLEncoder.encode(subscriptionId, "UTF-8")
                 }
                 val connection = open(path, token, "GET")
-                val data = readJsonObject(connection, read(connection), "subscription-status")
-                requirePaymentOk(connection, data, "subscription-status")
-                data.optBoolean("premium")
+                try {
+                    val data = readJsonObject(connection, read(connection), "subscription-status")
+                    requirePaymentOk(connection, data, "subscription-status")
+                    data.optBoolean("premium")
+                } finally {
+                    connection.disconnect()
+                }
             }
         }
 
+    /**
+     * Returns true when PayPal cancellation and the server-side entitlement update both succeeded.
+     * A false result means PayPal accepted cancellation but the entitlement sync needs retrying.
+     */
+    suspend fun cancelSubscription(
+        token: String,
+        subscriptionId: String? = null
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        runCatching {
+            val connection = open("/paypal/cancel-subscription", token, "POST")
+            try {
+                val body = JSONObject()
+                    .put("subscriptionId", subscriptionId.orEmpty())
+                    .toString()
+                connection.outputStream.bufferedWriter().use { it.write(body) }
+                val data = readJsonObject(connection, read(connection), "subscription-cancel")
+                requirePaymentOk(connection, data, "subscription-cancel")
+                data.optBoolean("entitlementSynced", true)
+            } finally {
+                connection.disconnect()
+            }
+        }
+    }
+
     private fun open(path: String, token: String, method: String): HttpURLConnection {
         require(!BuildConfig.WORKER_URL.contains("YOUR-IMAGE-TOOLS-WORKER"))
-        return (URL(BuildConfig.WORKER_URL.trimEnd('/') + path).openConnection() as HttpURLConnection).apply {
+        val workerUrl = URL(BuildConfig.WORKER_URL.trimEnd('/') + path)
+        require(workerUrl.protocol.equals("https", ignoreCase = true)) {
+            "WORKER_URL must use HTTPS to protect the sign-in token."
+        }
+        return (workerUrl.openConnection() as HttpURLConnection).apply {
             requestMethod = method
             doOutput = method == "POST"
             connectTimeout = 15000

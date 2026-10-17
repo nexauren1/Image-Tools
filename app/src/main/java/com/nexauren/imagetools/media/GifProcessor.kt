@@ -18,16 +18,25 @@ object GifProcessor {
             setDelay(delayMs, TimeUnit.MILLISECONDS)
         }
         frames.take(20).forEach { frame ->
-            val bitmap = ImageProcessor.resize(frame, normalizedW, normalizedH)
-            val pixels = IntArray(normalizedW * normalizedH)
-            bitmap.getPixels(pixels, 0, normalizedW, 0, 0, normalizedW, normalizedH)
-            val rgb = Array(normalizedW) { IntArray(normalizedH) }
-            for (x in 0 until normalizedW) {
-                for (y in 0 until normalizedH) {
-                    rgb[x][y] = pixels[y * normalizedW + x]
+            val bitmap = SocialImageProcessor.letterbox(
+                frame,
+                normalizedW,
+                normalizedH,
+                android.graphics.Color.BLACK
+            )
+            try {
+                val pixels = IntArray(normalizedW * normalizedH)
+                bitmap.getPixels(pixels, 0, normalizedW, 0, 0, normalizedW, normalizedH)
+                val rgb = Array(normalizedW) { IntArray(normalizedH) }
+                for (x in 0 until normalizedW) {
+                    for (y in 0 until normalizedH) {
+                        rgb[x][y] = pixels[y * normalizedW + x]
+                    }
                 }
+                encoder.addImage(rgb, options)
+            } finally {
+                if (bitmap !== frame && !bitmap.isRecycled) bitmap.recycle()
             }
-            encoder.addImage(rgb, options)
         }
         encoder.finishEncoding()
         return stream.toByteArray()

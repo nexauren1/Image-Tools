@@ -34,12 +34,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private data class BatchResultItem(
+    val preview: Bitmap,
+    val bytes: ByteArray,
+    val width: Int,
+    val height: Int,
+    val format: OutputFormat
+)
+
 @Composable
 fun BatchScreen(strings: UiText = LocalUiText.current) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var uris by remember { mutableStateOf<List<Uri>>(emptyList()) }
-    var results by remember { mutableStateOf<List<Pair<Bitmap, ByteArray>>>(emptyList()) }
+    var results by remember { mutableStateOf<List<BatchResultItem>>(emptyList()) }
     var operation by remember { mutableStateOf("resize") }
     var width by remember { mutableStateOf("1280") }
     var quality by remember { mutableFloatStateOf(80f) }
@@ -80,6 +88,7 @@ fun BatchScreen(strings: UiText = LocalUiText.current) {
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
                         },
+                        enabled = !busy,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -177,41 +186,112 @@ fun BatchScreen(strings: UiText = LocalUiText.current) {
 
                         Button(
                             onClick = {
+                                val selectedUris = uris.take(20).toList()
+                                val selectedOperation = operation
+                                val selectedWidth = width
+                                val selectedQuality = quality.toInt()
+                                val selectedFormat = format
+                                val selectedFilter = filter
+                                val selectedWatermark = watermark
                                 busy = true
+                                status = strings.get("processing.batch")
+                                results = emptyList()
                                 scope.launch {
-                                    results = withContext(Dispatchers.Default) {
-                                        uris.mapNotNull { ImageProcessor.decode(context, it) }.map { bitmap ->
-                                            val preview = when (operation) {
-                                                "resize" -> {
-                                                    val w = width.toIntOrNull()?.coerceAtLeast(1) ?: bitmap.width
-                                                    val h = (bitmap.height * (w.toFloat() / bitmap.width))
-                                                        .toInt()
-                                                        .coerceAtLeast(1)
-                                                    ImageProcessor.resize(bitmap, w, h)
+                                    val batchResults = mutableListOf<BatchResultItem>()
+                                    try {
+                                        for (uri in selectedUris) {
+                                            val bitmap = withContext(Dispatchers.IO) {
+                                                ImageProcessor.decode(context, uri)
+                                            } ?: continue
+                                            try {
+                                                val output = withContext(Dispatchers.Default) {
+                                                    when (selectedOperation) {
+                                                        "resize" -> {
+                                                            val targetWidth = selectedWidth.toIntOrNull()
+                                                                ?: error("Enter a valid image width.")
+                                                            require(targetWidth in 1..12_000) {
+                                                                "Width must be between 1 and 12,000 pixels."
+                                                            }
+                                                            val targetHeight = (bitmap.height *
+                                                                (targetWidth.toFloat() / bitmap.width))
+                                                                .toInt()
+                                                                .coerceAtLeast(1)
+                                                            ImageProcessor.resize(bitmap, targetWidth, targetHeight)
+                                                        }
+                                                        "filter" -> ImageProcessor.filter(bitmap, selectedFilter)
+                                                        "watermark" -> ImageProcessor.watermark(
+                                                            bitmap,
+                                                            selectedWatermark,
+                                                            70,
+                                                            "Bottom right"
+                                                        )
+                                                        else -> bitmap
+                                                    }
                                                 }
-                                                "filter" -> ImageProcessor.filter(bitmap, filter)
-                                                "watermark" -> ImageProcessor.watermark(
-                                                    bitmap,
-                                                    watermark,
-                                                    70,
-                                                    "Bottom right"
-                                                )
-                                                else -> bitmap
+
+                                                try {
+                                                    val bytes = withContext(Dispatchers.Default) {
+                                                        ImageProcessor.encode(
+                                                            output,
+                                                            selectedFormat,
+                                                            if (selectedOperation == "compress") selectedQuality else 95
+                                                        )
+                                                    }
+                                                    val outputBytes = batchResults.sumOf { it.bytes.size.toLong() } +
+                                                        bytes.size.toLong()
+                                                    require(outputBytes <= 96L * 1024L * 1024L) {
+                                                        "Batch output exceeds 96 MB. Process fewer images at a time."
+                                                    }
+
+                                                    val preview = withContext(Dispatchers.Default) {
+                                                        val scale = minOf(
+                                                            1f,
+                                                            420f / maxOf(output.width, output.height)
+                                                        )
+                                                        val thumbWidth = (output.width * scale).toInt().coerceAtLeast(1)
+                                                        val thumbHeight = (output.height * scale).toInt().coerceAtLeast(1)
+                                                        val scaled = Bitmap.createScaledBitmap(
+                                                            output,
+                                                            thumbWidth,
+                                                            thumbHeight,
+                                                            true
+                                                        )
+                                                        if (scaled === output) output.copy(Bitmap.Config.ARGB_8888, false)
+                                                        ?: error("Could not create preview image.")
+                                                        else scaled
+                                                    }
+                                                    batchResults += BatchResultItem(
+                                                        preview = preview,
+                                                        bytes = bytes,
+                                                        width = output.width,
+                                                        height = output.height,
+                                                        format = selectedFormat
+                                                    )
+                                                } finally {
+                                                    if (output !== bitmap && !output.isRecycled) output.recycle()
+                                                }
+                                            } finally {
+                                                if (!bitmap.isRecycled) bitmap.recycle()
                                             }
-                                            val bytes = ImageProcessor.encode(
-                                                preview,
-                                                format,
-                                                if (operation == "compress") quality.toInt() else 95
-                                            )
-                                            preview to bytes
                                         }
+                                        require(batchResults.isNotEmpty()) {
+                                            strings.get("process.error")
+                                        }
+                                        ProcessingStatsStore.recordProcessed(context, batchResults.size)
+                                        results = batchResults.toList()
+                                        status = strings.get("batch.ready")
+                                    } catch (error: Exception) {
+                                        batchResults.forEach { item ->
+                                            if (!item.preview.isRecycled) item.preview.recycle()
+                                        }
+                                        results = emptyList()
+                                        status = error.message ?: strings.get("process.error")
+                                    } finally {
+                                        busy = false
                                     }
-                                    ProcessingStatsStore.recordProcessed(context, results.size)
-                                    status = strings.get("batch.ready")
-                                    busy = false
                                 }
                             },
-                            enabled = !busy,
+                            enabled = !busy && uris.isNotEmpty(),
                             modifier = Modifier.fillMaxWidth().height(52.dp),
                             shape = RoundedCornerShape(16.dp)
                         ) {
@@ -238,7 +318,7 @@ fun BatchScreen(strings: UiText = LocalUiText.current) {
                         results.take(8).forEachIndexed { index, result ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Image(
-                                    bitmap = result.first.asImageBitmap(),
+                                    bitmap = result.preview.asImageBitmap(),
                                     contentDescription = null,
                                     modifier = Modifier
                                         .size(54.dp)
@@ -248,38 +328,47 @@ fun BatchScreen(strings: UiText = LocalUiText.current) {
                                 Spacer(Modifier.width(10.dp))
                                 Text(strings.get("batch.image") + " " + (index + 1), Modifier.weight(1f))
                                 Text(
-                                    ImageProcessor.humanBytes(result.second.size.toLong()),
+                                    ImageProcessor.humanBytes(result.bytes.size.toLong()),
                                     fontSize = 10.sp
                                 )
                             }
                         }
                         Button(
                             onClick = {
+                                val exportResults = results.toList()
+                                busy = true
                                 scope.launch {
-                                    val tree = OutputFolderStore.getTreeUri(context)
-                                    results.forEachIndexed { index, result ->
-                                        withContext(Dispatchers.IO) {
-                                            OutputExporter.saveImage(
-                                                context,
-                                                result.second,
-                                                format,
-                                                "batch_" + (index + 1),
-                                                result.first.width,
-                                                result.first.height,
-                                                tree
-                                            )
+                                    try {
+                                        val tree = OutputFolderStore.getTreeUri(context)
+                                        exportResults.forEachIndexed { index, result ->
+                                            withContext(Dispatchers.IO) {
+                                                OutputExporter.saveImage(
+                                                    context,
+                                                    result.bytes,
+                                                    result.format,
+                                                    "batch_" + (index + 1),
+                                                    result.width,
+                                                    result.height,
+                                                    tree
+                                                )
+                                            }
                                         }
+                                        ProcessingStatsStore.recordExported(context, exportResults.size)
+                                        status = strings.get("saved")
+                                    } catch (error: Exception) {
+                                        status = error.message ?: strings.get("save.error")
+                                    } finally {
+                                        busy = false
                                     }
-                                    ProcessingStatsStore.recordExported(context, results.size)
-                                    status = strings.get("saved")
                                 }
                             },
+                            enabled = !busy,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp)
                         ) {
                             Icon(Icons.Default.Save, null)
                             Spacer(Modifier.width(6.dp))
-                            Text(strings.get("save.all"))
+                            Text(if (busy) strings.get("working") else strings.get("save.all"))
                         }
                     }
                 }

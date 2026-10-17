@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
@@ -47,6 +49,7 @@ import com.nexauren.imagetools.data.PaymentRepository
 import com.nexauren.imagetools.data.HistoryStore
 import com.nexauren.imagetools.data.Recipe
 import com.nexauren.imagetools.data.RecipeStore
+import com.nexauren.imagetools.data.SubscriptionStore
 import com.nexauren.imagetools.media.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -146,6 +149,14 @@ fun ImageToolsAppV5(
             scope.launch { drawerState.close() }
         }
 
+        BackHandler(enabled = selectedTool != null || page != "home") {
+            if (selectedTool != null) {
+                selectedTool = null
+            } else {
+                navigate("home")
+            }
+        }
+
         ModalNavigationDrawer(
             drawerState = drawerState,
             drawerContent = {
@@ -227,7 +238,7 @@ fun ImageToolsAppV5(
                             )
                         }
                     }
-                }
+                },
             ) { padding ->
                 Box(Modifier.fillMaxSize().padding(padding)) {
                     when {
@@ -333,13 +344,17 @@ private fun RowScope.BottomTabV5(
     Column(
         modifier = Modifier
             .weight(1f)
-            .clickable(onClick = onClick)
+            .selectable(
+                selected = selected,
+                onClick = onClick,
+                role = androidx.compose.ui.semantics.Role.Tab
+            )
             .padding(vertical = 7.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
             icon,
-            null,
+            contentDescription = label,
             tint = if (selected) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -689,7 +704,13 @@ private fun ToolsScreenV5(strings: UiText, premium: Boolean, openTool: (String) 
 }
 
 @Composable
-internal fun ToolGridCardV5(tool: ToolDef, strings: UiText, premium: Boolean, openTool: (String) -> Unit) {
+internal fun ToolGridCardV5(
+    tool: ToolDef,
+    strings: UiText,
+    premium: Boolean,
+    openTool: (String) -> Unit,
+    onFavoriteChanged: (() -> Unit)? = null
+) {
     val context = LocalContext.current
     var favorite by remember(tool.id) { mutableStateOf(FavoritesStore.isFavorite(context, tool.id)) }
     val shape = RoundedCornerShape(26.dp)
@@ -736,14 +757,19 @@ internal fun ToolGridCardV5(tool: ToolDef, strings: UiText, premium: Boolean, op
                     }
                 }
                 IconButton(
-                    onClick = { favorite = FavoritesStore.toggle(context, tool.id) },
+                    onClick = {
+                        favorite = FavoritesStore.toggle(context, tool.id)
+                        onFavoriteChanged?.invoke()
+                    },
                     modifier = Modifier.align(Alignment.BottomEnd).padding(end = 7.dp, bottom = 4.dp)
                         .size(35.dp).clip(RoundedCornerShape(12.dp))
                         .background(Color.Black.copy(alpha = 0.13f))
                 ) {
                     Icon(
                         if (favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        null,
+                        contentDescription = strings.get(
+                            if (favorite) "favorites.remove" else "favorites.add"
+                        ),
                         tint = Color.White,
                         modifier = Modifier.size(18.dp)
                     )
@@ -2144,6 +2170,68 @@ private fun AccountScreenV5(
     val context = LocalContext.current
     val processed = ProcessingStatsStore.processed(context)
     val exported = ProcessingStatsStore.exported(context)
+    val scope = rememberCoroutineScope()
+    var showCancelConfirmation by remember { mutableStateOf(false) }
+    var cancelBusy by remember { mutableStateOf(false) }
+    var cancellationConfirmed by remember { mutableStateOf(false) }
+    var cancelMessage by remember { mutableStateOf<String?>(null) }
+
+    if (showCancelConfirmation) {
+        AlertDialog(
+            onDismissRequest = { if (!cancelBusy) showCancelConfirmation = false },
+            title = { Text(strings.get("subscription.cancel.title")) },
+            text = { Text(strings.get("subscription.cancel.body")) },
+            confirmButton = {
+                TextButton(
+                    enabled = !cancelBusy,
+                    onClick = {
+                        showCancelConfirmation = false
+                        cancelBusy = true
+                        cancelMessage = null
+                        scope.launch {
+                            try {
+                                val token = auth.idToken()
+                                if (token.isNullOrBlank()) {
+                                    cancelMessage = strings.get("subscription.cancel.error")
+                                } else {
+                                    val uid = auth.currentUser?.uid
+                                    PaymentRepository.cancelSubscription(
+                                        token,
+                                        SubscriptionStore.get(context, uid)
+                                    ).onSuccess { entitlementSynced ->
+                                        if (entitlementSynced) {
+                                            SubscriptionStore.clear(context, uid)
+                                            cancellationConfirmed = true
+                                            cancelMessage = strings.get("subscription.cancel.done")
+                                        } else {
+                                            cancelMessage = strings.get("subscription.cancel.warning")
+                                        }
+                                    }.onFailure { error ->
+                                        cancelMessage = (error as? PaymentException)?.message
+                                            ?: strings.get("subscription.cancel.error")
+                                    }
+                                }
+                            } catch (_: Exception) {
+                                cancelMessage = strings.get("subscription.cancel.error")
+                            } finally {
+                                cancelBusy = false
+                            }
+                        }
+                    }
+                ) {
+                    Text(strings.get("subscription.cancel.confirm"))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !cancelBusy,
+                    onClick = { showCancelConfirmation = false }
+                ) {
+                    Text(strings.get("cancel"))
+                }
+            }
+        )
+    }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -2222,7 +2310,11 @@ private fun AccountScreenV5(
                         fontWeight = FontWeight.ExtraBold
                     )
                     Text(
-                        if (premium) strings.get("premium.active") else strings.get("free"),
+                        when {
+                            cancellationConfirmed -> strings.get("subscription.cancel.done")
+                            premium -> strings.get("premium.active")
+                            else -> strings.get("free")
+                        },
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
                     )
@@ -2234,6 +2326,37 @@ private fun AccountScreenV5(
                         Icon(Icons.Default.WorkspacePremium, null)
                         Spacer(Modifier.width(7.dp))
                         Text(strings.get("premium"))
+                    }
+                    if (premium && !cancellationConfirmed) {
+                        OutlinedButton(
+                            onClick = { showCancelConfirmation = true },
+                            enabled = !cancelBusy,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(15.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            if (cancelBusy) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(17.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(Modifier.width(8.dp))
+                            } else {
+                                Icon(Icons.Default.Cancel, null)
+                                Spacer(Modifier.width(7.dp))
+                            }
+                            Text(strings.get("subscription.cancel"))
+                        }
+                    }
+                    cancelMessage?.let { message ->
+                        Text(
+                            message,
+                            color = if (cancellationConfirmed) Color(0xFF0D9488)
+                            else MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp
+                        )
                     }
                 }
             }

@@ -19,6 +19,7 @@ object RawExporter {
     fun save(context: Context, item: RawExportItem, treeUri: Uri?): Uri {
         val name = item.prefix + "_" + System.currentTimeMillis() + "." + item.extension
         if (treeUri != null) {
+            var createdUri: Uri? = null
             try {
                 val uri = DocumentsContract.createDocument(
                     context.contentResolver,
@@ -26,10 +27,14 @@ object RawExporter {
                     item.mime,
                     name
                 ) ?: error("Could not create output file.")
+                createdUri = uri
                 context.contentResolver.openOutputStream(uri)?.use { it.write(item.bytes) }
                     ?: error("Could not write output file.")
                 return uri
             } catch (_: Exception) {
+                createdUri?.let { partial ->
+                    runCatching { DocumentsContract.deleteDocument(context.contentResolver, partial) }
+                }
                 return save(context, item, null)
             }
         }
