@@ -5,35 +5,57 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
+private val StudioViolet = Color(0xFF6548E8)
+private val StudioCyan = Color(0xFF087F8C)
+private val StudioPink = Color(0xFFBD477A)
+private val StudioInk = Color(0xFF101426)
+private val StudioNight = Color(0xFF080C18)
+
 @Composable
 fun ImageToolsTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
     val colors = if (darkTheme) {
         darkColorScheme(
-            primary = Color(0xFFB9A7FF),
-            onPrimary = Color(0xFF2D1066),
-            primaryContainer = Color(0xFF3C237B),
-            onPrimaryContainer = Color(0xFFEADDFF),
-            secondary = Color(0xFF7DD3FC),
-            secondaryContainer = Color(0xFF164E63),
-            tertiary = Color(0xFFF0ABFC),
-            background = Color(0xFF070A12),
-            surface = Color(0xFF0D1220),
-            surfaceVariant = Color(0xFF1A2030),
-            outline = Color(0xFF495166)
+            primary = Color(0xFFB7A7FF),
+            onPrimary = Color(0xFF201052),
+            primaryContainer = Color(0xFF36236F),
+            onPrimaryContainer = Color(0xFFECE5FF),
+            secondary = Color(0xFF66E8E1),
+            onSecondary = Color(0xFF003737),
+            secondaryContainer = Color(0xFF123E43),
+            onSecondaryContainer = Color(0xFFBFF8F3),
+            tertiary = Color(0xFFFFA6D1),
+            onTertiary = Color(0xFF4A0C2D),
+            background = StudioNight,
+            surface = Color(0xFF11182A),
+            surfaceVariant = Color(0xFF1A253A),
+            onSurface = Color(0xFFF1F4FF),
+            onSurfaceVariant = Color(0xFFB1BCD2),
+            outline = Color(0xFF465570),
+            error = Color(0xFFFF8A9A),
+            errorContainer = Color(0xFF522331),
+            onErrorContainer = Color(0xFFFFDADF)
         )
     } else {
         lightColorScheme(
-            primary = Color(0xFF6750F5),
+            primary = StudioViolet,
             onPrimary = Color.White,
-            primaryContainer = Color(0xFFE9DEFF),
-            onPrimaryContainer = Color(0xFF25105E),
-            secondary = Color(0xFF006A8B),
-            secondaryContainer = Color(0xFFD0F1FF),
-            tertiary = Color(0xFF9C2F7A),
-            background = Color(0xFFF6F7FB),
+            primaryContainer = Color(0xFFE8E1FF),
+            onPrimaryContainer = Color(0xFF241255),
+            secondary = StudioCyan,
+            onSecondary = Color.White,
+            secondaryContainer = Color(0xFFD3F7F4),
+            onSecondaryContainer = Color(0xFF063D40),
+            tertiary = StudioPink,
+            onTertiary = Color.White,
+            background = Color(0xFFF5F6FC),
             surface = Color.White,
-            surfaceVariant = Color(0xFFEFF1F8),
-            outline = Color(0xFF727888)
+            surfaceVariant = Color(0xFFEEF0F8),
+            onSurface = Color(0xFF14182B),
+            onSurfaceVariant = Color(0xFF59647C),
+            outline = Color(0xFFA5AEC3),
+            error = Color(0xFFB4233F),
+            errorContainer = Color(0xFFFFE1E6),
+            onErrorContainer = Color(0xFF5D1021)
         )
     }
 
@@ -41,16 +63,17 @@ fun ImageToolsTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
         copy(
             headlineSmall = headlineSmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold),
             titleLarge = titleLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold),
-            titleMedium = titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+            titleMedium = titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+            bodyLarge = bodyLarge.copy(lineHeight = bodyLarge.lineHeight * 1.08f)
         )
     }
 
     val shapes = Shapes(
-        extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
-        small = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
-        medium = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
-        large = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
-        extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(34.dp)
+        extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(9.dp),
+        small = androidx.compose.foundation.shape.RoundedCornerShape(13.dp),
+        medium = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+        large = androidx.compose.foundation.shape.RoundedCornerShape(26.dp),
+        extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(32.dp)
     )
 
     MaterialTheme(
