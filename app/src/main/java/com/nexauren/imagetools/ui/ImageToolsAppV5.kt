@@ -48,6 +48,7 @@ import com.nexauren.imagetools.data.PaymentRepository
 import com.nexauren.imagetools.data.HistoryStore
 import com.nexauren.imagetools.data.Recipe
 import com.nexauren.imagetools.data.RecipeStore
+import com.nexauren.imagetools.data.SubscriptionStore
 import com.nexauren.imagetools.media.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -2137,6 +2138,66 @@ private fun AccountScreenV5(
     val context = LocalContext.current
     val processed = ProcessingStatsStore.processed(context)
     val exported = ProcessingStatsStore.exported(context)
+    val scope = rememberCoroutineScope()
+    var showCancelConfirmation by remember { mutableStateOf(false) }
+    var cancelBusy by remember { mutableStateOf(false) }
+    var cancellationConfirmed by remember { mutableStateOf(false) }
+    var cancelMessage by remember { mutableStateOf<String?>(null) }
+
+    if (showCancelConfirmation) {
+        AlertDialog(
+            onDismissRequest = { if (!cancelBusy) showCancelConfirmation = false },
+            title = { Text(strings.get("subscription.cancel.title")) },
+            text = { Text(strings.get("subscription.cancel.body")) },
+            confirmButton = {
+                TextButton(
+                    enabled = !cancelBusy,
+                    onClick = {
+                        showCancelConfirmation = false
+                        cancelBusy = true
+                        cancelMessage = null
+                        scope.launch {
+                            try {
+                                val token = auth.idToken()
+                                if (token.isNullOrBlank()) {
+                                    cancelMessage = strings.get("subscription.cancel.error")
+                                } else {
+                                    val uid = auth.currentUser?.uid
+                                    PaymentRepository.cancelSubscription(
+                                        token,
+                                        SubscriptionStore.get(context, uid)
+                                    ).onSuccess { entitlementSynced ->
+                                        if (entitlementSynced) {
+                                            SubscriptionStore.clear(context, uid)
+                                            cancellationConfirmed = true
+                                            cancelMessage = strings.get("subscription.cancel.done")
+                                        } else {
+                                            cancelMessage = strings.get("subscription.cancel.warning")
+                                        }
+                                    }.onFailure { error ->
+                                        cancelMessage = (error as? PaymentException)?.message
+                                            ?: strings.get("subscription.cancel.error")
+                                    }
+                                }
+                            } finally {
+                                cancelBusy = false
+                            }
+                        }
+                    }
+                ) {
+                    Text(strings.get("subscription.cancel.confirm"))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !cancelBusy,
+                    onClick = { showCancelConfirmation = false }
+                ) {
+                    Text(strings.get("cancel"))
+                }
+            }
+        )
+    }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -2215,7 +2276,11 @@ private fun AccountScreenV5(
                         fontWeight = FontWeight.ExtraBold
                     )
                     Text(
-                        if (premium) strings.get("premium.active") else strings.get("free"),
+                        when {
+                            cancellationConfirmed -> strings.get("subscription.cancel.done")
+                            premium -> strings.get("premium.active")
+                            else -> strings.get("free")
+                        },
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
                     )
@@ -2227,6 +2292,37 @@ private fun AccountScreenV5(
                         Icon(Icons.Default.WorkspacePremium, null)
                         Spacer(Modifier.width(7.dp))
                         Text(strings.get("premium"))
+                    }
+                    if (premium && !cancellationConfirmed) {
+                        OutlinedButton(
+                            onClick = { showCancelConfirmation = true },
+                            enabled = !cancelBusy,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(15.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            if (cancelBusy) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(17.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(Modifier.width(8.dp))
+                            } else {
+                                Icon(Icons.Default.Cancel, null)
+                                Spacer(Modifier.width(7.dp))
+                            }
+                            Text(strings.get("subscription.cancel"))
+                        }
+                    }
+                    cancelMessage?.let { message ->
+                        Text(
+                            message,
+                            color = if (cancellationConfirmed) Color(0xFF0D9488)
+                            else MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp
+                        )
                     }
                 }
             }
