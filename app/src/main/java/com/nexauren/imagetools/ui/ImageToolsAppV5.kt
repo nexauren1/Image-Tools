@@ -64,14 +64,14 @@ internal data class ToolDef(
 )
 
 internal val TOOL_CATALOG = listOf(
-    ToolDef("resize", Icons.Default.PhotoSizeSelectLarge, Color(0xFF2563EB), Color(0xFF06B6D4)),
+    ToolDef("resize", Icons.Default.PhotoSizeSelectLarge, Color(0xFF2563EB), Color(0xFF087F8C)),
     ToolDef("compress", Icons.Default.Compress, Color(0xFF059669), Color(0xFF22C55E)),
-    ToolDef("convert", Icons.Default.SwapHoriz, Color(0xFF7C3AED), Color(0xFFEC4899)),
+    ToolDef("convert", Icons.Default.SwapHoriz, Color(0xFF6548E8), Color(0xFFEC4899)),
     ToolDef("crop", Icons.Default.Crop, Color(0xFFF59E0B), Color(0xFFF97316)),
     ToolDef("rotate", Icons.Default.Rotate90DegreesCw, Color(0xFF4F46E5), Color(0xFFEC4899)),
     ToolDef("filter", Icons.Default.FilterVintage, Color(0xFF0F766E), Color(0xFF14B8A6)),
-    ToolDef("watermark", Icons.Default.TextFields, Color(0xFF7C3AED), Color(0xFFDB2777), true),
-    ToolDef("details", Icons.Default.Info, Color(0xFF334155), Color(0xFF06B6D4)),
+    ToolDef("watermark", Icons.Default.TextFields, Color(0xFF6548E8), Color(0xFFDB2777), true),
+    ToolDef("details", Icons.Default.Info, Color(0xFF334155), Color(0xFF087F8C)),
     ToolDef("brightness", Icons.Default.LightMode, Color(0xFFF59E0B), Color(0xFFFBBF24)),
     ToolDef("contrast", Icons.Default.Contrast, Color(0xFF0F172A), Color(0xFF475569)),
     ToolDef("saturation", Icons.Default.Palette, Color(0xFFDB2777), Color(0xFF8B5CF6)),
@@ -79,9 +79,9 @@ internal val TOOL_CATALOG = listOf(
     ToolDef("negative", Icons.Default.InvertColors, Color(0xFF111827), Color(0xFF6B7280)),
     ToolDef("blur", Icons.Default.BlurOn, Color(0xFF0891B2), Color(0xFF6366F1), true),
     ToolDef("sharpen", Icons.Default.AutoFixHigh, Color(0xFF16A34A), Color(0xFF0EA5E9), true),
-    ToolDef("pixelate", Icons.Default.GridOn, Color(0xFF7C3AED), Color(0xFF4F46E5)),
+    ToolDef("pixelate", Icons.Default.GridOn, Color(0xFF6548E8), Color(0xFF4F46E5)),
     ToolDef("border", Icons.Default.BorderStyle, Color(0xFF64748B), Color(0xFF0F172A)),
-    ToolDef("round", Icons.Default.RoundedCorner, Color(0xFF2563EB), Color(0xFF7C3AED), true),
+    ToolDef("round", Icons.Default.RoundedCorner, Color(0xFF2563EB), Color(0xFF6548E8), true),
     ToolDef("metadata", Icons.Default.Security, Color(0xFF059669), Color(0xFF0F766E)),
     ToolDef("pdf", Icons.Default.PictureAsPdf, Color(0xFFDC2626), Color(0xFFEA580C), true),
     ToolDef("palette", Icons.Default.ColorLens, Color(0xFF0EA5E9), Color(0xFF8B5CF6)),
@@ -89,22 +89,22 @@ internal val TOOL_CATALOG = listOf(
     ToolDef("collage", Icons.Default.Collections, Color(0xFFDB2777), Color(0xFFF97316), true),
     ToolDef("ocr", Icons.Default.TextSnippet, Color(0xFF2563EB), Color(0xFF8B5CF6)),
     ToolDef("base64", Icons.Default.Code, Color(0xFF334155), Color(0xFF3B82F6)),
-    ToolDef("exif", Icons.Default.DataObject, Color(0xFF475569), Color(0xFF06B6D4)),
+    ToolDef("exif", Icons.Default.DataObject, Color(0xFF475569), Color(0xFF087F8C)),
     ToolDef("auto_enhance", Icons.Default.AutoAwesome, Color(0xFF6548E8), Color(0xFF087F8C), true),
     ToolDef("exposure", Icons.Default.Exposure, Color(0xFFF59E0B), Color(0xFFEF4444)),
     ToolDef("tint", Icons.Default.Tune, Color(0xFF14B8A6), Color(0xFF3B82F6)),
-    ToolDef("vignette", Icons.Default.BlurOn, Color(0xFF111827), Color(0xFF7C3AED), true),
+    ToolDef("vignette", Icons.Default.BlurOn, Color(0xFF111827), Color(0xFF6548E8), true),
     ToolDef("posterize", Icons.Default.Palette, Color(0xFFEC4899), Color(0xFF8B5CF6)),
     ToolDef("duotone", Icons.Default.ColorLens, Color(0xFF0F766E), Color(0xFFEA580C), true),
     ToolDef("mirror", Icons.Default.Flip, Color(0xFF2563EB), Color(0xFF14B8A6)),
     ToolDef("noise_reduction", Icons.Default.AutoFixHigh, Color(0xFF6366F1), Color(0xFF0EA5E9), true),
     ToolDef("social_presets", Icons.Default.PhoneAndroid, Color(0xFFEC4899), Color(0xFF8B5CF6), false),
     ToolDef("smart_resize", Icons.Default.PhotoSizeSelectLarge, Color(0xFF0EA5E9), Color(0xFF2563EB), true),
-    ToolDef("face_blur", Icons.Default.Face, Color(0xFF0F766E), Color(0xFF06B6D4), true),
+    ToolDef("face_blur", Icons.Default.Face, Color(0xFF0F766E), Color(0xFF087F8C), true),
     ToolDef("pdf_merge", Icons.Default.MergeType, Color(0xFFB91C1C), Color(0xFFF97316), true),
-    ToolDef("gif_creator", Icons.Default.Gif, Color(0xFF7C3AED), Color(0xFFEC4899), true),
-    ToolDef("heic_avif", Icons.Default.Image, Color(0xFF475569), Color(0xFF06B6D4), true),
-    ToolDef("fit_canvas", Icons.Default.AspectRatio, Color(0xFF0EA5E9), Color(0xFF06B6D4)),
+    ToolDef("gif_creator", Icons.Default.Gif, Color(0xFF6548E8), Color(0xFFEC4899), true),
+    ToolDef("heic_avif", Icons.Default.Image, Color(0xFF475569), Color(0xFF087F8C), true),
+    ToolDef("fit_canvas", Icons.Default.AspectRatio, Color(0xFF0EA5E9), Color(0xFF087F8C)),
     ToolDef("target_size", Icons.Default.DataUsage, Color(0xFF059669), Color(0xFF0F766E), true),
     ToolDef("split_grid", Icons.Default.GridOn, Color(0xFFF59E0B), Color(0xFFEA580C), true),
     ToolDef("film_grain", Icons.Default.AutoFixHigh, Color(0xFF7C2D12), Color(0xFFF59E0B)),
@@ -364,7 +364,7 @@ private fun AuthScreenV5(auth: AuthRepository) {
 
     Box(
         Modifier.fillMaxSize().background(
-            Brush.linearGradient(listOf(Color(0xFF0B1022), Color(0xFF4C1D95), Color(0xFF0891B2)))
+            Brush.linearGradient(listOf(Color(0xFF101426), Color(0xFF6548E8), Color(0xFF0891B2)))
         )
     ) {
         LazyColumn(
@@ -494,8 +494,8 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
                         .background(
                             Brush.linearGradient(
                                 listOf(
-                                    Color(0xFF0B1022),
-                                    Color(0xFF4C1D95),
+                                    Color(0xFF101426),
+                                    Color(0xFF6548E8),
                                     Color(0xFF0891B2)
                                 )
                             )
@@ -1691,7 +1691,7 @@ private fun ToolHeaderV5(tool: ToolDef, strings: UiText, premium: Boolean, onBac
         if (tool.premium && !premium) {
             Text(
                 strings.get("pro"),
-                color = Color(0xFF7C3AED),
+                color = Color(0xFF6548E8),
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 9.sp
             )
@@ -2156,7 +2156,7 @@ private fun AccountScreenV5(
                             Brush.linearGradient(
                                 listOf(
                                     Color(0xFF111827),
-                                    Color(0xFF4C1D95),
+                                    Color(0xFF6548E8),
                                     Color(0xFF0E7490)
                                 )
                             )
