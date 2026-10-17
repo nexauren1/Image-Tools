@@ -22,7 +22,6 @@ fun FavoritesScreen(strings: UiText, premium: Boolean, openTool: (String) -> Uni
     val context = LocalContext.current
     var favorites by remember { mutableStateOf(FavoritesStore.list(context)) }
     val tools = TOOL_CATALOG.filter { it.id in favorites }
-    val language = AppLanguageStore.get(context)
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -44,12 +43,7 @@ fun FavoritesScreen(strings: UiText, premium: Boolean, openTool: (String) -> Uni
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
-                            when (language) {
-                                AppLanguage.PT -> "Favoritos"
-                                AppLanguage.ES -> "Favoritos"
-                                AppLanguage.FR -> "Favoris"
-                                else -> "Favorites"
-                            },
+                            strings.get("favorites.title"),
                             fontSize = 24.sp,
                             fontWeight = FontWeight.ExtraBold
                         )
@@ -78,21 +72,11 @@ fun FavoritesScreen(strings: UiText, premium: Boolean, openTool: (String) -> Uni
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            when (language) {
-                                AppLanguage.PT -> "Ainda está vazio"
-                                AppLanguage.ES -> "Todavía está vacío"
-                                AppLanguage.FR -> "C’est encore vide"
-                                else -> "Nothing here yet"
-                            },
+                            strings.get("favorites.empty.title"),
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            when (language) {
-                                AppLanguage.PT -> "Toque na estrela de uma ferramenta para a guardar nesta página."
-                                AppLanguage.ES -> "Toca la estrella de una herramienta para guardarla aquí."
-                                AppLanguage.FR -> "Touchez l’étoile d’un outil pour l’enregistrer ici."
-                                else -> "Tap the star on any tool to save it here."
-                            },
+                            strings.get("favorites.empty.body"),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -123,12 +107,7 @@ fun FavoritesScreen(strings: UiText, premium: Boolean, openTool: (String) -> Uni
                     Icon(Icons.Default.DeleteSweep, null)
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        when (language) {
-                            AppLanguage.PT -> "Limpar favoritos"
-                            AppLanguage.ES -> "Limpiar favoritos"
-                            AppLanguage.FR -> "Vider les favoris"
-                            else -> "Clear favorites"
-                        }
+                        strings.get("favorites.clear")
                     )
                 }
             }
