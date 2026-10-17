@@ -186,6 +186,20 @@ fun ToolWorkspaceV6(
         }
     }
 
+    val collagePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(4)
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            sourceUris = uris.take(4)
+            previewBitmaps = emptyList()
+            pendingItems = emptyList()
+            textResult = null
+            status = strings.get("ready")
+            statusIsError = false
+            loadSourceThumbnails(sourceUris)
+        }
+    }
+
     val pdfPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
@@ -210,7 +224,10 @@ fun ToolWorkspaceV6(
             "base64" -> singlePicker.launch(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
             )
-            "gif_creator", "collage" -> multiPicker.launch(
+            "gif_creator" -> multiPicker.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
+            "collage" -> collagePicker.launch(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
             )
             else -> if (batchMode) {
@@ -559,6 +576,14 @@ fun ToolWorkspaceV6(
             onNeedPremium()
             return
         }
+
+        fun ensureBatchOutputSize(items: List<RawExportItem>) {
+            val totalBytes = items.sumOf { it.bytes.size.toLong() }
+            require(totalBytes <= 96L * 1024L * 1024L) {
+                "This output batch is too large to prepare safely in memory. Process fewer images at a time."
+            }
+        }
+
         scope.launch {
             busy = true
             pendingItems = emptyList()
@@ -571,82 +596,150 @@ fun ToolWorkspaceV6(
                 if (tool.id == "pdf_merge") {
                     if (sourceUris.size < 2) {
                         status = strings.get("select.first")
+                        statusIsError = true
                         chooseInput()
                     } else {
                         val pdf = withContext(Dispatchers.IO) { PdfProcessor.merge(context, sourceUris) }
+                        require(pdf.size.toLong() <= 96L * 1024L * 1024L) {
+                            "The merged PDF is too large to prepare safely in memory. Choose fewer or smaller PDFs."
+                        }
                         pendingItems = listOf(RawExportItem(pdf, "application/pdf", "pdf", "merged"))
                         status = strings.get("ready")
                     }
                 } else {
                     if (sourceUris.isEmpty()) {
                         status = strings.get("select.first")
+                        statusIsError = true
                         chooseInput()
                         return@launch
                     }
-                    val bitmaps = withContext(Dispatchers.IO) {
-                        sourceUris.mapNotNull { uri -> ImageProcessor.decode(context, uri)?.let { uri to it } }
-                    }
-                    if (bitmaps.isEmpty()) error(strings.get("process.error"))
 
-                    if (tool.id == "split_grid") {
-                        val splitResults = withContext(Dispatchers.Default) {
+                    var processedCount = 0
+                    when (tool.id) {
+                        "split_grid" -> {
                             val outputs = mutableListOf<RawExportItem>()
-                            var imageNumber = 1
-                            for ((_, bitmap) in bitmaps) {
-                                val tiles = SplitImageProcessor.split(bitmap, gridRows, gridColumns)
-                                tiles.forEachIndexed { index, tile ->
-                                    outputs += RawExportItem(
-                                        ImageProcessor.encode(tile, OutputFormat.PNG, 100),
-                                        OutputFormat.PNG.mime,
-                                        OutputFormat.PNG.extension,
-                                        "split_" + imageNumber + "_" + (index + 1)
-                                    )
+                            sourceUris.forEachIndexed { imageIndex, uri ->
+                                val bitmap = withContext(Dispatchers.IO) {
+                                    ImageProcessor.decode(context, uri)
+                                } ?: return@forEachIndexed
+                                try {
+                                    val imageOutputs = withContext(Dispatchers.Default) {
+                                        val tiles = SplitImageProcessor.split(bitmap, gridRows, gridColumns)
+                                        try {
+                                            tiles.mapIndexed { tileIndex, tile ->
+                                                RawExportItem(
+                                                    ImageProcessor.encode(tile, OutputFormat.PNG, 100),
+                                                    OutputFormat.PNG.mime,
+                                                    OutputFormat.PNG.extension,
+                                                    "split_" + (imageIndex + 1) + "_" + (tileIndex + 1)
+                                                )
+                                            }
+                                        } finally {
+                                            tiles.forEach { tile ->
+                                                if (tile !== bitmap && !tile.isRecycled) tile.recycle()
+                                            }
+                                        }
+                                    }
+                                    outputs.addAll(imageOutputs)
+                                    ensureBatchOutputSize(outputs)
+                                    processedCount++
+                                } finally {
+                                    if (!bitmap.isRecycled) bitmap.recycle()
                                 }
-                                imageNumber++
                             }
-                            val previews = outputs.take(6).mapNotNull {
-                                decodeToolPreview(it.bytes)
+                            if (outputs.isEmpty()) error(strings.get("process.error"))
+                            pendingItems = outputs
+                            previewBitmaps = outputs.take(6).mapNotNull { decodeToolPreview(it.bytes) }
+                        }
+                        "gif_creator" -> {
+                            val frames = withContext(Dispatchers.IO) {
+                                sourceUris.take(20).mapNotNull { uri ->
+                                    ImageProcessor.decode(context, uri, maxEdge = 640)
+                                }
                             }
-                            outputs.toList() to previews
+                            if (frames.isEmpty()) error(strings.get("process.error"))
+                            try {
+                                val gif = withContext(Dispatchers.Default) {
+                                    GifProcessor.encode(frames, gifDelay.toLong())
+                                }
+                                val output = RawExportItem(gif, "image/gif", "gif", "animation")
+                                ensureBatchOutputSize(listOf(output))
+                                pendingItems = listOf(output)
+                                previewBitmaps = sourceUris.take(4).mapNotNull {
+                                    decodeToolThumbnail(context, it)
+                                }
+                                processedCount = frames.size
+                            } finally {
+                                frames.forEach { if (!it.isRecycled) it.recycle() }
+                            }
                         }
-                        pendingItems = splitResults.first
-                        previewBitmaps = splitResults.second
-                    } else if (tool.id == "gif_creator") {
-                        val gif = withContext(Dispatchers.Default) {
-                            GifProcessor.encode(bitmaps.map { it.second }, gifDelay.toLong())
+                        "collage" -> {
+                            val inputs = withContext(Dispatchers.IO) {
+                                sourceUris.take(4).mapNotNull { uri ->
+                                    ImageProcessor.decode(context, uri, maxEdge = 1200)
+                                }
+                            }
+                            if (inputs.size < 2) {
+                                inputs.forEach { if (!it.isRecycled) it.recycle() }
+                                error(strings.get("collage.help"))
+                            }
+                            var collage: Bitmap? = null
+                            try {
+                                val createdCollage = withContext(Dispatchers.Default) {
+                                    AdvancedImageProcessor.collage(inputs)
+                                }
+                                collage = createdCollage
+                                val bytes = withContext(Dispatchers.Default) {
+                                    ImageProcessor.encode(createdCollage, OutputFormat.PNG, 100)
+                                }
+                                val output = RawExportItem(
+                                    bytes,
+                                    OutputFormat.PNG.mime,
+                                    OutputFormat.PNG.extension,
+                                    "collage"
+                                )
+                                ensureBatchOutputSize(listOf(output))
+                                pendingItems = listOf(output)
+                                previewBitmaps = listOfNotNull(decodeToolPreview(bytes))
+                                processedCount = inputs.size
+                            } finally {
+                                inputs.forEach { if (!it.isRecycled) it.recycle() }
+                                collage?.let { if (!it.isRecycled) it.recycle() }
+                            }
                         }
-                        pendingItems = listOf(RawExportItem(gif, "image/gif", "gif", "animation"))
-                        previewBitmaps = bitmaps.take(4).map { createToolThumbnail(it.second) }
-                    } else if (tool.id == "collage") {
-                        val collage = withContext(Dispatchers.Default) {
-                            AdvancedImageProcessor.collage(bitmaps.take(4).map { it.second })
+                        else -> {
+                            val items = mutableListOf<RawExportItem>()
+                            sourceUris.forEach { uri ->
+                                val bitmap = withContext(Dispatchers.IO) {
+                                    ImageProcessor.decode(context, uri)
+                                } ?: return@forEach
+                                try {
+                                    items += analyzeBitmap(bitmap, uri)
+                                    ensureBatchOutputSize(items)
+                                    processedCount++
+                                } finally {
+                                    if (!bitmap.isRecycled) bitmap.recycle()
+                                }
+                            }
+                            if (items.isEmpty()) error(strings.get("process.error"))
+                            pendingItems = items
+                            textResult = items.firstOrNull {
+                                it.mime == "text/plain" || it.mime == "text/css"
+                            }?.let { String(it.bytes, Charsets.UTF_8) }
+                            val decodedResults = items.take(6).mapNotNull { item ->
+                                if (item.mime.startsWith("image/")) decodeToolPreview(item.bytes) else null
+                            }
+                            previewBitmaps = if (decodedResults.isNotEmpty()) decodedResults
+                            else sourceUris.take(4).mapNotNull { decodeToolThumbnail(context, it) }
                         }
-                        val collageBytes = withContext(Dispatchers.Default) {
-                            ImageProcessor.encode(collage, OutputFormat.PNG, 100)
-                        }
-                        pendingItems = listOf(
-                            RawExportItem(
-                                collageBytes,
-                                OutputFormat.PNG.mime,
-                                OutputFormat.PNG.extension,
-                                "collage"
-                            )
-                        )
-                        previewBitmaps = listOf(createToolThumbnail(collage))
-                    } else {
-                        val items = bitmaps.map { (uri, bitmap) -> analyzeBitmap(bitmap, uri) }
-                        pendingItems = items
-                        textResult = items.firstOrNull { it.mime == "text/plain" || it.mime == "text/css" }
-                            ?.let { String(it.bytes, Charsets.UTF_8) }
-                        val decodedResults = items.take(6).mapNotNull { item ->
-                            if (item.mime.startsWith("image/")) decodeToolPreview(item.bytes) else null
-                        }
-                        previewBitmaps = if (decodedResults.isNotEmpty()) decodedResults
-                        else bitmaps.take(6).map { createToolThumbnail(it.second) }
                     }
 
-                    ProcessingStatsStore.recordProcessed(context, bitmaps.size)
-                    status = strings.get("ready")
+                    ProcessingStatsStore.recordProcessed(context, processedCount)
+                    status = if (processedCount < sourceUris.size) {
+                        strings.get("ready") + " (" + processedCount + "/" + sourceUris.size + ")"
+                    } else {
+                        strings.get("ready")
+                    }
                     statusIsError = false
                 }
             } catch (e: Exception) {
