@@ -2199,6 +2199,8 @@ private fun AccountScreenV5(
                                             ?: strings.get("subscription.cancel.error")
                                     }
                                 }
+                            } catch (_: Exception) {
+                                cancelMessage = strings.get("subscription.cancel.error")
                             } finally {
                                 cancelBusy = false
                             }
