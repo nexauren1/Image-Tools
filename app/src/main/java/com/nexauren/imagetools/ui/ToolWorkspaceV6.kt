@@ -12,6 +12,8 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -26,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -66,6 +69,7 @@ fun ToolWorkspaceV6(
     var exportedMime by remember { mutableStateOf("image/*") }
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<String?>(null) }
+    var statusIsError by remember { mutableStateOf(false) }
     var textResult by remember { mutableStateOf<String?>(null) }
     var sourcePreviewBitmaps by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
 
@@ -163,6 +167,7 @@ fun ToolWorkspaceV6(
             pendingItems = emptyList()
             textResult = null
             status = strings.get("ready")
+            statusIsError = false
             loadSourceThumbnails(listOf(uri))
         }
     }
@@ -176,6 +181,7 @@ fun ToolWorkspaceV6(
             pendingItems = emptyList()
             textResult = null
             status = strings.get("ready")
+            statusIsError = false
             loadSourceThumbnails(sourceUris)
         }
     }
@@ -190,6 +196,7 @@ fun ToolWorkspaceV6(
             textResult = null
             sourcePreviewBitmaps = emptyList()
             status = strings.get("ready")
+            statusIsError = false
         }
     }
 
@@ -537,8 +544,10 @@ fun ToolWorkspaceV6(
                     )
                 )
                 status = strings.get("saved")
+                statusIsError = false
             } catch (e: Exception) {
                 status = e.message ?: strings.get("save.error")
+                statusIsError = true
             } finally {
                 busy = false
             }
@@ -557,6 +566,7 @@ fun ToolWorkspaceV6(
             textResult = null
             exportedUri = null
             status = strings.get("processing")
+            statusIsError = false
             try {
                 if (tool.id == "pdf_merge") {
                     if (sourceUris.size < 2) {
@@ -637,9 +647,11 @@ fun ToolWorkspaceV6(
 
                     ProcessingStatsStore.recordProcessed(context, bitmaps.size)
                     status = strings.get("ready")
+                    statusIsError = false
                 }
             } catch (e: Exception) {
                 status = e.message ?: strings.get("process.error")
+                statusIsError = true
             } finally {
                 busy = false
             }
@@ -647,160 +659,115 @@ fun ToolWorkspaceV6(
     }
 
     LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        item { StudioHeroV8(tool, strings.toolTitle(tool.id), strings.toolSubtitle(tool.id), tool.premium, onBack) }
+
         item {
-            Card(shape = RoundedCornerShape(28.dp)) {
-                Box(
-                    Modifier.fillMaxWidth()
-                        .clip(RoundedCornerShape(28.dp))
-                        .background(Brush.linearGradient(listOf(Color(0xFF10162B), tool.start, tool.end)))
-                ) {
-                    Column(
-                        Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+            StudioSectionV8(
+                number = "01", title = strings.get("choose.image"),
+                subtitle = when (tool.id) {
+                    "pdf_merge" -> strings.get("choose.pdfs")
+                    "gif_creator", "collage" -> strings.get("choose.frames")
+                    else -> strings.get("local")
+                },
+                icon = Icons.Default.AddPhotoAlternate, accent = tool.start
+            ) {
+                if (tool.id !in listOf("pdf_merge", "gif_creator", "collage", "base64")) {
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant).padding(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = onBack) {
-                                Icon(Icons.Default.ArrowBack, strings.get("back"), tint = Color.White)
-                            }
-                            Box(
-                                Modifier.size(48.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(Color.White.copy(alpha = 0.14f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(tool.icon, null, tint = Color.White, modifier = Modifier.size(25.dp))
-                            }
-                            Spacer(Modifier.width(11.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    strings.toolTitle(tool.id),
-                                    color = Color.White,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    strings.toolSubtitle(tool.id),
-                                    color = Color.White.copy(alpha = 0.80f),
-                                    fontSize = 11.sp,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            if (tool.premium) {
-                                Surface(color = Color.White.copy(alpha = 0.14f), shape = RoundedCornerShape(10.dp)) {
-                                    Text(
-                                        strings.get("pro"),
-                                        Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                                        color = Color.White,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 9.sp
-                                    )
-                                }
-                            }
+                        StudioModeChipV8(strings.get("batch.single"), !batchMode, tool.start, Modifier.weight(1f)) {
+                            batchMode = false
+                            sourceUris = emptyList(); sourcePreviewBitmaps = emptyList()
+                            previewBitmaps = emptyList(); pendingItems = emptyList(); textResult = null; exportedUri = null
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Surface(color = Color.White.copy(alpha = 0.12f), shape = RoundedCornerShape(12.dp)) {
-                                Row(
-                                    Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.Security, null, tint = Color.White, modifier = Modifier.size(15.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(strings.get("local"), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
-                                }
-                            }
-                            if (tool.id in listOf("collage", "gif_creator", "pdf_merge", "split_grid")) {
-                                Surface(color = Color.White.copy(alpha = 0.12f), shape = RoundedCornerShape(12.dp)) {
-                                    Text(
-                                        strings.get("batch"),
-                                        Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                                        color = Color.White,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            }
+                        StudioModeChipV8(strings.get("batch.multiple"), batchMode, tool.start, Modifier.weight(1f)) {
+                            batchMode = true
+                            sourceUris = emptyList(); sourcePreviewBitmaps = emptyList()
+                            previewBitmaps = emptyList(); pendingItems = emptyList(); textResult = null; exportedUri = null
                         }
                     }
                 }
-            }
-        }
 
-        item {
-            Card(shape = RoundedCornerShape(22.dp)) {
-                Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("1. " + strings.get("choose.image"), fontWeight = FontWeight.ExtraBold)
-                    if (tool.id !in listOf("pdf_merge", "gif_creator", "collage", "base64")) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            FilterChip(
-                                selected = !batchMode,
-                                onClick = { batchMode = false },
-                                label = { Text(strings.get("batch.single")) },
-                                modifier = Modifier.weight(1f)
-                            )
-                            FilterChip(
-                                selected = batchMode,
-                                onClick = { batchMode = true },
-                                label = { Text(strings.get("batch.multiple")) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                    Button(
-                        onClick = { chooseInput() },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Icon(
-                            when (tool.id) {
-                                "pdf_merge" -> Icons.Default.PictureAsPdf
-                                else -> if (batchMode) Icons.Default.Collections else Icons.Default.AddPhotoAlternate
-                            },
-                            null
-                        )
+                OutlinedButton(
+                    onClick = { chooseInput() },
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    shape = RoundedCornerShape(17.dp),
+                    border = BorderStroke(1.dp, tool.start.copy(alpha = 0.55f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = tool.start)
+                ) {
+                    Icon(
+                        when (tool.id) {
+                            "pdf_merge" -> Icons.Default.PictureAsPdf
+                            "gif_creator", "collage" -> Icons.Default.Collections
+                            else -> if (batchMode) Icons.Default.Collections else Icons.Default.AddPhotoAlternate
+                        }, null
+                    )
+                    Spacer(Modifier.width(9.dp))
+                    Text(
+                        when (tool.id) {
+                            "pdf_merge" -> strings.get("choose.pdfs")
+                            "gif_creator", "collage" -> strings.get("choose.frames")
+                            else -> if (sourceUris.isEmpty()) {
+                                if (batchMode) strings.get("choose.images") else strings.get("choose.image")
+                            } else strings.get("choose.another")
+                        }, fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Icon(Icons.Default.ArrowForward, null)
+                }
+
+                if (sourceUris.isNotEmpty()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF0D9488), modifier = Modifier.size(17.dp))
                         Spacer(Modifier.width(7.dp))
-                        Text(
-                            when (tool.id) {
-                                "pdf_merge" -> strings.get("choose.pdfs")
-                                "gif_creator", "collage" -> strings.get("choose.frames")
-                                else -> if (batchMode) strings.get("choose.images") else strings.get("choose.image")
-                            }
-                        )
+                        Text(sourceUris.size.toString() + " " + strings.get("batch.selected"), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Spacer(Modifier.weight(1f))
+                        TextButton(onClick = {
+                            sourceUris = emptyList(); sourcePreviewBitmaps = emptyList(); previewBitmaps = emptyList()
+                            pendingItems = emptyList(); textResult = null; exportedUri = null; status = null; statusIsError = false
+                        }) { Text(strings.get("cancel"), fontSize = 11.sp) }
                     }
-                    if (sourceUris.isNotEmpty()) {
-                        Text(
-                            sourceUris.size.toString() + " " + strings.get("batch.selected"),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
-                        )
-                        if (sourcePreviewBitmaps.isNotEmpty()) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                sourcePreviewBitmaps.forEach { thumbnail ->
+                    if (sourcePreviewBitmaps.isNotEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                            sourcePreviewBitmaps.forEachIndexed { index, thumbnail ->
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                     Image(
-                                        bitmap = thumbnail.asImageBitmap(),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(68.dp).clip(RoundedCornerShape(14.dp)),
+                                        bitmap = thumbnail.asImageBitmap(), contentDescription = null,
+                                        modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(17.dp))
+                                            .border(1.dp, tool.start.copy(alpha = 0.28f), RoundedCornerShape(17.dp)),
                                         contentScale = ContentScale.Crop
                                     )
+                                    if (index == 0) Text(
+                                        if (sourceUris.size == 1) strings.get("choose.image") else strings.get("batch.image") + " 1",
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 9.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
-                                if (sourceUris.size > sourcePreviewBitmaps.size) {
-                                    Box(
-                                        Modifier.size(68.dp)
-                                            .clip(RoundedCornerShape(14.dp))
-                                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("+${sourceUris.size - sourcePreviewBitmaps.size}", fontWeight = FontWeight.ExtraBold)
+                            }
+                            if (sourceUris.size > sourcePreviewBitmaps.size) {
+                                Box(
+                                    Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(17.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(Icons.Default.Collections, null, tint = tool.start)
+                                        Text("+" + (sourceUris.size - sourcePreviewBitmaps.size), fontWeight = FontWeight.ExtraBold)
                                     }
                                 }
                             }
                         }
+                    }
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Security, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(16.dp))
+                        Text(strings.get("private"), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -808,166 +775,141 @@ fun ToolWorkspaceV6(
 
         if (sourceUris.isNotEmpty() && tool.id != "pdf_merge") {
             item {
-                Card(shape = RoundedCornerShape(22.dp)) {
-                    Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Text("2. " + strings.get("config"), fontWeight = FontWeight.ExtraBold)
-                        ToolControlsV6(
-                            tool, strings, format, { format = it }, quality, { quality = it },
-                            width, { width = it }, height, { height = it },
-                            cropRatio, { cropRatio = it }, angle, { angle = it },
-                            flipH, { flipH = it }, flipV, { flipV = it },
-                            imageFilter, { imageFilter = it }, watermark, { watermark = it },
-                            opacity, { opacity = it }, position, { position = it },
-                            amount, { amount = it }, pixelSize, { pixelSize = it },
-                            borderSize, { borderSize = it }, cornerRadius, { cornerRadius = it },
-                            duotonePreset, { duotonePreset = it },
-                            socialPreset, { socialPreset = it },
-                            modernFormat, { modernFormat = it },
-                            smartWidth, { smartWidth = it }, smartHeight, { smartHeight = it },
-                            gifDelay, { gifDelay = it },
-                            fitBackground, { fitBackground = it },
-                            targetKb, { targetKb = it },
-                            gridRows, { gridRows = it },
-                            gridColumns, { gridColumns = it },
-                            mirrorAxis, { mirrorAxis = it }
-                        )
-                    }
-                }
-            }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = { processAction() },
-                        modifier = Modifier.weight(1f).height(54.dp),
-                        shape = RoundedCornerShape(17.dp),
-                        enabled = !busy
-                    ) {
-                        Icon(Icons.Default.PlayArrow, null)
-                        Spacer(Modifier.width(7.dp))
-                        Text("3. " + strings.get("preview.button"))
-                    }
-                    if (premium) {
-                        OutlinedButton(onClick = { saveRecipe() }, modifier = Modifier.height(54.dp)) {
-                            Icon(Icons.Default.AutoAwesome, null)
-                        }
-                    }
-                }
-            }
-        } else if (sourceUris.isNotEmpty()) {
-            item {
-                Button(
-                    onClick = { processAction() },
-                    modifier = Modifier.fillMaxWidth().height(54.dp),
-                    shape = RoundedCornerShape(17.dp),
-                    enabled = !busy
+                StudioSectionV8(
+                    number = "02", title = strings.get("config"),
+                    subtitle = strings.toolSubtitle(tool.id),
+                    icon = Icons.Default.Tune, accent = tool.end
                 ) {
-                    Icon(Icons.Default.PlayArrow, null)
-                    Spacer(Modifier.width(7.dp))
-                    Text("2. " + strings.get("preview.button"))
+                    ToolControlsV6(
+                        tool, strings, format, { format = it }, quality, { quality = it },
+                        width, { width = it }, height, { height = it }, cropRatio, { cropRatio = it },
+                        angle, { angle = it }, flipH, { flipH = it }, flipV, { flipV = it },
+                        imageFilter, { imageFilter = it }, watermark, { watermark = it }, opacity, { opacity = it },
+                        position, { position = it }, amount, { amount = it }, pixelSize, { pixelSize = it },
+                        borderSize, { borderSize = it }, cornerRadius, { cornerRadius = it },
+                        duotonePreset, { duotonePreset = it }, socialPreset, { socialPreset = it },
+                        modernFormat, { modernFormat = it }, smartWidth, { smartWidth = it }, smartHeight, { smartHeight = it },
+                        gifDelay, { gifDelay = it }, fitBackground, { fitBackground = it }, targetKb, { targetKb = it },
+                        gridRows, { gridRows = it }, gridColumns, { gridColumns = it }, mirrorAxis, { mirrorAxis = it }
+                    )
                 }
             }
         }
 
-        if (previewBitmaps.isNotEmpty() || pendingItems.isNotEmpty()) {
+        if (sourceUris.isNotEmpty()) {
             item {
-                Card(shape = RoundedCornerShape(22.dp)) {
-                    Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Text("4. " + strings.get("preview"), fontWeight = FontWeight.ExtraBold)
-                        textResult?.let { result ->
-                            Text(strings.get("result.content"), fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            Surface(
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                shape = RoundedCornerShape(14.dp)
-                            ) {
-                                Text(
-                                    result.take(900) + if (result.length > 900) "…" else "",
-                                    Modifier.fillMaxWidth().padding(11.dp),
-                                    fontSize = 10.sp,
-                                    maxLines = 5,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            if (result.length > 900) {
-                                Text(strings.get("base64.truncated"), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            if (result.length <= 250_000) {
-                                OutlinedButton(onClick = {
+                StudioActionCardV8(
+                    accent = tool.start,
+                    title = if (pendingItems.isNotEmpty()) strings.get("ready") else strings.get("action"),
+                    description = if (batchMode) strings.get("processing.batch") else strings.get("processing.subtitle"),
+                    enabled = !busy, buttonTitle = strings.get("preview.button"),
+                    onRun = { processAction() },
+                    leadingIcon = if (pendingItems.isNotEmpty()) Icons.Default.Refresh else Icons.Default.AutoAwesome
+                )
+            }
+        }
+
+        if (status != null) {
+            item { StudioStatusCardV8(status.orEmpty(), statusIsError, tool.start) }
+        }
+
+        if (previewBitmaps.isNotEmpty() || textResult != null || pendingItems.isNotEmpty()) {
+            item {
+                StudioSectionV8(
+                    number = "03", title = strings.get("preview"),
+                    subtitle = if (pendingItems.isNotEmpty()) pendingItems.size.toString() + " " + strings.get("batch.results") else strings.get("ready"),
+                    icon = Icons.Default.Visibility, accent = Color(0xFF0D9488)
+                ) {
+                    textResult?.let { result ->
+                        Text(strings.get("result.content"), fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                result.take(1200) + if (result.length > 1200) "…" else "",
+                                Modifier.fillMaxWidth().padding(13.dp), fontSize = 11.sp, lineHeight = 16.sp,
+                                maxLines = 7, overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        if (result.length > 1200) Text(
+                            strings.get("base64.truncated"),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp
+                        )
+                        if (result.length <= 250_000) {
+                            Button(
+                                onClick = {
                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                     clipboard.setPrimaryClip(ClipData.newPlainText(strings.get("result.content"), result))
-                                    status = strings.get("base64.copy")
-                                }) {
-                                    Icon(Icons.Default.ContentCopy, null)
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(strings.get("base64.copy"))
-                                }
-                            } else {
-                                Text(strings.get("base64.copy.too.large"), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    status = strings.get("base64.copy"); statusIsError = false
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                            ) {
+                                Icon(Icons.Default.ContentCopy, null); Spacer(Modifier.width(7.dp)); Text(strings.get("base64.copy"))
                             }
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        } else Text(
+                            strings.get("base64.copy.too.large"),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp
+                        )
+                    }
+
+                    if (previewBitmaps.isNotEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                             previewBitmaps.take(4).forEach { bmp ->
                                 Image(
-                                    bitmap = bmp.asImageBitmap(),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(78.dp).clip(RoundedCornerShape(12.dp)),
+                                    bitmap = bmp.asImageBitmap(), contentDescription = null,
+                                    modifier = Modifier.weight(1f).aspectRatio(0.92f).clip(RoundedCornerShape(17.dp))
+                                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), RoundedCornerShape(17.dp)),
                                     contentScale = ContentScale.Crop
                                 )
                             }
                         }
-                        Text(
-                            pendingItems.size.toString() + " " + strings.get("batch.results"),
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        status?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 12.sp) }
                     }
+                    if (textResult == null && previewBitmaps.isEmpty()) Text(
+                        pendingItems.size.toString() + " " + strings.get("batch.results"),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp
+                    )
                 }
             }
         }
 
         if (pendingItems.isNotEmpty()) {
             item {
-                Card(shape = RoundedCornerShape(22.dp)) {
-                    Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("5. " + strings.get("export"), fontWeight = FontWeight.ExtraBold)
-                        Button(
-                            onClick = { exportResults() },
-                            enabled = !busy,
-                            modifier = Modifier.fillMaxWidth().height(52.dp),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Icon(Icons.Default.Save, null)
-                            Spacer(Modifier.width(7.dp))
-                            Text(strings.get("save"))
-                        }
-                    }
-                }
+                StudioExportCardV8(
+                    count = pendingItems.size, accent = Color(0xFF0D9488), title = strings.get("export"),
+                    subtitle = strings.get("save.text"), saveLabel = strings.get("save"),
+                    enabled = !busy, onExport = { exportResults() }
+                )
             }
         }
 
         exportedUri?.let { uri ->
             item {
-                Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
-                    Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = {
-                            runCatching {
-                                context.startActivity(Intent(Intent.ACTION_VIEW).apply {
-                                    data = uri
-                                    type = exportedMime
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                })
-                            }
-                        }) { Text(strings.get("open")) }
-                        OutlinedButton(onClick = {
+                StudioShareCardV8(
+                    title = strings.get("saved"), subtitle = strings.get("share"),
+                    onOpen = {
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW).apply {
+                                data = uri; type = exportedMime; addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            })
+                        }.onFailure {
+                            status = strings.get("open") + ": " + (it.message ?: strings.get("process.error"))
+                            statusIsError = true
+                        }
+                    },
+                    onShare = {
+                        runCatching {
                             val send = Intent(Intent.ACTION_SEND).apply {
-                                type = exportedMime
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                type = exportedMime; putExtra(Intent.EXTRA_STREAM, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                             }
                             context.startActivity(Intent.createChooser(send, strings.get("share")))
-                        }) { Text(strings.get("share")) }
+                        }.onFailure {
+                            status = strings.get("share") + ": " + (it.message ?: strings.get("process.error"))
+                            statusIsError = true
+                        }
                     }
-                }
+                )
             }
         }
     }
@@ -988,6 +930,222 @@ data class AnyToolDef(
     val end: Color,
     val premium: Boolean
 )
+
+
+@Composable
+private fun StudioHeroV8(
+    tool: AnyToolDef, title: String, subtitle: String, premium: Boolean, onBack: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(30.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF11172A))
+    ) {
+        Box(
+            Modifier.fillMaxWidth()
+                .background(Brush.linearGradient(listOf(Color(0xFF11172A), tool.start, tool.end)))
+        ) {
+            Box(
+                Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 14.dp)
+                    .size(116.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.08f))
+            )
+            Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, null, tint = Color.White)
+                    }
+                    Spacer(Modifier.width(3.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("IMAGE STUDIO", color = Color.White.copy(alpha = 0.75f), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp)
+                        Text(title, color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    Box(
+                        Modifier.size(54.dp).clip(RoundedCornerShape(18.dp)).background(Color.White.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(tool.icon, null, tint = Color.White, modifier = Modifier.size(29.dp))
+                    }
+                }
+                Text(subtitle, color = Color.White.copy(alpha = 0.86f), fontSize = 12.sp, lineHeight = 17.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StudioHeroBadgeV8(Icons.Default.Security, "LOCAL")
+                    StudioHeroBadgeV8(
+                        if (premium) Icons.Default.WorkspacePremium else Icons.Default.AutoAwesome,
+                        if (premium) "PRO" else "READY"
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StudioHeroBadgeV8(icon: ImageVector, label: String) {
+    Surface(color = Color.White.copy(alpha = 0.13f), shape = RoundedCornerShape(11.dp)) {
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = Color.White, modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(label, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.6.sp)
+        }
+    }
+}
+
+@Composable
+private fun StudioSectionV8(
+    number: String,
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    accent: Color,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val shape = RoundedCornerShape(26.dp)
+    Card(
+        modifier = Modifier.fillMaxWidth().border(BorderStroke(1.dp, accent.copy(alpha = 0.22f)), shape),
+        shape = shape,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(46.dp).clip(RoundedCornerShape(15.dp))
+                        .background(Brush.linearGradient(listOf(accent, accent.copy(alpha = 0.65f)))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, null, tint = Color.White, modifier = Modifier.size(23.dp))
+                }
+                Spacer(Modifier.width(11.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                    Text(subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 15.sp)
+                }
+                Surface(color = accent.copy(alpha = 0.12f), shape = RoundedCornerShape(10.dp)) {
+                    Text(number, Modifier.padding(horizontal = 9.dp, vertical = 6.dp), color = accent, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp)
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+            content()
+        }
+    }
+}
+
+@Composable
+private fun StudioModeChipV8(title: String, selected: Boolean, accent: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) accent else Color.Transparent,
+        contentColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+    ) {
+        Text(title, Modifier.padding(horizontal = 8.dp, vertical = 11.dp), fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    }
+}
+
+@Composable
+private fun StudioActionCardV8(
+    accent: Color, title: String, description: String, enabled: Boolean,
+    buttonTitle: String, leadingIcon: ImageVector, onRun: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(accent.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+                    Icon(leadingIcon, null, tint = accent, modifier = Modifier.size(22.dp))
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+                    Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                }
+            }
+            Button(
+                onClick = onRun, enabled = enabled,
+                modifier = Modifier.fillMaxWidth().height(54.dp),
+                shape = RoundedCornerShape(17.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = Color.White)
+            ) {
+                Icon(Icons.Default.AutoAwesome, null)
+                Spacer(Modifier.width(8.dp))
+                Text(buttonTitle, fontWeight = FontWeight.ExtraBold)
+                Spacer(Modifier.weight(1f))
+                Icon(Icons.Default.ArrowForward, null)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StudioStatusCardV8(message: String, isError: Boolean, accent: Color) {
+    val tint = if (isError) MaterialTheme.colorScheme.error else accent
+    val background = if (isError) MaterialTheme.colorScheme.errorContainer else tint.copy(alpha = 0.10f)
+    Surface(
+        color = background,
+        shape = RoundedCornerShape(17.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(if (isError) Icons.Default.ErrorOutline else Icons.Default.CheckCircle, null, tint = tint)
+            Spacer(Modifier.width(9.dp))
+            Text(message, color = if (isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun StudioExportCardV8(count: Int, accent: Color, title: String, subtitle: String, saveLabel: String, enabled: Boolean, onExport: () -> Unit) {
+    StudioSectionV8("04", title, subtitle, Icons.Default.SaveAlt, accent) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(count.toString() + " " + LocalUiText.current.get("batch.results"), fontWeight = FontWeight.ExtraBold)
+                Text(LocalUiText.current.get("private"), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(Icons.Default.VerifiedUser, null, tint = accent, modifier = Modifier.size(26.dp))
+        }
+        Button(
+            onClick = onExport, enabled = enabled,
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(17.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = accent)
+        ) {
+            Icon(Icons.Default.Save, null); Spacer(Modifier.width(8.dp)); Text(saveLabel, fontWeight = FontWeight.ExtraBold)
+        }
+    }
+}
+
+@Composable
+private fun StudioShareCardV8(title: String, subtitle: String, onOpen: () -> Unit, onShare: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().border(BorderStroke(1.dp, Color(0xFF0D9488).copy(alpha = 0.25f)), RoundedCornerShape(24.dp)),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF0D9488).copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF0D9488))
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(title, fontWeight = FontWeight.ExtraBold)
+                    Text(subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                Button(onClick = onOpen, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp)) {
+                    Icon(Icons.Default.OpenInNew, null); Spacer(Modifier.width(5.dp)); Text(LocalUiText.current.get("open"))
+                }
+                OutlinedButton(onClick = onShare, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp)) {
+                    Icon(Icons.Default.Share, null); Spacer(Modifier.width(5.dp)); Text(LocalUiText.current.get("share"))
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun PolishedProcessingDialogV7(title: String, subtitle: String, localMessage: String) {
@@ -1068,110 +1226,304 @@ private fun ToolControlsV6(
     gridColumns: Int, onGridColumns: (Int) -> Unit,
     mirrorAxis: String, onMirrorAxis: (String) -> Unit
 ) {
-    when (tool.id) {
-        "resize" -> {
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                OutlinedTextField(width, { onWidth(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("width")) }, singleLine = true)
-                OutlinedTextField(height, { onHeight(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("height")) }, singleLine = true)
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+        when (tool.id) {
+            "resize" -> StudioControlPanelV8(strings.get("width") + " × " + strings.get("height"), strings.get("aspect"), Icons.Default.AspectRatio, tool.start) {
+                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    OutlinedTextField(
+                        value = width, onValueChange = { onWidth(it.filter(Char::isDigit)) },
+                        modifier = Modifier.weight(1f), label = { Text(strings.get("width")) },
+                        suffix = { Text("px") }, singleLine = true, shape = RoundedCornerShape(14.dp)
+                    )
+                    OutlinedTextField(
+                        value = height, onValueChange = { onHeight(it.filter(Char::isDigit)) },
+                        modifier = Modifier.weight(1f), label = { Text(strings.get("height")) },
+                        suffix = { Text("px") }, singleLine = true, shape = RoundedCornerShape(14.dp)
+                    )
+                }
+            }
+            "compress" -> {
+                StudioSliderPanelV8(strings.get("quality"), quality, 10f..100f, tool.start, Icons.Default.Compress, { onQuality(it) }, quality.toInt().toString() + "%")
+                StudioChoicePanelV8(strings.get("format"), listOf("JPEG" to "JPEG", "WEBP" to "WEBP"), format.name, tool.start, Icons.Default.Image) {
+                    onFormat(OutputFormat.valueOf(it))
+                }
+            }
+            "base64" -> {
+                StudioChoicePanelV8(strings.get("format"), listOf("JPEG" to "JPEG", "PNG" to "PNG", "WEBP" to "WEBP"), format.name, tool.start, Icons.Default.Code) {
+                    onFormat(OutputFormat.valueOf(it))
+                }
+                StudioSliderPanelV8(strings.get("quality"), quality, 10f..100f, tool.start, Icons.Default.Tune, { onQuality(it) }, quality.toInt().toString() + "%")
+            }
+            "convert", "metadata" -> StudioChoicePanelV8(
+                strings.get("format"), listOf("JPEG" to "JPEG", "PNG" to "PNG", "WEBP" to "WEBP"),
+                format.name, tool.start, Icons.Default.SwapHoriz
+            ) { onFormat(OutputFormat.valueOf(it)) }
+
+            "crop" -> StudioChoicePanelV8(
+                strings.get("tool.crop.title"),
+                listOf("Original" to "Original", "1:1" to "1:1", "4:5" to "4:5", "16:9" to "16:9", "9:16" to "9:16"),
+                cropRatio, tool.start, Icons.Default.Crop
+            ) { onCropRatio(it) }
+
+            "rotate" -> {
+                StudioChoicePanelV8(
+                    strings.get("tool.rotate.title"), listOf("90" to "90°", "180" to "180°", "270" to "270°"),
+                    angle.toString(), tool.start, Icons.Default.Rotate90DegreesCw
+                ) { onAngle(it.toInt()) }
+                StudioControlPanelV8(strings.get("mirror.h") + " / " + strings.get("mirror.v"), null, Icons.Default.Flip, tool.start) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        StudioToggleV8(strings.get("mirror.h"), flipH, tool.start, Modifier.weight(1f)) { onFlipH(!flipH) }
+                        StudioToggleV8(strings.get("mirror.v"), flipV, tool.start, Modifier.weight(1f)) { onFlipV(!flipV) }
+                    }
+                }
+            }
+            "filter" -> StudioChoicePanelV8(
+                strings.get("tool.filter.title"),
+                ImageFilter.entries.map { it.name to strings.filterTitle(it.name.lowercase()) },
+                imageFilter.name, tool.start, Icons.Default.FilterVintage
+            ) { selected -> onFilter(ImageFilter.valueOf(selected)) }
+
+            "watermark" -> {
+                StudioControlPanelV8(strings.get("text"), strings.get("tool.watermark.subtitle"), Icons.Default.TextFields, tool.start) {
+                    OutlinedTextField(
+                        value = watermark, onValueChange = onWatermark, modifier = Modifier.fillMaxWidth(),
+                        label = { Text(strings.get("text")) }, singleLine = true, shape = RoundedCornerShape(14.dp)
+                    )
+                }
+                StudioSliderPanelV8(strings.get("opacity"), opacity, 10f..100f, tool.start, Icons.Default.Opacity, { onOpacity(it) }, opacity.toInt().toString() + "%")
+                StudioChoicePanelV8(
+                    strings.get("position"),
+                    listOf(
+                        "top_left" to strings.get("position.top_left"),
+                        "top_right" to strings.get("position.top_right"),
+                        "center" to strings.get("position.center"),
+                        "bottom_left" to strings.get("position.bottom_left"),
+                        "bottom_right" to strings.get("position.bottom_right")
+                    ),
+                    position, tool.start, Icons.Default.ControlCamera
+                ) { onPosition(it) }
+            }
+
+            "brightness", "contrast", "saturation", "warmth", "exposure", "tint" -> {
+                val title = strings.get("tool." + tool.id + ".title")
+                StudioSliderPanelV8(title, amount, -100f..100f, tool.start, tool.icon, { onAmount(it) }, amount.toInt().toString())
+                StudioNoteV8(strings.get("tool." + tool.id + ".subtitle"), tool.start)
+            }
+            "blur", "sharpen", "noise_reduction", "face_blur", "vignette", "film_grain", "color_pop", "glitch", "outline", "scan_document" -> {
+                StudioSliderPanelV8(
+                    strings.get("strength"), amount, 5f..100f, tool.start, tool.icon, { onAmount(it) },
+                    amount.toInt().toString() + "%"
+                )
+                StudioNoteV8(strings.toolSubtitle(tool.id), tool.start)
+            }
+            "posterize" -> StudioSliderPanelV8(strings.get("strength"), amount, 2f..12f, tool.start, tool.icon, { onAmount(it) }, amount.coerceIn(2f, 12f).toInt().toString() + " levels")
+            "pixelate" -> StudioSliderPanelV8(strings.get("tool.pixelate.title"), pixelSize, 4f..48f, tool.start, tool.icon, { onPixelSize(it) }, pixelSize.toInt().toString())
+            "border" -> StudioSliderPanelV8(strings.get("tool.border.title"), borderSize, 4f..120f, tool.start, tool.icon, { onBorderSize(it) }, borderSize.toInt().toString() + " px")
+            "round" -> StudioSliderPanelV8(strings.get("tool.round.title"), cornerRadius, 8f..160f, tool.start, tool.icon, { onCornerRadius(it) }, cornerRadius.toInt().toString() + " px")
+            "mirror" -> StudioChoicePanelV8(
+                strings.get("tool.mirror.title"), listOf("horizontal" to strings.get("mirror.h"), "vertical" to strings.get("mirror.v")),
+                mirrorAxis, tool.start, Icons.Default.Flip
+            ) { onMirrorAxis(it) }
+            "fit_canvas" -> {
+                StudioControlPanelV8(strings.get("width") + " × " + strings.get("height"), strings.get("tool.fit_canvas.subtitle"), Icons.Default.AspectRatio, tool.start) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        OutlinedTextField(width, { onWidth(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("width")) }, suffix = { Text("px") }, singleLine = true, shape = RoundedCornerShape(14.dp))
+                        OutlinedTextField(height, { onHeight(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("height")) }, suffix = { Text("px") }, singleLine = true, shape = RoundedCornerShape(14.dp))
+                    }
+                }
+                StudioChoicePanelV8(
+                    strings.get("canvas.background"), listOf("white" to strings.get("background.white"), "black" to strings.get("background.black")),
+                    fitBackground, tool.start, Icons.Default.Palette
+                ) { onFitBackground(it) }
+            }
+            "target_size" -> {
+                StudioSliderPanelV8(strings.get("target.kb"), targetKb, 50f..5000f, tool.start, Icons.Default.DataUsage, { onTargetKb(it) }, targetKb.toInt().toString() + " KB", steps = 48)
+                StudioChoicePanelV8(strings.get("format"), listOf("JPEG" to "JPEG", "WEBP" to "WEBP"), format.name, tool.start, Icons.Default.Image) {
+                    onFormat(OutputFormat.valueOf(it))
+                }
+            }
+            "split_grid" -> {
+                StudioChoicePanelV8(strings.get("grid.rows"), listOf("2" to "2", "3" to "3", "4" to "4"), gridRows.toString(), tool.start, Icons.Default.GridOn) { onGridRows(it.toInt()) }
+                StudioChoicePanelV8(strings.get("grid.columns"), listOf("2" to "2", "3" to "3", "4" to "4"), gridColumns.toString(), tool.start, Icons.Default.GridOn) { onGridColumns(it.toInt()) }
+            }
+            "duotone" -> StudioChoicePanelV8(
+                strings.get("tool.duotone.title"),
+                listOf("ocean" to strings.get("duotone.ocean"), "sunset" to strings.get("duotone.sunset"), "ink" to strings.get("duotone.ink")),
+                duotonePreset, tool.start, Icons.Default.ColorLens
+            ) { onDuotonePreset(it) }
+
+            "social_presets" -> StudioChoicePanelV8(
+                strings.get("preset.social"),
+                SocialImageProcessor.presets.map { it.id to it.title }, socialPreset, tool.start, Icons.Default.PhoneAndroid
+            ) { onSocialPreset(it) }
+
+            "smart_resize" -> {
+                StudioControlPanelV8(strings.get("smart.resize"), strings.get("tool.smart_resize.subtitle"), Icons.Default.AspectRatio, tool.start) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        OutlinedTextField(smartWidth, { onSmartWidth(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("width")) }, suffix = { Text("px") }, singleLine = true, shape = RoundedCornerShape(14.dp))
+                        OutlinedTextField(smartHeight, { onSmartHeight(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("height")) }, suffix = { Text("px") }, singleLine = true, shape = RoundedCornerShape(14.dp))
+                    }
+                }
+                StudioChoicePanelV8(strings.get("format"), listOf("JPEG" to "JPEG", "PNG" to "PNG", "WEBP" to "WEBP"), format.name, tool.start, Icons.Default.Image) {
+                    onFormat(OutputFormat.valueOf(it))
+                }
+            }
+            "heic_avif" -> {
+                StudioChoicePanelV8(
+                    strings.get("modern.formats"), listOf("HEIC" to "HEIC", "AVIF" to "AVIF"), modernFormat.name, tool.start, Icons.Default.Image
+                ) { onModernFormat(ModernFormat.valueOf(it)) }
+                StudioSliderPanelV8(strings.get("quality"), quality, 10f..100f, tool.start, Icons.Default.Tune, { onQuality(it) }, quality.toInt().toString() + "%")
+            }
+            "gif_creator" -> StudioSliderPanelV8(strings.get("quality"), gifDelay, 100f..1500f, tool.start, Icons.Default.Gif, { onGifDelay(it) }, gifDelay.toInt().toString() + " ms")
+            "css_palette" -> StudioNoteV8(strings.get("tool.css_palette.subtitle"), tool.start)
+            "palette" -> StudioNoteV8(strings.get("tool.palette.subtitle"), tool.start)
+            "ocr" -> StudioNoteV8(strings.get("tool.ocr.subtitle"), tool.start)
+            "exif" -> StudioNoteV8(strings.get("tool.exif.subtitle"), tool.start)
+            "details" -> StudioNoteV8(strings.get("tool.details.subtitle"), tool.start)
+            "negative", "auto_enhance", "pdf", "collage" -> StudioNoteV8(strings.toolSubtitle(tool.id), tool.start)
+            else -> StudioNoteV8(strings.toolSubtitle(tool.id), tool.start)
+        }
+    }
+}
+
+@Composable
+private fun StudioControlPanelV8(
+    title: String, subtitle: String?, icon: ImageVector, accent: Color,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val shape = RoundedCornerShape(20.dp)
+    Card(
+        modifier = Modifier.fillMaxWidth().border(BorderStroke(1.dp, accent.copy(alpha = 0.18f)), shape),
+        shape = shape,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f))
+    ) {
+        Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(accent.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+                    Icon(icon, null, tint = accent, modifier = Modifier.size(19.dp))
+                }
+                Spacer(Modifier.width(9.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                    if (!subtitle.isNullOrBlank()) Text(subtitle, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 14.sp)
+                }
+            }
+            content()
+        }
+    }
+}
+
+@Composable
+private fun StudioSliderPanelV8(
+    title: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    accent: Color,
+    icon: ImageVector,
+    onValue: (Float) -> Unit,
+    valueLabel: String = value.toInt().toString(),
+    steps: Int = 0
+) {
+    StudioControlPanelV8(title, null, icon, accent) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(title, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            Surface(color = accent.copy(alpha = 0.13f), shape = RoundedCornerShape(10.dp)) {
+                Text(valueLabel, Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = accent, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp)
             }
         }
-        "compress" -> {
-            Text(strings.get("quality") + " " + quality.toInt() + "%", fontWeight = FontWeight.Bold)
-            Slider(quality, onQuality, valueRange = 10f..100f)
-            FormatChipsV5(format, onFormat, listOf(OutputFormat.JPEG, OutputFormat.WEBP))
-        }
-        "base64" -> {
-            Text(strings.get("format"), fontWeight = FontWeight.Bold)
-            FormatChipsV5(format, onFormat, listOf(OutputFormat.JPEG, OutputFormat.PNG, OutputFormat.WEBP))
-            Text(strings.get("quality") + " " + quality.toInt() + "%", fontWeight = FontWeight.Bold)
-            Slider(quality, onQuality, valueRange = 10f..100f)
-        }
-        "convert", "metadata", "smart_resize", "social_presets" -> {
-            FormatChipsV5(format, onFormat, listOf(OutputFormat.JPEG, OutputFormat.PNG, OutputFormat.WEBP))
-        }
-        "crop" -> ChoicesV5(listOf("1:1", "4:5", "16:9", "9:16"), cropRatio, onCropRatio)
-        "rotate" -> {
-            ChoicesV5(listOf("90", "180", "270"), angle.toString()) { onAngle(it.toInt()) }
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                FilterChip(flipH, { onFlipH(!flipH) }, label = { Text(strings.get("mirror.h")) }, modifier = Modifier.weight(1f))
-                FilterChip(flipV, { onFlipV(!flipV) }, label = { Text(strings.get("mirror.v")) }, modifier = Modifier.weight(1f))
-            }
-        }
-        "filter" -> ChoicesV5(
-            ImageFilter.entries.map { strings.filterTitle(it.name.lowercase()) },
-            strings.filterTitle(imageFilter.name.lowercase())
-        ) { selected -> onFilter(ImageFilter.entries.first { strings.filterTitle(it.name.lowercase()) == selected }) }
-        "watermark" -> {
-            OutlinedTextField(watermark, onWatermark, Modifier.fillMaxWidth(), label = { Text(strings.get("text")) }, singleLine = true)
-            Slider(opacity, onOpacity, valueRange = 10f..100f)
-        }
-        "brightness", "contrast", "saturation", "warmth", "blur", "sharpen", "exposure", "tint", "vignette", "noise_reduction", "face_blur" -> {
-            Text(strings.get("strength") + " " + amount.toInt())
-            Slider(
-                amount,
-                onAmount,
-                valueRange = if (tool.id in listOf("brightness", "contrast", "saturation", "warmth", "exposure", "tint")) -100f..100f else 5f..100f
+        Slider(
+            value = value.coerceIn(range.start, range.endInclusive),
+            onValueChange = onValue,
+            valueRange = range,
+            steps = steps,
+            colors = SliderDefaults.colors(
+                thumbColor = accent,
+                activeTrackColor = accent,
+                inactiveTrackColor = accent.copy(alpha = 0.20f),
+                activeTickColor = Color.White,
+                inactiveTickColor = accent.copy(alpha = 0.28f)
             )
-        }
-        "pixelate" -> Slider(pixelSize, onPixelSize, valueRange = 4f..48f)
-        "border" -> Slider(borderSize, onBorderSize, valueRange = 4f..120f)
-        "round" -> Slider(cornerRadius, onCornerRadius, valueRange = 8f..160f)
-        "mirror" -> ChoicesV5(listOf("horizontal", "vertical"), mirrorAxis, onMirrorAxis)
-        "fit_canvas" -> {
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                OutlinedTextField(width, { onWidth(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("width")) }, singleLine = true)
-                OutlinedTextField(height, { onHeight(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("height")) }, singleLine = true)
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                FilterChip(fitBackground == "white", { onFitBackground("white") }, label = { Text(strings.get("background.white")) }, modifier = Modifier.weight(1f))
-                FilterChip(fitBackground == "black", { onFitBackground("black") }, label = { Text(strings.get("background.black")) }, modifier = Modifier.weight(1f))
-            }
-        }
-        "target_size" -> {
-            Text(strings.get("target.kb") + ": " + targetKb.toInt())
-            Slider(targetKb, onTargetKb, valueRange = 50f..5000f, steps = 99)
-            FormatChipsV5(format, onFormat, listOf(OutputFormat.JPEG, OutputFormat.WEBP))
-        }
-        "split_grid" -> {
-            Text(strings.get("grid.rows"))
-            ChoicesV5(listOf("2", "3", "4"), gridRows.toString()) { onGridRows(it.toInt()) }
-            Text(strings.get("grid.columns"))
-            ChoicesV5(listOf("2", "3", "4"), gridColumns.toString()) { onGridColumns(it.toInt()) }
-        }
-        "duotone" -> ChoicesV5(listOf(strings.get("duotone.ocean"), strings.get("duotone.sunset"), strings.get("duotone.ink")),
-            when (duotonePreset) {
-                "sunset" -> strings.get("duotone.sunset")
-                "ink" -> strings.get("duotone.ink")
-                else -> strings.get("duotone.ocean")
-            }
-        ) { selected ->
-            onDuotonePreset(when (selected) {
-                strings.get("duotone.sunset") -> "sunset"
-                strings.get("duotone.ink") -> "ink"
-                else -> "ocean"
-            })
-        }
-        "social_presets" -> ChoicesV6(
-            SocialImageProcessor.presets.map { it.id to it.title },
-            socialPreset,
-            onSocialPreset
         )
-        "smart_resize" -> {
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                OutlinedTextField(smartWidth, { onSmartWidth(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("width")) }, singleLine = true)
-                OutlinedTextField(smartHeight, { onSmartHeight(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("height")) }, singleLine = true)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(range.start.toInt().toString(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp)
+            Text(range.endInclusive.toInt().toString(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp)
+        }
+    }
+}
+
+@Composable
+private fun StudioChoicePanelV8(
+    title: String,
+    options: List<Pair<String, String>>,
+    selected: String,
+    accent: Color,
+    icon: ImageVector,
+    onSelect: (String) -> Unit
+) {
+    StudioControlPanelV8(title, null, icon, accent) {
+        options.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { (value, label) ->
+                    val isSelected = value == selected
+                    Surface(
+                        onClick = { onSelect(value) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(13.dp),
+                        color = if (isSelected) accent else MaterialTheme.colorScheme.surface,
+                        contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 9.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (isSelected) {
+                                Icon(Icons.Default.Check, null, modifier = Modifier.size(14.dp))
+                                Spacer(Modifier.width(5.dp))
+                            }
+                            Text(label, fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium, fontSize = 11.sp, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        }
+                    }
+                }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
-        "heic_avif" -> ChoicesV5(
-            listOf(ModernFormat.HEIC.name, ModernFormat.AVIF.name),
-            modernFormat.name,
-            { onModernFormat(ModernFormat.valueOf(it)) }
-        )
-        "gif_creator" -> {
-            Text(strings.get("quality") + " " + gifDelay.toInt() + " ms")
-            Slider(gifDelay, onGifDelay, valueRange = 100f..1500f)
+    }
+}
+
+@Composable
+private fun StudioToggleV8(title: String, selected: Boolean, accent: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = if (selected) accent else MaterialTheme.colorScheme.surface,
+        contentColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurface,
+        border = BorderStroke(1.dp, if (selected) accent else MaterialTheme.colorScheme.outline.copy(alpha = 0.24f))
+    ) {
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 13.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            Icon(if (selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked, null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(title, fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
-        else -> Text(strings.toolSubtitle(tool.id), fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun StudioNoteV8(text: String, accent: Color) {
+    StudioControlPanelV8(
+        title = text,
+        subtitle = null,
+        icon = Icons.Default.AutoAwesome,
+        accent = accent
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Security, null, tint = accent, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(LocalUiText.current.get("local"), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+            Spacer(Modifier.weight(1f))
+            Icon(Icons.Default.CheckCircle, null, tint = accent)
+        }
     }
 }
 
