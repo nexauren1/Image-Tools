@@ -12,6 +12,8 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -66,6 +68,7 @@ fun ToolWorkspaceV6(
     var exportedMime by remember { mutableStateOf("image/*") }
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<String?>(null) }
+    var statusIsError by remember { mutableStateOf(false) }
     var textResult by remember { mutableStateOf<String?>(null) }
     var sourcePreviewBitmaps by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
 
@@ -537,8 +540,10 @@ fun ToolWorkspaceV6(
                     )
                 )
                 status = strings.get("saved")
+                statusIsError = false
             } catch (e: Exception) {
                 status = e.message ?: strings.get("save.error")
+                statusIsError = true
             } finally {
                 busy = false
             }
@@ -557,6 +562,7 @@ fun ToolWorkspaceV6(
             textResult = null
             exportedUri = null
             status = strings.get("processing")
+            statusIsError = false
             try {
                 if (tool.id == "pdf_merge") {
                     if (sourceUris.size < 2) {
@@ -637,9 +643,11 @@ fun ToolWorkspaceV6(
 
                     ProcessingStatsStore.recordProcessed(context, bitmaps.size)
                     status = strings.get("ready")
+                    statusIsError = false
                 }
             } catch (e: Exception) {
                 status = e.message ?: strings.get("process.error")
+                statusIsError = true
             } finally {
                 busy = false
             }
@@ -647,160 +655,115 @@ fun ToolWorkspaceV6(
     }
 
     LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        item { StudioHeroV8(tool, strings.toolTitle(tool.id), strings.toolSubtitle(tool.id), tool.premium, onBack) }
+
         item {
-            Card(shape = RoundedCornerShape(28.dp)) {
-                Box(
-                    Modifier.fillMaxWidth()
-                        .clip(RoundedCornerShape(28.dp))
-                        .background(Brush.linearGradient(listOf(Color(0xFF10162B), tool.start, tool.end)))
-                ) {
-                    Column(
-                        Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+            StudioSectionV8(
+                number = "01", title = strings.get("choose.image"),
+                subtitle = when (tool.id) {
+                    "pdf_merge" -> strings.get("choose.pdfs")
+                    "gif_creator", "collage" -> strings.get("choose.frames")
+                    else -> strings.get("local")
+                },
+                icon = Icons.Default.AddPhotoAlternate, accent = tool.start
+            ) {
+                if (tool.id !in listOf("pdf_merge", "gif_creator", "collage", "base64")) {
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant).padding(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = onBack) {
-                                Icon(Icons.Default.ArrowBack, strings.get("back"), tint = Color.White)
-                            }
-                            Box(
-                                Modifier.size(48.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(Color.White.copy(alpha = 0.14f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(tool.icon, null, tint = Color.White, modifier = Modifier.size(25.dp))
-                            }
-                            Spacer(Modifier.width(11.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    strings.toolTitle(tool.id),
-                                    color = Color.White,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    strings.toolSubtitle(tool.id),
-                                    color = Color.White.copy(alpha = 0.80f),
-                                    fontSize = 11.sp,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            if (tool.premium) {
-                                Surface(color = Color.White.copy(alpha = 0.14f), shape = RoundedCornerShape(10.dp)) {
-                                    Text(
-                                        strings.get("pro"),
-                                        Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                                        color = Color.White,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 9.sp
-                                    )
-                                }
-                            }
+                        StudioModeChipV8(strings.get("batch.single"), !batchMode, tool.start, Modifier.weight(1f)) {
+                            batchMode = false
+                            sourceUris = emptyList(); sourcePreviewBitmaps = emptyList()
+                            previewBitmaps = emptyList(); pendingItems = emptyList(); textResult = null; exportedUri = null
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Surface(color = Color.White.copy(alpha = 0.12f), shape = RoundedCornerShape(12.dp)) {
-                                Row(
-                                    Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.Security, null, tint = Color.White, modifier = Modifier.size(15.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(strings.get("local"), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
-                                }
-                            }
-                            if (tool.id in listOf("collage", "gif_creator", "pdf_merge", "split_grid")) {
-                                Surface(color = Color.White.copy(alpha = 0.12f), shape = RoundedCornerShape(12.dp)) {
-                                    Text(
-                                        strings.get("batch"),
-                                        Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                                        color = Color.White,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            }
+                        StudioModeChipV8(strings.get("batch.multiple"), batchMode, tool.start, Modifier.weight(1f)) {
+                            batchMode = true
+                            sourceUris = emptyList(); sourcePreviewBitmaps = emptyList()
+                            previewBitmaps = emptyList(); pendingItems = emptyList(); textResult = null; exportedUri = null
                         }
                     }
                 }
-            }
-        }
 
-        item {
-            Card(shape = RoundedCornerShape(22.dp)) {
-                Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("1. " + strings.get("choose.image"), fontWeight = FontWeight.ExtraBold)
-                    if (tool.id !in listOf("pdf_merge", "gif_creator", "collage", "base64")) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            FilterChip(
-                                selected = !batchMode,
-                                onClick = { batchMode = false },
-                                label = { Text(strings.get("batch.single")) },
-                                modifier = Modifier.weight(1f)
-                            )
-                            FilterChip(
-                                selected = batchMode,
-                                onClick = { batchMode = true },
-                                label = { Text(strings.get("batch.multiple")) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                    Button(
-                        onClick = { chooseInput() },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Icon(
-                            when (tool.id) {
-                                "pdf_merge" -> Icons.Default.PictureAsPdf
-                                else -> if (batchMode) Icons.Default.Collections else Icons.Default.AddPhotoAlternate
-                            },
-                            null
-                        )
+                OutlinedButton(
+                    onClick = { chooseInput() },
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    shape = RoundedCornerShape(17.dp),
+                    border = BorderStroke(1.dp, tool.start.copy(alpha = 0.55f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = tool.start)
+                ) {
+                    Icon(
+                        when (tool.id) {
+                            "pdf_merge" -> Icons.Default.PictureAsPdf
+                            "gif_creator", "collage" -> Icons.Default.Collections
+                            else -> if (batchMode) Icons.Default.Collections else Icons.Default.AddPhotoAlternate
+                        }, null
+                    )
+                    Spacer(Modifier.width(9.dp))
+                    Text(
+                        when (tool.id) {
+                            "pdf_merge" -> strings.get("choose.pdfs")
+                            "gif_creator", "collage" -> strings.get("choose.frames")
+                            else -> if (sourceUris.isEmpty()) {
+                                if (batchMode) strings.get("choose.images") else strings.get("choose.image")
+                            } else strings.get("choose.another")
+                        }, fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Icon(Icons.Default.ArrowForward, null)
+                }
+
+                if (sourceUris.isNotEmpty()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF0D9488), modifier = Modifier.size(17.dp))
                         Spacer(Modifier.width(7.dp))
-                        Text(
-                            when (tool.id) {
-                                "pdf_merge" -> strings.get("choose.pdfs")
-                                "gif_creator", "collage" -> strings.get("choose.frames")
-                                else -> if (batchMode) strings.get("choose.images") else strings.get("choose.image")
-                            }
-                        )
+                        Text(sourceUris.size.toString() + " " + strings.get("batch.selected"), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Spacer(Modifier.weight(1f))
+                        TextButton(onClick = {
+                            sourceUris = emptyList(); sourcePreviewBitmaps = emptyList(); previewBitmaps = emptyList()
+                            pendingItems = emptyList(); textResult = null; exportedUri = null; status = null; statusIsError = false
+                        }) { Text(strings.get("cancel"), fontSize = 11.sp) }
                     }
-                    if (sourceUris.isNotEmpty()) {
-                        Text(
-                            sourceUris.size.toString() + " " + strings.get("batch.selected"),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
-                        )
-                        if (sourcePreviewBitmaps.isNotEmpty()) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                sourcePreviewBitmaps.forEach { thumbnail ->
+                    if (sourcePreviewBitmaps.isNotEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                            sourcePreviewBitmaps.forEachIndexed { index, thumbnail ->
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                     Image(
-                                        bitmap = thumbnail.asImageBitmap(),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(68.dp).clip(RoundedCornerShape(14.dp)),
+                                        bitmap = thumbnail.asImageBitmap(), contentDescription = null,
+                                        modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(17.dp))
+                                            .border(1.dp, tool.start.copy(alpha = 0.28f), RoundedCornerShape(17.dp)),
                                         contentScale = ContentScale.Crop
                                     )
+                                    if (index == 0) Text(
+                                        if (sourceUris.size == 1) strings.get("choose.image") else strings.get("batch.image") + " 1",
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 9.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
-                                if (sourceUris.size > sourcePreviewBitmaps.size) {
-                                    Box(
-                                        Modifier.size(68.dp)
-                                            .clip(RoundedCornerShape(14.dp))
-                                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("+${sourceUris.size - sourcePreviewBitmaps.size}", fontWeight = FontWeight.ExtraBold)
+                            }
+                            if (sourceUris.size > sourcePreviewBitmaps.size) {
+                                Box(
+                                    Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(17.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(Icons.Default.Collections, null, tint = tool.start)
+                                        Text("+" + (sourceUris.size - sourcePreviewBitmaps.size), fontWeight = FontWeight.ExtraBold)
                                     }
                                 }
                             }
                         }
+                    }
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Security, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(16.dp))
+                        Text(strings.get("private"), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -808,166 +771,141 @@ fun ToolWorkspaceV6(
 
         if (sourceUris.isNotEmpty() && tool.id != "pdf_merge") {
             item {
-                Card(shape = RoundedCornerShape(22.dp)) {
-                    Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Text("2. " + strings.get("config"), fontWeight = FontWeight.ExtraBold)
-                        ToolControlsV6(
-                            tool, strings, format, { format = it }, quality, { quality = it },
-                            width, { width = it }, height, { height = it },
-                            cropRatio, { cropRatio = it }, angle, { angle = it },
-                            flipH, { flipH = it }, flipV, { flipV = it },
-                            imageFilter, { imageFilter = it }, watermark, { watermark = it },
-                            opacity, { opacity = it }, position, { position = it },
-                            amount, { amount = it }, pixelSize, { pixelSize = it },
-                            borderSize, { borderSize = it }, cornerRadius, { cornerRadius = it },
-                            duotonePreset, { duotonePreset = it },
-                            socialPreset, { socialPreset = it },
-                            modernFormat, { modernFormat = it },
-                            smartWidth, { smartWidth = it }, smartHeight, { smartHeight = it },
-                            gifDelay, { gifDelay = it },
-                            fitBackground, { fitBackground = it },
-                            targetKb, { targetKb = it },
-                            gridRows, { gridRows = it },
-                            gridColumns, { gridColumns = it },
-                            mirrorAxis, { mirrorAxis = it }
-                        )
-                    }
-                }
-            }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = { processAction() },
-                        modifier = Modifier.weight(1f).height(54.dp),
-                        shape = RoundedCornerShape(17.dp),
-                        enabled = !busy
-                    ) {
-                        Icon(Icons.Default.PlayArrow, null)
-                        Spacer(Modifier.width(7.dp))
-                        Text("3. " + strings.get("preview.button"))
-                    }
-                    if (premium) {
-                        OutlinedButton(onClick = { saveRecipe() }, modifier = Modifier.height(54.dp)) {
-                            Icon(Icons.Default.AutoAwesome, null)
-                        }
-                    }
-                }
-            }
-        } else if (sourceUris.isNotEmpty()) {
-            item {
-                Button(
-                    onClick = { processAction() },
-                    modifier = Modifier.fillMaxWidth().height(54.dp),
-                    shape = RoundedCornerShape(17.dp),
-                    enabled = !busy
+                StudioSectionV8(
+                    number = "02", title = strings.get("config"),
+                    subtitle = strings.toolSubtitle(tool.id),
+                    icon = Icons.Default.Tune, accent = tool.end
                 ) {
-                    Icon(Icons.Default.PlayArrow, null)
-                    Spacer(Modifier.width(7.dp))
-                    Text("2. " + strings.get("preview.button"))
+                    ToolControlsV6(
+                        tool, strings, format, { format = it }, quality, { quality = it },
+                        width, { width = it }, height, { height = it }, cropRatio, { cropRatio = it },
+                        angle, { angle = it }, flipH, { flipH = it }, flipV, { flipV = it },
+                        imageFilter, { imageFilter = it }, watermark, { watermark = it }, opacity, { opacity = it },
+                        position, { position = it }, amount, { amount = it }, pixelSize, { pixelSize = it },
+                        borderSize, { borderSize = it }, cornerRadius, { cornerRadius = it },
+                        duotonePreset, { duotonePreset = it }, socialPreset, { socialPreset = it },
+                        modernFormat, { modernFormat = it }, smartWidth, { smartWidth = it }, smartHeight, { smartHeight = it },
+                        gifDelay, { gifDelay = it }, fitBackground, { fitBackground = it }, targetKb, { targetKb = it },
+                        gridRows, { gridRows = it }, gridColumns, { gridColumns = it }, mirrorAxis, { mirrorAxis = it }
+                    )
                 }
             }
         }
 
-        if (previewBitmaps.isNotEmpty() || pendingItems.isNotEmpty()) {
+        if (sourceUris.isNotEmpty()) {
             item {
-                Card(shape = RoundedCornerShape(22.dp)) {
-                    Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Text("4. " + strings.get("preview"), fontWeight = FontWeight.ExtraBold)
-                        textResult?.let { result ->
-                            Text(strings.get("result.content"), fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            Surface(
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                shape = RoundedCornerShape(14.dp)
-                            ) {
-                                Text(
-                                    result.take(900) + if (result.length > 900) "…" else "",
-                                    Modifier.fillMaxWidth().padding(11.dp),
-                                    fontSize = 10.sp,
-                                    maxLines = 5,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            if (result.length > 900) {
-                                Text(strings.get("base64.truncated"), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            if (result.length <= 250_000) {
-                                OutlinedButton(onClick = {
+                StudioActionCardV8(
+                    accent = tool.start,
+                    title = if (pendingItems.isNotEmpty()) strings.get("ready") else strings.get("action"),
+                    description = if (batchMode) strings.get("processing.batch") else strings.get("processing.subtitle"),
+                    enabled = !busy, buttonTitle = strings.get("preview.button"),
+                    onRun = { processAction() },
+                    leadingIcon = if (pendingItems.isNotEmpty()) Icons.Default.Refresh else Icons.Default.AutoAwesome
+                )
+            }
+        }
+
+        if (status != null) {
+            item { StudioStatusCardV8(status.orEmpty(), statusIsError, tool.start) }
+        }
+
+        if (previewBitmaps.isNotEmpty() || textResult != null || pendingItems.isNotEmpty()) {
+            item {
+                StudioSectionV8(
+                    number = "03", title = strings.get("preview"),
+                    subtitle = if (pendingItems.isNotEmpty()) pendingItems.size.toString() + " " + strings.get("batch.results") else strings.get("ready"),
+                    icon = Icons.Default.Visibility, accent = Color(0xFF0D9488)
+                ) {
+                    textResult?.let { result ->
+                        Text(strings.get("result.content"), fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                result.take(1200) + if (result.length > 1200) "…" else "",
+                                Modifier.fillMaxWidth().padding(13.dp), fontSize = 11.sp, lineHeight = 16.sp,
+                                maxLines = 7, overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        if (result.length > 1200) Text(
+                            strings.get("base64.truncated"),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp
+                        )
+                        if (result.length <= 250_000) {
+                            Button(
+                                onClick = {
                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                     clipboard.setPrimaryClip(ClipData.newPlainText(strings.get("result.content"), result))
-                                    status = strings.get("base64.copy")
-                                }) {
-                                    Icon(Icons.Default.ContentCopy, null)
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(strings.get("base64.copy"))
-                                }
-                            } else {
-                                Text(strings.get("base64.copy.too.large"), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    status = strings.get("base64.copy"); statusIsError = false
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                            ) {
+                                Icon(Icons.Default.ContentCopy, null); Spacer(Modifier.width(7.dp)); Text(strings.get("base64.copy"))
                             }
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        } else Text(
+                            strings.get("base64.copy.too.large"),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp
+                        )
+                    }
+
+                    if (previewBitmaps.isNotEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                             previewBitmaps.take(4).forEach { bmp ->
                                 Image(
-                                    bitmap = bmp.asImageBitmap(),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(78.dp).clip(RoundedCornerShape(12.dp)),
+                                    bitmap = bmp.asImageBitmap(), contentDescription = null,
+                                    modifier = Modifier.weight(1f).aspectRatio(0.92f).clip(RoundedCornerShape(17.dp))
+                                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), RoundedCornerShape(17.dp)),
                                     contentScale = ContentScale.Crop
                                 )
                             }
                         }
-                        Text(
-                            pendingItems.size.toString() + " " + strings.get("batch.results"),
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        status?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 12.sp) }
                     }
+                    if (textResult == null && previewBitmaps.isEmpty()) Text(
+                        pendingItems.size.toString() + " " + strings.get("batch.results"),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp
+                    )
                 }
             }
         }
 
         if (pendingItems.isNotEmpty()) {
             item {
-                Card(shape = RoundedCornerShape(22.dp)) {
-                    Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("5. " + strings.get("export"), fontWeight = FontWeight.ExtraBold)
-                        Button(
-                            onClick = { exportResults() },
-                            enabled = !busy,
-                            modifier = Modifier.fillMaxWidth().height(52.dp),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Icon(Icons.Default.Save, null)
-                            Spacer(Modifier.width(7.dp))
-                            Text(strings.get("save"))
-                        }
-                    }
-                }
+                StudioExportCardV8(
+                    count = pendingItems.size, accent = Color(0xFF0D9488), title = strings.get("export"),
+                    subtitle = strings.get("save.text"), saveLabel = strings.get("save"),
+                    enabled = !busy, onExport = { exportResults() }
+                )
             }
         }
 
         exportedUri?.let { uri ->
             item {
-                Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
-                    Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = {
-                            runCatching {
-                                context.startActivity(Intent(Intent.ACTION_VIEW).apply {
-                                    data = uri
-                                    type = exportedMime
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                })
-                            }
-                        }) { Text(strings.get("open")) }
-                        OutlinedButton(onClick = {
+                StudioShareCardV8(
+                    title = strings.get("saved"), subtitle = strings.get("share"),
+                    onOpen = {
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW).apply {
+                                data = uri; type = exportedMime; addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            })
+                        }.onFailure {
+                            status = strings.get("open") + ": " + (it.message ?: strings.get("process.error"))
+                            statusIsError = true
+                        }
+                    },
+                    onShare = {
+                        runCatching {
                             val send = Intent(Intent.ACTION_SEND).apply {
-                                type = exportedMime
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                type = exportedMime; putExtra(Intent.EXTRA_STREAM, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                             }
                             context.startActivity(Intent.createChooser(send, strings.get("share")))
-                        }) { Text(strings.get("share")) }
+                        }.onFailure {
+                            status = strings.get("share") + ": " + (it.message ?: strings.get("process.error"))
+                            statusIsError = true
+                        }
                     }
-                }
+                )
             }
         }
     }
@@ -988,6 +926,222 @@ data class AnyToolDef(
     val end: Color,
     val premium: Boolean
 )
+
+
+@Composable
+private fun StudioHeroV8(
+    tool: AnyToolDef, title: String, subtitle: String, premium: Boolean, onBack: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(30.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF11172A))
+    ) {
+        Box(
+            Modifier.fillMaxWidth()
+                .background(Brush.linearGradient(listOf(Color(0xFF11172A), tool.start, tool.end)))
+        ) {
+            Box(
+                Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 14.dp)
+                    .size(116.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.08f))
+            )
+            Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, null, tint = Color.White)
+                    }
+                    Spacer(Modifier.width(3.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("IMAGE STUDIO", color = Color.White.copy(alpha = 0.75f), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp)
+                        Text(title, color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    Box(
+                        Modifier.size(54.dp).clip(RoundedCornerShape(18.dp)).background(Color.White.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(tool.icon, null, tint = Color.White, modifier = Modifier.size(29.dp))
+                    }
+                }
+                Text(subtitle, color = Color.White.copy(alpha = 0.86f), fontSize = 12.sp, lineHeight = 17.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StudioHeroBadgeV8(Icons.Default.Security, "LOCAL")
+                    StudioHeroBadgeV8(
+                        if (premium) Icons.Default.WorkspacePremium else Icons.Default.AutoAwesome,
+                        if (premium) "PRO" else "READY"
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StudioHeroBadgeV8(icon: ImageVector, label: String) {
+    Surface(color = Color.White.copy(alpha = 0.13f), shape = RoundedCornerShape(11.dp)) {
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = Color.White, modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(label, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.6.sp)
+        }
+    }
+}
+
+@Composable
+private fun StudioSectionV8(
+    number: String,
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    accent: Color,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val shape = RoundedCornerShape(26.dp)
+    Card(
+        modifier = Modifier.fillMaxWidth().border(BorderStroke(1.dp, accent.copy(alpha = 0.22f)), shape),
+        shape = shape,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(46.dp).clip(RoundedCornerShape(15.dp))
+                        .background(Brush.linearGradient(listOf(accent, accent.copy(alpha = 0.65f)))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, null, tint = Color.White, modifier = Modifier.size(23.dp))
+                }
+                Spacer(Modifier.width(11.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                    Text(subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 15.sp)
+                }
+                Surface(color = accent.copy(alpha = 0.12f), shape = RoundedCornerShape(10.dp)) {
+                    Text(number, Modifier.padding(horizontal = 9.dp, vertical = 6.dp), color = accent, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp)
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+            content()
+        }
+    }
+}
+
+@Composable
+private fun StudioModeChipV8(title: String, selected: Boolean, accent: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) accent else Color.Transparent,
+        contentColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+    ) {
+        Text(title, Modifier.padding(horizontal = 8.dp, vertical = 11.dp), fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    }
+}
+
+@Composable
+private fun StudioActionCardV8(
+    accent: Color, title: String, description: String, enabled: Boolean,
+    buttonTitle: String, leadingIcon: ImageVector, onRun: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(accent.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+                    Icon(leadingIcon, null, tint = accent, modifier = Modifier.size(22.dp))
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+                    Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                }
+            }
+            Button(
+                onClick = onRun, enabled = enabled,
+                modifier = Modifier.fillMaxWidth().height(54.dp),
+                shape = RoundedCornerShape(17.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = Color.White)
+            ) {
+                Icon(Icons.Default.AutoAwesome, null)
+                Spacer(Modifier.width(8.dp))
+                Text(buttonTitle, fontWeight = FontWeight.ExtraBold)
+                Spacer(Modifier.weight(1f))
+                Icon(Icons.Default.ArrowForward, null)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StudioStatusCardV8(message: String, isError: Boolean, accent: Color) {
+    val tint = if (isError) MaterialTheme.colorScheme.error else accent
+    val background = if (isError) MaterialTheme.colorScheme.errorContainer else tint.copy(alpha = 0.10f)
+    Surface(
+        color = background,
+        shape = RoundedCornerShape(17.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(if (isError) Icons.Default.ErrorOutline else Icons.Default.CheckCircle, null, tint = tint)
+            Spacer(Modifier.width(9.dp))
+            Text(message, color = if (isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun StudioExportCardV8(count: Int, accent: Color, title: String, subtitle: String, saveLabel: String, enabled: Boolean, onExport: () -> Unit) {
+    StudioSectionV8("04", title, subtitle, Icons.Default.SaveAlt, accent) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(count.toString() + " " + LocalUiText.current.get("batch.results"), fontWeight = FontWeight.ExtraBold)
+                Text(LocalUiText.current.get("private"), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(Icons.Default.VerifiedUser, null, tint = accent, modifier = Modifier.size(26.dp))
+        }
+        Button(
+            onClick = onExport, enabled = enabled,
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(17.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = accent)
+        ) {
+            Icon(Icons.Default.Save, null); Spacer(Modifier.width(8.dp)); Text(saveLabel, fontWeight = FontWeight.ExtraBold)
+        }
+    }
+}
+
+@Composable
+private fun StudioShareCardV8(title: String, subtitle: String, onOpen: () -> Unit, onShare: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().border(BorderStroke(1.dp, Color(0xFF0D9488).copy(alpha = 0.25f)), RoundedCornerShape(24.dp)),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF0D9488).copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF0D9488))
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(title, fontWeight = FontWeight.ExtraBold)
+                    Text(subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                Button(onClick = onOpen, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp)) {
+                    Icon(Icons.Default.OpenInNew, null); Spacer(Modifier.width(5.dp)); Text(LocalUiText.current.get("open"))
+                }
+                OutlinedButton(onClick = onShare, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp)) {
+                    Icon(Icons.Default.Share, null); Spacer(Modifier.width(5.dp)); Text(LocalUiText.current.get("share"))
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun PolishedProcessingDialogV7(title: String, subtitle: String, localMessage: String) {
