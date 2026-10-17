@@ -20,10 +20,16 @@ class AuthRepository(private val context: Context) {
     var currentUser by mutableStateOf(auth.currentUser)
         private set
 
+    private val authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+        currentUser = firebaseAuth.currentUser
+    }
+
     init {
-        auth.addAuthStateListener { firebaseAuth ->
-            currentUser = firebaseAuth.currentUser
-        }
+        auth.addAuthStateListener(authStateListener)
+    }
+
+    fun dispose() {
+        auth.removeAuthStateListener(authStateListener)
     }
 
     suspend fun signInEmail(email: String, password: String): Result<Unit> = runCatching {
