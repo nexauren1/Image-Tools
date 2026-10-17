@@ -43,6 +43,7 @@ object OutputExporter {
     ): Uri {
         val name = prefix + "_" + System.currentTimeMillis() + ".pdf"
         if (treeUri != null) {
+            var createdUri: Uri? = null
             try {
                 val uri = DocumentsContract.createDocument(
                     context.contentResolver,
@@ -50,10 +51,14 @@ object OutputExporter {
                     "application/pdf",
                     name
                 ) ?: error("Could not create PDF file.")
+                createdUri = uri
                 context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
                     ?: error("Could not write PDF file.")
                 return uri
             } catch (_: Exception) {
+                createdUri?.let { partial ->
+                    runCatching { DocumentsContract.deleteDocument(context.contentResolver, partial) }
+                }
                 return savePdf(context, bytes, prefix, null)
             }
         }
