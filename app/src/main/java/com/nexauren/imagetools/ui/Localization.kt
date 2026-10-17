@@ -28,6 +28,22 @@ object AppLanguageStore {
     }
 }
 
+object AppThemeStore {
+    private const val PREFS = "image_tools_preferences"
+    private const val KEY_DARK_MODE = "dark_mode"
+
+    fun get(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_DARK_MODE, false)
+
+    fun save(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_DARK_MODE, enabled)
+            .apply()
+    }
+}
+
 class UiText(private val language: AppLanguage) {
     private val map = when (language) {
         AppLanguage.PT -> pt
