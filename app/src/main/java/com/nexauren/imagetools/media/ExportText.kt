@@ -17,6 +17,7 @@ object ExportText {
     ): Uri {
         val name = prefix + "_" + System.currentTimeMillis() + ".txt"
         if (treeUri != null) {
+            var createdUri: Uri? = null
             return try {
                 val uri = DocumentsContract.createDocument(
                     context.contentResolver,
@@ -24,10 +25,14 @@ object ExportText {
                     "text/plain",
                     name
                 ) ?: error("Could not create text file.")
+                createdUri = uri
                 context.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) }
                     ?: error("Could not write text file.")
                 uri
             } catch (_: Exception) {
+                createdUri?.let { partial ->
+                    runCatching { DocumentsContract.deleteDocument(context.contentResolver, partial) }
+                }
                 save(context, text, prefix, null)
             }
         }
