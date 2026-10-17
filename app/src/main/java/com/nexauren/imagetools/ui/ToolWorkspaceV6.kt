@@ -362,6 +362,26 @@ fun ToolWorkspaceV6(
                 ImageProcessor.encode(AdvancedImageProcessor.posterize(bitmap, amount.toInt()), format, 100),
                 format.mime, format.extension, tool.id
             )
+            "film_grain" -> RawExportItem(
+                ImageProcessor.encode(AdvancedImageProcessor.filmGrain(bitmap, amount.toInt()), format, 100),
+                format.mime, format.extension, tool.id
+            )
+            "color_pop" -> RawExportItem(
+                ImageProcessor.encode(AdvancedImageProcessor.colorPop(bitmap, amount.toInt()), format, 100),
+                format.mime, format.extension, tool.id
+            )
+            "outline" -> RawExportItem(
+                ImageProcessor.encode(AdvancedImageProcessor.outline(bitmap, amount.toInt()), format, 100),
+                format.mime, format.extension, tool.id
+            )
+            "glitch" -> RawExportItem(
+                ImageProcessor.encode(AdvancedImageProcessor.glitch(bitmap, amount.toInt()), format, 100),
+                format.mime, format.extension, tool.id
+            )
+            "scan_document" -> RawExportItem(
+                ImageProcessor.encode(AdvancedImageProcessor.scanDocument(bitmap, amount.toInt()), format, 100),
+                format.mime, format.extension, tool.id
+            )
             "duotone" -> {
                 val colors = when (duotonePreset) {
                     "sunset" -> android.graphics.Color.rgb(60, 12, 50) to android.graphics.Color.rgb(255, 182, 92)
