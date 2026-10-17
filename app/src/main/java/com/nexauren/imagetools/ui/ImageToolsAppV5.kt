@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -146,6 +147,14 @@ fun ImageToolsAppV5(
             scope.launch { drawerState.close() }
         }
 
+        BackHandler(enabled = selectedTool != null || page != "home") {
+            if (selectedTool != null) {
+                selectedTool = null
+            } else {
+                navigate("home")
+            }
+        }
+
         ModalNavigationDrawer(
             drawerState = drawerState,
             drawerContent = {
@@ -206,28 +215,26 @@ fun ImageToolsAppV5(
                 },
                 bottomBar = {
                     NavigationBar {
-                        Row(Modifier.fillMaxWidth()) {
-                            BottomTabV5(
-                                page == "home",
-                                { navigate("home") },
-                                Icons.Default.Home,
-                                strings.get("home")
-                            )
-                            BottomTabV5(
-                                page == "tools",
-                                { navigate("tools") },
-                                Icons.Default.Build,
-                                strings.get("tools")
-                            )
-                            BottomTabV5(
-                                page == "batch",
-                                { navigate("batch") },
-                                Icons.Default.DynamicFeed,
-                                strings.get("batch")
-                            )
-                        }
+                        BottomTabV5(
+                            page == "home",
+                            { navigate("home") },
+                            Icons.Default.Home,
+                            strings.get("home")
+                        )
+                        BottomTabV5(
+                            page == "tools",
+                            { navigate("tools") },
+                            Icons.Default.Build,
+                            strings.get("tools")
+                        )
+                        BottomTabV5(
+                            page == "batch",
+                            { navigate("batch") },
+                            Icons.Default.DynamicFeed,
+                            strings.get("batch")
+                        )
                     }
-                }
+                },
             ) { padding ->
                 Box(Modifier.fillMaxSize().padding(padding)) {
                     when {
@@ -324,33 +331,19 @@ private fun DrawerEntryV5(icon: ImageVector, label: String, onClick: () -> Unit)
 }
 
 @Composable
-private fun RowScope.BottomTabV5(
+private fun BottomTabV5(
     selected: Boolean,
     onClick: () -> Unit,
     icon: ImageVector,
     label: String
 ) {
-    Column(
-        modifier = Modifier
-            .weight(1f)
-            .clickable(onClick = onClick)
-            .padding(vertical = 7.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            icon,
-            null,
-            tint = if (selected) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            label,
-            fontSize = 10.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = if (selected) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
+    NavigationBarItem(
+        selected = selected,
+        onClick = onClick,
+        icon = { Icon(icon, contentDescription = null) },
+        label = { Text(label, fontSize = 10.sp) },
+        alwaysShowLabel = true
+    )
 }
 
 @Composable
