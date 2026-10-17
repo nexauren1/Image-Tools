@@ -1332,7 +1332,7 @@ private fun ToolControlsV6(
                     }
                 }
                 StudioChoicePanelV8(
-                    strings.get("background"), listOf("white" to strings.get("background.white"), "black" to strings.get("background.black")),
+                    strings.get("canvas.background"), listOf("white" to strings.get("background.white"), "black" to strings.get("background.black")),
                     fitBackground, tool.start, Icons.Default.Palette
                 ) { onFitBackground(it) }
             }
