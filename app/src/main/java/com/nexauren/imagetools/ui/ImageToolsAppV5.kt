@@ -704,7 +704,13 @@ private fun ToolsScreenV5(strings: UiText, premium: Boolean, openTool: (String) 
 }
 
 @Composable
-internal fun ToolGridCardV5(tool: ToolDef, strings: UiText, premium: Boolean, openTool: (String) -> Unit) {
+internal fun ToolGridCardV5(
+    tool: ToolDef,
+    strings: UiText,
+    premium: Boolean,
+    openTool: (String) -> Unit,
+    onFavoriteChanged: (() -> Unit)? = null
+) {
     val context = LocalContext.current
     var favorite by remember(tool.id) { mutableStateOf(FavoritesStore.isFavorite(context, tool.id)) }
     val shape = RoundedCornerShape(26.dp)
@@ -751,14 +757,19 @@ internal fun ToolGridCardV5(tool: ToolDef, strings: UiText, premium: Boolean, op
                     }
                 }
                 IconButton(
-                    onClick = { favorite = FavoritesStore.toggle(context, tool.id) },
+                    onClick = {
+                        favorite = FavoritesStore.toggle(context, tool.id)
+                        onFavoriteChanged?.invoke()
+                    },
                     modifier = Modifier.align(Alignment.BottomEnd).padding(end = 7.dp, bottom = 4.dp)
                         .size(35.dp).clip(RoundedCornerShape(12.dp))
                         .background(Color.Black.copy(alpha = 0.13f))
                 ) {
                     Icon(
                         if (favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        null,
+                        contentDescription = strings.get(
+                            if (favorite) "favorites.remove" else "favorites.add"
+                        ),
                         tint = Color.White,
                         modifier = Modifier.size(18.dp)
                     )
