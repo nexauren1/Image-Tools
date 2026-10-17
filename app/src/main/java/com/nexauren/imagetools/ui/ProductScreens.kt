@@ -92,7 +92,9 @@ fun FavoritesScreen(strings: UiText, premium: Boolean, openTool: (String) -> Uni
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     gridItems(tools) { tool ->
-                        ToolGridCardV5(tool, strings, premium, openTool)
+                        ToolGridCardV5(tool, strings, premium, openTool) {
+                            favorites = FavoritesStore.list(context)
+                        }
                     }
                 }
             }
