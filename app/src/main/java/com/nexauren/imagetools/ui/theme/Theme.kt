@@ -8,7 +8,6 @@ import androidx.compose.ui.unit.dp
 private val StudioViolet = Color(0xFF6548E8)
 private val StudioCyan = Color(0xFF087F8C)
 private val StudioPink = Color(0xFFBD477A)
-private val StudioInk = Color(0xFF101426)
 private val StudioNight = Color(0xFF080C18)
 
 @Composable
@@ -63,8 +62,7 @@ fun ImageToolsTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
         copy(
             headlineSmall = headlineSmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold),
             titleLarge = titleLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold),
-            titleMedium = titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
-            bodyLarge = bodyLarge.copy(lineHeight = bodyLarge.lineHeight * 1.08f)
+            titleMedium = titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
         )
     }
 
