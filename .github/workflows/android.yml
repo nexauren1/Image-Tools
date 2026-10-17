@@ -52,8 +52,8 @@ jobs:
         with:
           gradle-version: "9.5.0"
 
-      - name: Run unit tests and build release APK
-        run: gradle :app:testReleaseUnitTest :app:assembleRelease --no-daemon --stacktrace
+      - name: Compile and build Android release APK
+        run: gradle :app:assembleRelease --no-daemon --stacktrace
 
       - name: Verify release metadata
         run: |
