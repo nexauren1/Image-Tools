@@ -15,6 +15,11 @@ on:
 permissions:
   contents: write
 
+# Keep one validation build for the latest revision of each PR/branch.
+concurrency:
+  group: android-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
