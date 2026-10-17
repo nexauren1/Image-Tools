@@ -301,12 +301,6 @@ class UiText(private val language: AppLanguage) {
             "tool.target_size.subtitle" to "Comprimir hacia un límite de tamaño",
             "tool.split_grid.title" to "Dividir en cuadrícula",
             "tool.split_grid.subtitle" to "Dividir una imagen en varios archivos",
-            "tool.fit_canvas.title" to "Ajustar a um quadro",
-            "tool.fit_canvas.subtitle" to "Manter a imagem inteira sem deformar",
-            "tool.target_size.title" to "Tamanho alvo",
-            "tool.target_size.subtitle" to "Comprimir para um limite de tamanho",
-            "tool.split_grid.title" to "Dividir em grelha",
-            "tool.split_grid.subtitle" to "Dividir uma imagem em vários ficheiros",
         )
         AppLanguage.FR -> mapOf(
             "auth.google" to "Continuer avec Google",
