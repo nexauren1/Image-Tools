@@ -1512,8 +1512,8 @@ private fun StudioToggleV8(title: String, selected: Boolean, accent: Color, modi
 @Composable
 private fun StudioNoteV8(text: String, accent: Color) {
     StudioControlPanelV8(
-        title = LocalUiText.current.get("local"),
-        subtitle = text,
+        title = text,
+        subtitle = null,
         icon = Icons.Default.AutoAwesome,
         accent = accent
     ) {
