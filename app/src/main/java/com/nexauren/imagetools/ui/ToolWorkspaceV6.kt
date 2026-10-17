@@ -167,6 +167,7 @@ fun ToolWorkspaceV6(
             pendingItems = emptyList()
             textResult = null
             status = strings.get("ready")
+            statusIsError = false
             loadSourceThumbnails(listOf(uri))
         }
     }
@@ -180,6 +181,7 @@ fun ToolWorkspaceV6(
             pendingItems = emptyList()
             textResult = null
             status = strings.get("ready")
+            statusIsError = false
             loadSourceThumbnails(sourceUris)
         }
     }
@@ -194,6 +196,7 @@ fun ToolWorkspaceV6(
             textResult = null
             sourcePreviewBitmaps = emptyList()
             status = strings.get("ready")
+            statusIsError = false
         }
     }
 
@@ -1313,7 +1316,7 @@ private fun ToolControlsV6(
                 )
                 StudioNoteV8(strings.toolSubtitle(tool.id), tool.start)
             }
-            "posterize" -> StudioSliderPanelV8(strings.get("strength"), amount, 2f..12f, tool.start, tool.icon, { onAmount(it) }, amount.toInt().toString() + " levels")
+            "posterize" -> StudioSliderPanelV8(strings.get("strength"), amount, 2f..12f, tool.start, tool.icon, { onAmount(it) }, amount.coerceIn(2f, 12f).toInt().toString() + " levels")
             "pixelate" -> StudioSliderPanelV8(strings.get("tool.pixelate.title"), pixelSize, 4f..48f, tool.start, tool.icon, { onPixelSize(it) }, pixelSize.toInt().toString())
             "border" -> StudioSliderPanelV8(strings.get("tool.border.title"), borderSize, 4f..120f, tool.start, tool.icon, { onBorderSize(it) }, borderSize.toInt().toString() + " px")
             "round" -> StudioSliderPanelV8(strings.get("tool.round.title"), cornerRadius, 8f..160f, tool.start, tool.icon, { onCornerRadius(it) }, cornerRadius.toInt().toString() + " px")
