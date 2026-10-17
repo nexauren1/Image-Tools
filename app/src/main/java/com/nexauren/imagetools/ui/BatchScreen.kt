@@ -256,7 +256,9 @@ fun BatchScreen(strings: UiText = LocalUiText.current) {
                                                             thumbHeight,
                                                             true
                                                         )
-                                                        if (scaled === output) Bitmap.createBitmap(output) else scaled
+                                                        if (scaled === output) output.copy(Bitmap.Config.ARGB_8888, false)
+                                                        ?: error("Could not create preview image.")
+                                                        else scaled
                                                     }
                                                     batchResults += BatchResultItem(
                                                         preview = preview,
