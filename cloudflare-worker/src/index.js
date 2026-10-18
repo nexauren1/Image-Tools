@@ -966,7 +966,7 @@ function homePage() {
   return htmlPage("Image Tools", 
     "<p>A focused Android image toolbox for resizing, compression, conversion, cropping, filters, privacy cleanup, collage, PDF export and more.</p>" +
     "<p>Core image editing runs locally on the device. Premium features use a secure PayPal checkout and server-side entitlement verification.</p>" +
-    "<p><strong>Android:</strong> package <code>com.nexauren.imagetools</code> · version 1.11.4</p>" +
+    "<p><strong>Android:</strong> package <code>com.nexauren.imagetools</code> · release line 1.17.x</p>" +
     "<p><a href=\"" + SITE + "/privacy\">Read the Privacy Policy</a></p>" +
     "<p><a href=\"" + SITE + "/terms\">Read the Terms of Service</a></p>" +
     "<p><a href=\"" + SITE + "/support\">Support and account deletion requests</a></p>");
@@ -977,19 +977,19 @@ function privacyPage() {
     "<p><strong>Last updated: October 7, 2026.</strong></p>" +
     "<p>Image Tools is an Android application focused on local image utilities. This policy explains the main data flows used by the app.</p>" +
     "<h2>1. Images and files</h2>" +
-    "<p>The core image tools process selected files on the device. The app does not upload the image itself to the Image Tools backend merely to resize, compress, convert, crop, rotate, filter, watermark, adjust colors, blur, sharpen, pixelate, add borders, create palettes, create collages, remove backgrounds, recognize text with OCR, read EXIF metadata, blur detected faces, create GIFs, merge PDFs, apply social presets, or export HEIC/AVIF/PDF results. Exported files are saved to the location selected by you.</p>" +
+    "<p>The core image tools process selected files on the device. Image editing and export features are designed to process files locally on your device. Images selected for resizing, compression, conversion, cropping, rotation, filters, watermarking, color adjustments, blur, sharpening, pixelation, borders, palettes, collages, Base64 conversion and PDF export are not uploaded to our backend as part of those operations. Exported files are saved or shared using the destination you choose. Features that open an external provider or use an online service, if introduced, may have separate data flows and will be described in an updated policy.</p>" +
     "<h2>2. Account data</h2>" +
     "<p>When you create or sign in to an account, Image Tools uses Firebase Authentication. Depending on the sign-in method, Firebase may process an email address and account/profile information supplied by you or by the selected identity provider.</p>" +
     "<h2>3. Subscription data</h2>" +
     "<p>If you use Premium, the app sends an authenticated request to our Cloudflare Worker to start, refresh or cancel a subscription. PayPal processes the payment and subscription transaction. The app backend stores a limited entitlement record such as subscription status, the PayPal subscription identifier and the internal Firebase user identifier so Premium access can be verified.</p>" +
     "<h2>4. Analytics and diagnostics</h2>" +
-    "<p>The Android build includes Firebase Analytics. Firebase may process technical and usage information according to the configuration and policies of that service. We use this capability to understand general app usage and improve reliability.</p>" +
+    "<p>The app may send authentication, entitlement and payment-status requests to the services described above. Diagnostic or analytics collection depends on the libraries and configuration included in the installed build; consult the store data-safety declaration for the exact release being distributed.</p>" +
     "<h2>5. Security</h2>" +
     "<p>PayPal client secrets and Firebase service-account credentials are kept on the Cloudflare Worker and are not embedded in the APK. Network requests use HTTPS endpoints.</p>" +
     "<h2>6. Data sharing</h2>" +
     "<p>Payment information is processed by PayPal. Authentication and related account services are provided by Firebase. The Cloudflare Worker handles authenticated application requests. Each provider's own privacy policy governs the data it processes.</p>" +
     "<h2>7. Retention and deletion</h2>" +
-    "<p>We keep account and subscription records for as long as reasonably necessary to provide the service, maintain billing records, prevent abuse and meet legal obligations. To request deletion of your Image Tools account and associated server-side account data, use the support page with the email address associated with your account.</p>" +
+    "<p>We keep account and subscription records for as long as reasonably necessary to provide the service, maintain billing records, prevent abuse and meet legal obligations. To request deletion of your Image Tools account and associated server-side account data, use the support page with the email address associated with your account. Requests may require verification and some records may be retained where law or legitimate billing/security needs require it.</p>" +
     "<h2>8. Children's privacy</h2>" +
     "<p>Image Tools is not designed to knowingly collect personal information from children who are below the minimum age required by applicable law. Parents or guardians may contact support with privacy questions or deletion requests.</p>" +
     "<h2>9. Changes</h2>" +
