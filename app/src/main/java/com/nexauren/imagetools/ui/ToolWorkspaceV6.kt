@@ -187,10 +187,10 @@ fun ToolWorkspaceV6(
     }
 
     val collagePicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickMultipleVisualMedia(4)
+        ActivityResultContracts.PickMultipleVisualMedia(9)
     ) { uris ->
         if (uris.isNotEmpty()) {
-            sourceUris = uris.take(4)
+            sourceUris = uris.take(9)
             previewBitmaps = emptyList()
             pendingItems = emptyList()
             textResult = null
@@ -695,7 +695,7 @@ fun ToolWorkspaceV6(
                         }
                         "collage" -> {
                             val inputs = withContext(Dispatchers.IO) {
-                                sourceUris.take(4).mapNotNull { uri ->
+                                sourceUris.take(9).mapNotNull { uri ->
                                     ImageProcessor.decode(context, uri, maxEdge = 1200)
                                 }
                             }
