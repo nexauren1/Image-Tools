@@ -1020,7 +1020,7 @@ function supportPage() {
     "<p>For help with sign-in, image tools, Premium access or billing, contact the developer privately at <a href=\"mailto:nexaurenstore@gmail.com?subject=Image%20Tools%20Support\">nexaurenstore@gmail.com</a>.</p>" +
     "<h2>Request account deletion</h2>" +
     "<p>Account holders can request deletion of their Image Tools account and associated server-side account data by emailing <a href=\"mailto:nexaurenstore@gmail.com?subject=Image%20Tools%20Account%20Deletion\">nexaurenstore@gmail.com</a> from the email address linked to the account, or by stating that account email in the request. Please say clearly that you want the account deleted.</p>" +
-    "<p>For your privacy, do not post account emails, payment references or other personal information in a public GitHub issue. Never send passwords, one-time verification codes or PayPal credentials. Some records may need to be retained where required for security, billing disputes or legal compliance.</p>" +
+    "<p>For your privacy, do not post account emails, payment references or other personal information in a public GitHub issue. Do not send passwords, one-time verification codes or PayPal credentials. Some records may need to be retained where required for security, billing disputes or legal compliance.</p>" +
     "<h2>Bug reports</h2>" +
     "<p>You may report technical issues on the <a href=\"https://github.com/nexauren1/Image-Tools/issues\">public GitHub issue tracker</a>. Keep personal, account and payment details out of public reports.</p>");
 }
