@@ -4,8 +4,8 @@ Image Tools is a modern Android toolbox for everyday image jobs, with a local-fi
 
 ## Current release
 
-- Version: 1.17.0
-- Version code: 39
+- Version: 1.18.0
+- Version code: 40
 - Package: `com.nexauren.imagetools`
 - Minimum Android: 10 (API 29)
 - Target Android: API 36
@@ -38,7 +38,7 @@ Image Tools is a modern Android toolbox for everyday image jobs, with a local-fi
 - Remove common embedded metadata by re-encoding
 - Image to PDF
 - Dominant color palette
-- Quick collage for 2–4 images
+- Quick collage for 2–9 images
 - Image to Base64 data URL with TXT export
 
 The expanded toolbox follows common patterns found in modern image utility apps—grouped tools, batch-oriented workflows, privacy/metadata controls, collage/stitching concepts and utility exports—while keeping the implementation lightweight and original.
@@ -128,6 +128,9 @@ Never commit:
 
 
 
+### Release 1.18.0
+Expanded quick collage from four to nine images with an automatic 2-column/3-column grid and uniform center-cropped tiles. Replaced the launcher identity with an adaptive Android icon, refreshed the public privacy/terms/support pages, added a private account-deletion contact path, and introduced automated tests for the Worker legal pages.
+
 ### Release 1.17.0
 App-wide reliability pass: persist the theme preference, handle Android system Back navigation, clean up authentication/network resources, guard image allocations, reduce batch-processing memory use, prevent partial export files, preserve GIF frame proportions, and validate pull requests before release.
 
@@ -136,3 +139,6 @@ Full Image Studio redesign across the tool workspace, control cards, sliders, fo
 
 ### Release 1.15.0
 Added Image-to-Base64 and CSS color palette utilities, improved processing feedback and source-image previews, moved CPU-heavy image transformations off the UI thread, and removed background removal.
+
+
+Public privacy policy source: [PRIVACY.md](PRIVACY.md). Production privacy page: https://steep-pine-34fe.nexaurenstore.workers.dev/privacy. Worker legal-page tests run with `npm --prefix cloudflare-worker test`.

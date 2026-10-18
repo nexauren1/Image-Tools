@@ -49,6 +49,9 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Test Worker legal pages
+        run: npm --prefix cloudflare-worker test
+
       - name: Validate Cloudflare Worker syntax
         run: node --check cloudflare-worker/src/index.js
 
@@ -65,7 +68,7 @@ jobs:
           set -euo pipefail
           APK="app/build/outputs/apk/release/app-release-unsigned.apk"
           "$ANDROID_HOME/build-tools/37.0.0/aapt2" dump badging "$APK" > "$RUNNER_TEMP/apk-badging.txt"
-          grep -F "package: name='com.nexauren.imagetools' versionCode='39' versionName='1.17.0'" "$RUNNER_TEMP/apk-badging.txt"
+          grep -F "package: name='com.nexauren.imagetools' versionCode='40' versionName='1.18.0'" "$RUNNER_TEMP/apk-badging.txt"
 
       - name: Sign aligned release APK
         id: sign_apk

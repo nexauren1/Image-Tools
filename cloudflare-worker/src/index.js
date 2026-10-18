@@ -963,61 +963,66 @@ function htmlPage(title, body) {
 }
 
 function homePage() {
-  return htmlPage("Image Tools", 
-    "<p>A focused Android image toolbox for resizing, compression, conversion, cropping, filters, privacy cleanup, collage, PDF export and more.</p>" +
-    "<p>Core image editing runs locally on the device. Premium features use a secure PayPal checkout and server-side entitlement verification.</p>" +
-    "<p><strong>Android:</strong> package <code>com.nexauren.imagetools</code> · release line 1.17.x</p>" +
+  return htmlPage("Image Tools",
+    "<p>Image Tools is an Android image workspace for resizing, compression, conversion, cropping, batch processing, creative effects, collage, PDF export and image metadata utilities.</p>" +
+    "<p>Most image processing runs on your device. Account sign-in uses Firebase, while optional Premium subscriptions are processed through PayPal using a secured Cloudflare Worker.</p>" +
+    "<p><strong>Current Android release:</strong> version 1.18.0 · version code 40 · package <code>com.nexauren.imagetools</code>.</p>" +
     "<p><a href=\"" + SITE + "/privacy\">Read the Privacy Policy</a></p>" +
     "<p><a href=\"" + SITE + "/terms\">Read the Terms of Service</a></p>" +
-    "<p><a href=\"" + SITE + "/support\">Support and account deletion requests</a></p>");
+    "<p><a href=\"" + SITE + "/support\">Support and private account-deletion requests</a></p>");
 }
 
 function privacyPage() {
-  return htmlPage("Privacy Policy", 
-    "<p><strong>Last updated: October 7, 2026.</strong></p>" +
-    "<p>Image Tools is an Android application focused on local image utilities. This policy explains the main data flows used by the app.</p>" +
+  return htmlPage("Privacy Policy",
+    "<p><strong>Last updated: October 18, 2026.</strong></p>" +
+    "<p>This policy describes the current Android release of Image Tools (package <code>com.nexauren.imagetools</code>) and the supporting website/API.</p>" +
     "<h2>1. Images and files</h2>" +
-    "<p>The core image tools process selected files on the device. Image editing and export features are designed to process files locally on your device. Images selected for resizing, compression, conversion, cropping, rotation, filters, watermarking, color adjustments, blur, sharpening, pixelation, borders, palettes, collages, Base64 conversion and PDF export are not uploaded to our backend as part of those operations. Exported files are saved or shared using the destination you choose. Features that open an external provider or use an online service, if introduced, may have separate data flows and will be described in an updated policy.</p>" +
-    "<h2>2. Account data</h2>" +
-    "<p>When you create or sign in to an account, Image Tools uses Firebase Authentication. Depending on the sign-in method, Firebase may process an email address and account/profile information supplied by you or by the selected identity provider.</p>" +
-    "<h2>3. Subscription data</h2>" +
-    "<p>If you use Premium, the app sends an authenticated request to our Cloudflare Worker to start, refresh or cancel a subscription. PayPal processes the payment and subscription transaction. The app backend stores a limited entitlement record such as subscription status, the PayPal subscription identifier and the internal Firebase user identifier so Premium access can be verified.</p>" +
+    "<p>For normal editing tasks, selected images are processed locally on your Android device. This includes resizing, compression, format conversion, cropping, rotation, filters, color adjustments, watermarking, blur/sharpen/pixelate effects, borders, palettes, collages, grid splitting, OCR, EXIF inspection, face-blur processing, GIF creation and PDF export/merging. The app does not send the image contents to our Image Tools backend merely to perform these operations. You choose where exported files are saved. If you use Android sharing or another external app, the destination app's own data practices apply.</p>" +
+    "<h2>2. Information stored on your device</h2>" +
+    "<p>The app may save preferences such as theme and output-folder choices, plus local favorites, recipes, processing statistics and recent-operation history. This information is intended to support app features on your device. It may be removed by clearing the app's storage or uninstalling the app. Exported files saved outside the app are not removed when you uninstall it.</p>" +
+    "<h2>3. Account and sign-in information</h2>" +
+    "<p>If you sign in or create an account, Firebase Authentication processes account information needed to provide that feature. Depending on your sign-in method, this can include your email address, display name, profile information supplied by Google, Firebase user identifier, and authentication/security event data. Sign-in, registration, verification and password-reset requests are handled by Firebase.</p>" +
     "<h2>4. Analytics and diagnostics</h2>" +
-    "<p>The app may send authentication, entitlement and payment-status requests to the services described above. Diagnostic or analytics collection depends on the libraries and configuration included in the installed build; consult the store data-safety declaration for the exact release being distributed.</p>" +
-    "<h2>5. Security</h2>" +
-    "<p>PayPal client secrets and Firebase service-account credentials are kept on the Cloudflare Worker and are not embedded in the APK. Network requests use HTTPS endpoints.</p>" +
-    "<h2>6. Data sharing</h2>" +
-    "<p>Payment information is processed by PayPal. Authentication and related account services are provided by Firebase. The Cloudflare Worker handles authenticated application requests. Each provider's own privacy policy governs the data it processes.</p>" +
-    "<h2>7. Retention and deletion</h2>" +
-    "<p>We keep account and subscription records for as long as reasonably necessary to provide the service, maintain billing records, prevent abuse and meet legal obligations. To request deletion of your Image Tools account and associated server-side account data, use the support page with the email address associated with your account. Requests may require verification and some records may be retained where law or legitimate billing/security needs require it.</p>" +
-    "<h2>8. Children's privacy</h2>" +
-    "<p>Image Tools is not designed to knowingly collect personal information from children who are below the minimum age required by applicable law. Parents or guardians may contact support with privacy questions or deletion requests.</p>" +
-    "<h2>9. Changes</h2>" +
-    "<p>This policy may be updated when the app's data practices change. The latest version is published on this page.</p>" +
-    "<h2>10. Contact</h2>" +
-    "<p>For privacy questions or deletion requests, visit <a href=\"" + SITE + "/support\">" + SITE + "/support</a>.</p>");
+    "<p>The Android app includes Firebase Analytics. Depending on the SDK's configuration and your device settings, Firebase may process app-instance identifiers, device/app technical information and usage or interaction events to measure usage and help improve reliability. Firebase's own privacy terms and the app's configuration govern the provider's processing.</p>" +
+    "<h2>5. Premium and payment information</h2>" +
+    "<p>If you use Premium, the app sends authenticated requests to our Cloudflare Worker to start or refresh subscription access. The backend may process your Firebase user identifier, authentication token, PayPal subscription identifier, subscription status and related transaction references. PayPal processes payment credentials, billing details and the payment/subscription transaction under its own policies. We do not put the PayPal client secret in the APK and the app does not need your PayPal password.</p>" +
+    "<h2>6. Service providers and hosting</h2>" +
+    "<p>Firebase provides authentication, Firestore entitlement storage and analytics. Cloudflare hosts the public legal pages and the subscription API. PayPal handles payments. These providers may process technical request information, such as IP address, timestamps and security logs, when you use their services. We do not sell your personal information. Provider-specific policies apply to processing performed by those providers.</p>" +
+    "<h2>7. Permissions and sharing</h2>" +
+    "<p>The app requests internet access for account and subscription features. Images are selected through Android's system photo/file picker. The app does not require broad storage access for normal image selection. You decide when to export or share a result with another app.</p>" +
+    "<h2>8. Retention and account deletion</h2>" +
+    "<p>Local settings and history remain on the device until you clear app storage or uninstall the app. Account and subscription records may be retained while needed to provide the service, reconcile payments, prevent fraud, resolve disputes and comply with legal obligations. To request deletion of your Image Tools account and associated server-side account data, contact the developer privately using <a href=\"mailto:nexaurenstore@gmail.com?subject=Image%20Tools%20Account%20Deletion\">nexaurenstore@gmail.com</a>. Include the email address associated with your account and state that you request deletion. Do not send passwords, authentication codes or payment credentials. Data that must be retained for legal or billing reasons may be kept for the period required by law.</p>" +
+    "<h2>9. Children's privacy</h2>" +
+    "<p>Image Tools is not intended to knowingly collect personal information from children below the minimum age required by applicable law. A parent or guardian may contact the developer using the privacy contact above for a privacy inquiry or deletion request.</p>" +
+    "<h2>10. International processing</h2>" +
+    "<p>Our service providers may process information in countries other than your country of residence. Their safeguards and terms apply to such processing.</p>" +
+    "<h2>11. Changes to this policy</h2>" +
+    "<p>This policy may change when the app or its data practices change. The current policy and its update date are published on this page.</p>" +
+    "<h2>12. Contact</h2>" +
+    "<p>For privacy questions or account deletion, email <a href=\"mailto:nexaurenstore@gmail.com?subject=Image%20Tools%20Privacy%20Request\">nexaurenstore@gmail.com</a>. For ordinary product questions, see the <a href=\"" + SITE + "/support\">Support page</a>.</p>");
 }
 
 function termsPage() {
-  return htmlPage("Terms of Service", 
-    "<p><strong>Last updated: October 7, 2026.</strong></p>" +
-    "<h2>1. Service</h2><p>Image Tools provides image editing and utility features for Android devices. Features may change as the product evolves.</p>" +
-    "<h2>2. Your content</h2><p>You remain responsible for the images and other content you choose to process or export. You must have the rights and permissions required to use that content.</p>" +
-    "<h2>3. Premium</h2><p>Premium features are provided through a recurring PayPal subscription. The exact price, currency and billing cycle shown during checkout are controlled by the active PayPal plan. Subscription status is verified by our backend.</p>" +
-    "<h2>4. Cancellation</h2><p>Subscription cancellation is handled through the payment provider associated with the subscription. Payment-provider records and billing terms may also apply. For help, use the Support page.</p>" +
-    "<h2>5. Availability</h2><p>We aim to keep the service reliable, but we do not guarantee uninterrupted availability or that every image format will be supported on every device.</p>" +
-    "<h2>6. Acceptable use</h2><p>You may not use the service for unlawful activity, fraud, infringement of another person's rights, or attempts to compromise the service.</p>" +
-    "<h2>7. Changes</h2><p>We may change these terms when the service changes. The current terms are published on this page.</p>" +
-    "<h2>8. Contact</h2><p>Questions about the service can be sent through <a href=\"" + SITE + "/support\">Support</a>.</p>");
+  return htmlPage("Terms of Service",
+    "<p><strong>Last updated: October 18, 2026.</strong></p>" +
+    "<h2>1. The service</h2><p>Image Tools provides Android utilities for editing and organizing images. Features, formats and device compatibility may vary by version and hardware.</p>" +
+    "<h2>2. Your files and content</h2><p>You remain responsible for images, documents and other content you select, edit, export or share. You must have the rights and permissions required to use that content. Check exported results before relying on them for professional, legal or safety-critical work.</p>" +
+    "<h2>3. Local processing</h2><p>Most image operations run on your device. Export and sharing destinations are chosen by you. Availability and results may vary based on file format, image dimensions and device memory.</p>" +
+    "<h2>4. Premium subscriptions</h2><p>Optional Premium access is processed through PayPal. The price, currency, billing interval and renewal terms shown during PayPal checkout apply to the plan you approve. Subscription access is verified by our backend.</p>" +
+    "<h2>5. Cancellation and refunds</h2><p>Use the cancellation options provided by PayPal for the subscription, or contact support for help locating the correct account/payment-provider path. Any refund or billing decision is subject to the applicable payment-provider terms and law.</p>" +
+    "<h2>6. Acceptable use</h2><p>You may not use the app or service for unlawful activity, fraud, infringement of another person's rights, or attempts to disrupt or compromise the service.</p>" +
+    "<h2>7. Availability and limitation</h2><p>We aim to keep the service reliable but do not guarantee uninterrupted availability, error-free output or support for every image file on every device. To the extent permitted by applicable law, the app is provided without warranties beyond those that cannot legally be excluded.</p>" +
+    "<h2>8. Changes and contact</h2><p>These terms may be updated as the product evolves. Questions can be sent privately to <a href=\"mailto:nexaurenstore@gmail.com?subject=Image%20Tools%20Support\">nexaurenstore@gmail.com</a>.</p>");
 }
 
 function supportPage() {
-  return htmlPage("Support", 
-    "<p>For help with Image Tools, payment status, account access or privacy requests, use the contact channel associated with the developer account or the project's public issue tracker.</p>" +
-    "<h2>Account deletion</h2>" +
-    "<p>To request deletion of your Image Tools account and associated server-side data, include the email address used for the account and a short statement requesting deletion. Do not send passwords or PayPal credentials.</p>" +
-    "<p><a href=\"https://github.com/nexauren1/Image-Tools/issues\">Open the Image Tools support tracker on GitHub</a></p>" +
-    "<p>For payment-provider disputes or billing details, use the transaction information and support options provided by PayPal.</p>");
+  return htmlPage("Support and Account Deletion",
+    "<p>For help with sign-in, image tools, Premium access or billing, contact the developer privately at <a href=\"mailto:nexaurenstore@gmail.com?subject=Image%20Tools%20Support\">nexaurenstore@gmail.com</a>.</p>" +
+    "<h2>Request account deletion</h2>" +
+    "<p>Account holders can request deletion of their Image Tools account and associated server-side account data by emailing <a href=\"mailto:nexaurenstore@gmail.com?subject=Image%20Tools%20Account%20Deletion\">nexaurenstore@gmail.com</a> from the email address linked to the account, or by stating that account email in the request. Please say clearly that you want the account deleted.</p>" +
+    "<p>For your privacy, do not post account emails, payment references or other personal information in a public GitHub issue. Do not send passwords, one-time verification codes or PayPal credentials. Some records may need to be retained where required for security, billing disputes or legal compliance.</p>" +
+    "<h2>Bug reports</h2>" +
+    "<p>You may report technical issues on the <a href=\"https://github.com/nexauren1/Image-Tools/issues\">public GitHub issue tracker</a>. Keep personal, account and payment details out of public reports.</p>");
 }
 
 export default {

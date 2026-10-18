@@ -294,26 +294,43 @@ object AdvancedImageProcessor {
     }
 
     fun collage(bitmaps: List<Bitmap>): Bitmap {
-        val items = bitmaps.take(4).map {
-            val ratio = it.width.toFloat() / it.height.toFloat()
-            val h = 520
-            Bitmap.createScaledBitmap(it, (h * ratio).roundToInt().coerceAtLeast(120), h, true)
+        val items = bitmaps.take(9)
+        require(items.size in 2..9) { "Select between 2 and 9 images to create a collage." }
+
+        val cellSize = 520
+        val columns = if (items.size <= 4) 2 else 3
+        val rows = (items.size + columns - 1) / columns
+        val output = Bitmap.createBitmap(
+            cellSize * columns,
+            cellSize * rows,
+            Bitmap.Config.ARGB_8888
+        )
+        val canvas = Canvas(output)
+        canvas.drawColor(Color.WHITE)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+
+        items.forEachIndexed { index, bitmap ->
+            val column = index % columns
+            val row = index / columns
+            val side = minOf(bitmap.width, bitmap.height).coerceAtLeast(1)
+            val sourceLeft = (bitmap.width - side) / 2
+            val sourceTop = (bitmap.height - side) / 2
+            val source = android.graphics.Rect(
+                sourceLeft,
+                sourceTop,
+                sourceLeft + side,
+                sourceTop + side
+            )
+            val gutter = 6
+            val destination = android.graphics.Rect(
+                column * cellSize + gutter,
+                row * cellSize + gutter,
+                (column + 1) * cellSize - gutter,
+                (row + 1) * cellSize - gutter
+            )
+            canvas.drawBitmap(bitmap, source, destination, paint)
         }
-        val cellW = 520
-        val cellH = 520
-        val rows = if (items.size <= 2) 1 else 2
-        val cols = minOf(2, items.size)
-        val out = Bitmap.createBitmap(cellW * cols, cellH * rows, Bitmap.Config.ARGB_8888)
-        val c = Canvas(out)
-        c.drawColor(Color.WHITE)
-        items.forEachIndexed { index, bmp ->
-            val col = index % 2
-            val row = index / 2
-            val left = col * cellW + (cellW - bmp.width) / 2
-            val top = row * cellH + (cellH - bmp.height) / 2
-            c.drawBitmap(bmp, left.toFloat(), top.toFloat(), Paint(Paint.ANTI_ALIAS_FLAG))
-        }
-        return out
+        return output
     }
 
     fun pdfBytes(bitmap: Bitmap): ByteArray {
