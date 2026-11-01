@@ -763,7 +763,7 @@ fun ToolWorkspaceV6(
                                 processingDetail = processingCopyV7(AppLanguageStore.get(context), "batch", itemIndex + 1, sourceUris.size)
                                 val bitmap = withContext(Dispatchers.IO) {
                                     ImageProcessor.decode(context, uri)
-                                } ?: return@forEach
+                                } ?: return@forEachIndexed
                                 try {
                                     items += analyzeBitmap(bitmap, uri)
                                     ensureBatchOutputSize(items)
