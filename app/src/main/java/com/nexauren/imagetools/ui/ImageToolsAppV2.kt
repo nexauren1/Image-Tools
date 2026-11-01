@@ -1395,6 +1395,7 @@ private fun FormatPanel(format: OutputFormat, onFormat: (OutputFormat) -> Unit) 
                                         OutputFormat.JPEG -> listOf(Color(0xFF2563EB), Color(0xFF06B6D4))
                                         OutputFormat.PNG -> listOf(Color(0xFF7C3AED), Color(0xFFEC4899))
                                         OutputFormat.WEBP -> listOf(Color(0xFF059669), Color(0xFF22C55E))
+                                        OutputFormat.WEBP_LOSSLESS -> listOf(Color(0xFF059669), Color(0xFF22C55E))
                                     }
                                 )
                             ),

@@ -22,7 +22,8 @@ import kotlin.math.min
 enum class OutputFormat(val label: String, val mime: String, val extension: String) {
     JPEG("JPEG", "image/jpeg", "jpg"),
     PNG("PNG", "image/png", "png"),
-    WEBP("WEBP", "image/webp", "webp")
+    WEBP("WEBP", "image/webp", "webp"),
+    WEBP_LOSSLESS("WEBP Lossless", "image/webp", "webp")
 }
 
 enum class ImageFilter(val label: String) {
@@ -306,8 +307,15 @@ object ImageProcessor {
             OutputFormat.JPEG -> Bitmap.CompressFormat.JPEG
             OutputFormat.PNG -> Bitmap.CompressFormat.PNG
             OutputFormat.WEBP -> if (Build.VERSION.SDK_INT >= 30) Bitmap.CompressFormat.WEBP_LOSSY else Bitmap.CompressFormat.WEBP
+            OutputFormat.WEBP_LOSSLESS -> if (Build.VERSION.SDK_INT >= 30) {
+                Bitmap.CompressFormat.WEBP_LOSSLESS
+            } else {
+                // Android 10's legacy WEBP encoder emits lossless WebP at quality 100.
+                Bitmap.CompressFormat.WEBP
+            }
         }
-        check(bitmap.compress(type, quality.coerceIn(1, 100), out))
+        val safeQuality = if (format == OutputFormat.WEBP_LOSSLESS) 100 else quality.coerceIn(1, 100)
+        check(bitmap.compress(type, safeQuality, out))
         return out.toByteArray()
     }
 

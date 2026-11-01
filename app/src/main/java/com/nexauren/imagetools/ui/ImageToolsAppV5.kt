@@ -75,6 +75,7 @@ internal val TOOL_CATALOG = listOf(
     ToolDef("crop", Icons.Default.Crop, Color(0xFFF59E0B), Color(0xFFF97316)),
     ToolDef("rotate", Icons.Default.Rotate90DegreesCw, Color(0xFF4F46E5), Color(0xFFEC4899)),
     ToolDef("filter", Icons.Default.FilterVintage, Color(0xFF0F766E), Color(0xFF14B8A6)),
+    ToolDef("background_remove", Icons.Default.LayersClear, Color(0xFF0891B2), Color(0xFF6548E8)),
     ToolDef("watermark", Icons.Default.TextFields, Color(0xFF6548E8), Color(0xFFDB2777), true),
     ToolDef("details", Icons.Default.Info, Color(0xFF334155), Color(0xFF087F8C)),
     ToolDef("brightness", Icons.Default.LightMode, Color(0xFFF59E0B), Color(0xFFFBBF24)),
@@ -132,9 +133,11 @@ fun ImageToolsAppV5(
     var language by remember { mutableStateOf(AppLanguageStore.get(context)) }
     val strings = remember(language) { UiText(language) }
 
+    var guestAccess by remember { mutableStateOf(false) }
+
     CompositionLocalProvider(LocalUiText provides strings) {
-        if (auth.currentUser == null) {
-            AuthScreenV5(auth)
+        if (auth.currentUser == null && !guestAccess) {
+            AuthScreenV5(auth) { guestAccess = true }
             return@CompositionLocalProvider
         }
 
@@ -191,13 +194,28 @@ fun ImageToolsAppV5(
                 topBar = {
                     CenterAlignedTopAppBar(
                         title = {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Image Tools", fontWeight = FontWeight.ExtraBold)
-                                Text(
-                                    if (premium) strings.get("pro") else strings.get("home.subtitle"),
-                                    fontSize = 8.sp,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(9.dp)
+                            ) {
+                                Box(
+                                    Modifier.size(36.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Brush.linearGradient(listOf(Color(0xFF168DFF), Color(0xFF7C3AED), Color(0xFFDB28C8)))),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.AutoFixHigh, null, tint = Color.White, modifier = Modifier.size(21.dp))
+                                }
+                                Column(horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                                    Text("Image Tools", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                                    Text(
+                                        if (premium) strings.get("pro") else strings.get("home.subtitle"),
+                                        fontSize = 8.sp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
                         },
                         navigationIcon = {
@@ -251,10 +269,16 @@ fun ImageToolsAppV5(
                                 onNeedPremium = { navigate("premium") }
                             )
                         }
-                        page == "home" -> HomeScreenV5(strings, premium) { id ->
-                            val tool = TOOL_CATALOG.first { it.id == id }
-                            if (tool.premium && !premium) navigate("premium") else selectedTool = id
-                        }
+                        page == "home" -> ImageToolsHomeV7(
+                            strings = strings,
+                            premium = premium,
+                            onOpenTool = { id ->
+                                val tool = TOOL_CATALOG.first { it.id == id }
+                                if (tool.premium && !premium) navigate("premium") else selectedTool = id
+                            },
+                            onOpenLibrary = { navigate("tools") },
+                            onOpenPremium = { navigate("premium") }
+                        )
                         page == "tools" -> ToolsScreenV5(strings, premium) { id ->
                             val tool = TOOL_CATALOG.first { it.id == id }
                             if (tool.premium && !premium) navigate("premium") else selectedTool = id
@@ -369,7 +393,7 @@ private fun RowScope.BottomTabV5(
 }
 
 @Composable
-private fun AuthScreenV5(auth: AuthRepository) {
+private fun AuthScreenV5(auth: AuthRepository, onContinueAsGuest: () -> Unit) {
     val context = LocalContext.current
     val strings = remember { UiText(AppLanguageStore.get(context)) }
     var create by remember { mutableStateOf(false) }
@@ -474,6 +498,34 @@ private fun AuthScreenV5(auth: AuthRepository) {
                         error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
                     }
                 }
+                TextButton(
+                    onClick = onContinueAsGuest,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                ) {
+                    Icon(Icons.Default.Explore, null)
+                    Spacer(Modifier.width(7.dp))
+                    Text(
+                        when (AppLanguageStore.get(context)) {
+                            AppLanguage.PT -> "Continuar sem conta"
+                            AppLanguage.EN -> "Continue without an account"
+                            AppLanguage.ES -> "Continuar sin cuenta"
+                            AppLanguage.FR -> "Continuer sans compte"
+                        },
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Text(
+                    when (AppLanguageStore.get(context)) {
+                        AppLanguage.PT -> "As ferramentas locais continuam disponíveis sem iniciar sessão."
+                        AppLanguage.EN -> "Local tools remain available without signing in."
+                        AppLanguage.ES -> "Las herramientas locales siguen disponibles sin iniciar sesión."
+                        AppLanguage.FR -> "Les outils locaux restent disponibles sans connexion."
+                    },
+                    color = Color.White.copy(alpha = .78f),
+                    fontSize = 11.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp)
+                )
             }
         }
     }

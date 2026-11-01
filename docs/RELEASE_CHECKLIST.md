@@ -20,6 +20,9 @@ This checklist is for the Android release of Image Tools (`com.nexauren.imagetoo
 - Install the release build on a clean Android 10+ device.
 - Open every tool and test representative images, large images, invalid files, cancel/back navigation, and low-storage errors.
 - Test resize, compression, conversion, crop, rotation, filters, watermark, collage, PDF export, and all other tools shown in the UI.
+- Compare PNG and WEBP Lossless exports pixel-for-pixel with the decoded source; verify JPEG and regular WEBP show a clear quality control.
+- Test same-format conversion to confirm the original encoded file is copied without recompression.
+- Test background removal with Google Play services available, including first-use model download, transparent PNG alpha, model-download failure and a low-memory device.
 - Test export, share, and reopening saved files.
 - Test Google/email sign-in, sign-out, session refresh, and account deletion request instructions.
 - Test Premium purchase, entitlement refresh, cancellation, failed payment, and restoration using the configured production PayPal plan before enabling live billing.

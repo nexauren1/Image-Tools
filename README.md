@@ -4,8 +4,8 @@ Image Tools is a modern Android toolbox for everyday image jobs, with a local-fi
 
 ## Current release
 
-- Version: 1.18.0
-- Version code: 40
+- Version: 1.19.0
+- Version code: 41
 - Package: `com.nexauren.imagetools`
 - Minimum Android: 10 (API 29)
 - Target Android: API 36
@@ -17,7 +17,10 @@ Image Tools is a modern Android toolbox for everyday image jobs, with a local-fi
 ### Core tools
 - Resize with aspect-ratio lock
 - Compress with quality control
-- Convert JPEG / PNG / WEBP
+- Convert JPEG / PNG / WEBP / WEBP Lossless
+- Preserve original encoded bytes when converting to the same format
+- Export edited images to lossless PNG by default
+- Compress with lossless WEBP or high-quality JPEG/WEBP
 - Crop presets: 1:1, 4:5, 16:9, 9:16
 - Rotate and mirror
 - Grayscale, sepia and high-contrast filters
@@ -36,6 +39,7 @@ Image Tools is a modern Android toolbox for everyday image jobs, with a local-fi
 - Border
 - Rounded corners
 - Remove common embedded metadata by re-encoding
+- On-device background removal with transparent PNG export (Google Play services model download may be needed on first use)
 - Image to PDF
 - Dominant color palette
 - Quick collage for 2–9 images
@@ -127,6 +131,9 @@ Never commit:
 - Other production credentials
 
 
+
+### Release 1.19.0
+Rebuilt the home screen around the Image Studio reference, added guest access, and improved visible progress during processing and export. PNG and WEBP Lossless are available for lossless output; compression starts in WEBP Lossless and uses a 95% default for lossy formats. Same-format conversion preserves the original encoded bytes. Added on-device ML Kit subject segmentation for transparent background removal; Google Play services may download the model on first use. The existing package ID is retained so this version updates the installed app.
 
 ### Release 1.18.0
 Expanded quick collage from four to nine images with an automatic 2-column/3-column grid and uniform center-cropped tiles. Replaced the launcher identity with an adaptive Android icon, refreshed the public privacy/terms/support pages, added a private account-deletion contact path, and introduced automated tests for the Worker legal pages.

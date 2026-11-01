@@ -964,9 +964,9 @@ function htmlPage(title, body) {
 
 function homePage() {
   return htmlPage("Image Tools",
-    "<p>Image Tools is an Android image workspace for resizing, compression, conversion, cropping, batch processing, creative effects, collage, PDF export and image metadata utilities.</p>" +
+    "<p>Image Tools is an Android image workspace for lossless and high-quality image export, resizing, compression, conversion, cropping, batch processing, creative effects, on-device background removal, collage, PDF export and image metadata utilities.</p>" +
     "<p>Most image processing runs on your device. Account sign-in uses Firebase, while optional Premium subscriptions are processed through PayPal using a secured Cloudflare Worker.</p>" +
-    "<p><strong>Current Android release:</strong> version 1.18.0 · version code 40 · package <code>com.nexauren.imagetools</code>.</p>" +
+    "<p><strong>Current Android release:</strong> version 1.19.0 · version code 41 · package <code>com.nexauren.imagetools</code>.</p>" +
     "<p><a href=\"" + SITE + "/privacy\">Read the Privacy Policy</a></p>" +
     "<p><a href=\"" + SITE + "/terms\">Read the Terms of Service</a></p>" +
     "<p><a href=\"" + SITE + "/support\">Support and private account-deletion requests</a></p>");
@@ -974,10 +974,10 @@ function homePage() {
 
 function privacyPage() {
   return htmlPage("Privacy Policy",
-    "<p><strong>Last updated: October 18, 2026.</strong></p>" +
+    "<p><strong>Last updated: November 1, 2026.</strong></p>" +
     "<p>This policy describes the current Android release of Image Tools (package <code>com.nexauren.imagetools</code>) and the supporting website/API.</p>" +
     "<h2>1. Images and files</h2>" +
-    "<p>For normal editing tasks, selected images are processed locally on your Android device. This includes resizing, compression, format conversion, cropping, rotation, filters, color adjustments, watermarking, blur/sharpen/pixelate effects, borders, palettes, collages, grid splitting, OCR, EXIF inspection, face-blur processing, GIF creation and PDF export/merging. The app does not send the image contents to our Image Tools backend merely to perform these operations. You choose where exported files are saved. If you use Android sharing or another external app, the destination app's own data practices apply.</p>" +
+    "<p>For normal editing tasks, selected images are processed locally on your Android device. This includes resizing, compression, format conversion, cropping, rotation, filters, color adjustments, watermarking, blur/sharpen/pixelate effects, borders, palettes, collages, grid splitting, OCR, EXIF inspection, face-blur processing, GIF creation and PDF export/merging. Background removal uses ML Kit subject segmentation on the device. Google Play services may download the segmentation model before first use, which may require an internet connection. The selected image itself is processed on the device and is not sent to our Image Tools backend for segmentation. The app does not send the image contents to our Image Tools backend merely to perform these operations. You choose where exported files are saved. If you use Android sharing or another external app, the destination app's own data practices apply.</p>" +
     "<h2>2. Information stored on your device</h2>" +
     "<p>The app may save preferences such as theme and output-folder choices, plus local favorites, recipes, processing statistics and recent-operation history. This information is intended to support app features on your device. It may be removed by clearing the app's storage or uninstalling the app. Exported files saved outside the app are not removed when you uninstall it.</p>" +
     "<h2>3. Account and sign-in information</h2>" +
