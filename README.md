@@ -4,13 +4,29 @@ Image Tools is a modern Android toolbox for everyday image jobs, with a local-fi
 
 ## Current release
 
-- Version: 1.19.0
-- Version code: 41
+- Version: 1.20.0
+- Version code: 42
 - Package: `com.nexauren.imagetools`
 - Minimum Android: 10 (API 29)
 - Target Android: API 36
 - Main processing: on-device
 - Premium payments: PayPal through the Cloudflare Worker
+
+
+
+## Version 1.20.0 — Studio navigation and workflow polish
+
+- Adds a predictable back stack: opening a tool returns to the exact screen that launched it.
+- Android system Back and in-app Back follow the same navigation history.
+- Keeps Home, Tools and Batch as clean top-level destinations.
+- Gives tool workspaces their own focused header instead of duplicating the app navigation bars.
+- Adds a four-step Choose → Configure → Preview → Export progress guide to tool screens.
+- Retains tool search/category state and Batch selections when moving between destinations.
+- Improves drawer grouping, branding and selected-destination feedback.
+- Removes an inert Premium chip so visible controls no longer pretend to be buttons.
+- Keeps the existing on-device processing engines and image export behaviour unchanged.
+
+This release does not require a Cloudflare Worker deployment.
 
 ## Tools
 
