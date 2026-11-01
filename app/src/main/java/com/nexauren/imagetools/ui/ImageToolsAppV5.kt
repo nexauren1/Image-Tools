@@ -75,6 +75,7 @@ internal val TOOL_CATALOG = listOf(
     ToolDef("crop", Icons.Default.Crop, Color(0xFFF59E0B), Color(0xFFF97316)),
     ToolDef("rotate", Icons.Default.Rotate90DegreesCw, Color(0xFF4F46E5), Color(0xFFEC4899)),
     ToolDef("filter", Icons.Default.FilterVintage, Color(0xFF0F766E), Color(0xFF14B8A6)),
+    ToolDef("background_remove", Icons.Default.LayersClear, Color(0xFF0891B2), Color(0xFF6548E8)),
     ToolDef("watermark", Icons.Default.TextFields, Color(0xFF6548E8), Color(0xFFDB2777), true),
     ToolDef("details", Icons.Default.Info, Color(0xFF334155), Color(0xFF087F8C)),
     ToolDef("brightness", Icons.Default.LightMode, Color(0xFFF59E0B), Color(0xFFFBBF24)),

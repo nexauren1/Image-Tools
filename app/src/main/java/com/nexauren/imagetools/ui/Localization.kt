@@ -449,6 +449,11 @@ class UiText(private val language: AppLanguage) {
             "tool.glitch.subtitle" to "Distorção digital com cortes e deslocamentos",
             "tool.scan_document.title" to "Scanner documental",
             "tool.scan_document.subtitle" to "Limpar, reforçar e preparar documentos",
+            "tool.background_remove.title" to "Remover fundo",
+            "tool.background_remove.subtitle" to "Separar o objeto ou pessoa e exportar PNG transparente",
+            "quality.lossless.note" to "Modo sem perdas: preserva os píxeis. O ficheiro pode ficar maior.",
+            "quality.lossy.note" to "JPEG e WEBP normal comprimem com perdas. 95–100% preserva melhor os detalhes.",
+            "quality.convert.note" to "Converter para PNG ou WEBP Lossless evita novas perdas de compressão.",
         )
         AppLanguage.ES -> mapOf(
             "tool.film_grain.title" to "Grano de película",
@@ -461,6 +466,11 @@ class UiText(private val language: AppLanguage) {
             "tool.glitch.subtitle" to "Distorsión digital con cortes y desplazamientos",
             "tool.scan_document.title" to "Escáner documental",
             "tool.scan_document.subtitle" to "Limpiar, reforzar y preparar documentos",
+            "tool.background_remove.title" to "Quitar fondo",
+            "tool.background_remove.subtitle" to "Separar el sujeto y exportar PNG transparente",
+            "quality.lossless.note" to "Modo sin pérdidas: conserva los píxeles. El archivo puede ser más grande.",
+            "quality.lossy.note" to "JPEG y WEBP normal comprimen con pérdidas. 95–100% conserva mejor los detalles.",
+            "quality.convert.note" to "Convertir a PNG o WEBP Lossless evita nuevas pérdidas de compresión.",
         )
         AppLanguage.FR -> mapOf(
             "tool.film_grain.title" to "Grain de film",
@@ -473,6 +483,11 @@ class UiText(private val language: AppLanguage) {
             "tool.glitch.subtitle" to "Distorsion numérique par bandes et décalages",
             "tool.scan_document.title" to "Scanner documentaire",
             "tool.scan_document.subtitle" to "Nettoyer et renforcer les documents",
+            "tool.background_remove.title" to "Supprimer l’arrière-plan",
+            "tool.background_remove.subtitle" to "Isoler le sujet et exporter un PNG transparent",
+            "quality.lossless.note" to "Mode sans perte : préserve les pixels. Le fichier peut être plus volumineux.",
+            "quality.lossy.note" to "JPEG et WEBP standard utilisent une compression avec perte. 95–100 % préserve mieux les détails.",
+            "quality.convert.note" to "Convertir en PNG ou WEBP Lossless évite toute nouvelle perte de compression.",
         )
         AppLanguage.EN -> mapOf(
             "tool.film_grain.title" to "Film grain",
@@ -485,6 +500,11 @@ class UiText(private val language: AppLanguage) {
             "tool.glitch.subtitle" to "Digital distortion with slices and channel shifts",
             "tool.scan_document.title" to "Document scanner",
             "tool.scan_document.subtitle" to "Clean, sharpen and prepare document images",
+            "tool.background_remove.title" to "Remove background",
+            "tool.background_remove.subtitle" to "Isolate the subject and export a transparent PNG",
+            "quality.lossless.note" to "Lossless mode preserves pixels. The output file may be larger.",
+            "quality.lossy.note" to "JPEG and regular WEBP are lossy. 95–100% keeps more detail.",
+            "quality.convert.note" to "PNG or WEBP Lossless avoids adding another lossy compression pass.",
         )
     }
 

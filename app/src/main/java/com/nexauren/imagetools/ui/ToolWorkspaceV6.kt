@@ -78,8 +78,8 @@ fun ToolWorkspaceV6(
 
     var width by remember { mutableStateOf("1280") }
     var height by remember { mutableStateOf("1280") }
-    var quality by remember { mutableFloatStateOf(82f) }
-    var format by remember { mutableStateOf(OutputFormat.JPEG) }
+    var quality by remember { mutableFloatStateOf(95f) }
+    var format by remember { mutableStateOf(OutputFormat.PNG) }
     var cropRatio by remember { mutableStateOf("1:1") }
     var angle by remember { mutableIntStateOf(90) }
     var flipH by remember { mutableStateOf(false) }
@@ -113,6 +113,12 @@ fun ToolWorkspaceV6(
         textResult = null
         exportedUri = null
         status = null
+        quality = 95f
+        format = when (tool.id) {
+            "compress" -> OutputFormat.WEBP_LOSSLESS
+            "target_size" -> OutputFormat.JPEG
+            else -> OutputFormat.PNG
+        }
         val recipe = RecipeStore.consumePending(context)
         if (recipe != null && recipe.toolId == tool.id) {
             val cfg = recipe.config
@@ -265,10 +271,49 @@ fun ToolWorkspaceV6(
                 ImageProcessor.encode(bitmap, format, quality.toInt()),
                 format.mime, format.extension, tool.id
             )
-            "convert", "metadata" -> RawExportItem(
-                ImageProcessor.encode(bitmap, format, 95),
+            "convert" -> {
+                val originalBytes = if (format == OutputFormat.WEBP_LOSSLESS) null else {
+                    withContext(Dispatchers.IO) {
+                        val sourceMime = context.contentResolver.getType(uri)
+                            ?.substringBefore(';')
+                            ?.lowercase()
+                        val sameFormat = when (format) {
+                            OutputFormat.JPEG -> sourceMime == "image/jpeg"
+                            OutputFormat.PNG -> sourceMime == "image/png"
+                            OutputFormat.WEBP -> sourceMime == "image/webp"
+                            OutputFormat.WEBP_LOSSLESS -> false
+                        }
+                        if (sameFormat) {
+                            context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        } else null
+                    }
+                }
+                if (originalBytes != null) {
+                    RawExportItem(originalBytes, format.mime, format.extension, tool.id)
+                } else {
+                    RawExportItem(
+                        ImageProcessor.encode(bitmap, format, if (format == OutputFormat.PNG || format == OutputFormat.WEBP_LOSSLESS) 100 else 95),
+                        format.mime, format.extension, tool.id
+                    )
+                }
+            }
+            "metadata" -> RawExportItem(
+                ImageProcessor.encode(bitmap, format, 100),
                 format.mime, format.extension, tool.id
             )
+            "background_remove" -> {
+                val cutout = SubjectBackgroundRemover.remove(bitmap)
+                try {
+                    RawExportItem(
+                        ImageProcessor.encode(cutout, OutputFormat.PNG, 100),
+                        OutputFormat.PNG.mime,
+                        OutputFormat.PNG.extension,
+                        tool.id
+                    )
+                } finally {
+                    if (cutout !== bitmap && !cutout.isRecycled) cutout.recycle()
+                }
+            }
             "crop" -> {
                 val out = ImageProcessor.cropCenter(bitmap, cropRatio)
                 RawExportItem(ImageProcessor.encode(out, format, 100), format.mime, format.extension, tool.id)
@@ -425,8 +470,8 @@ fun ToolWorkspaceV6(
                 val preset = SocialImageProcessor.presets.first { it.id == socialPreset }
                 val out = SocialImageProcessor.apply(bitmap, preset)
                 RawExportItem(
-                    ImageProcessor.encode(out, OutputFormat.JPEG, 95),
-                    OutputFormat.JPEG.mime, OutputFormat.JPEG.extension, "social"
+                    ImageProcessor.encode(out, OutputFormat.PNG, 100),
+                    OutputFormat.PNG.mime, OutputFormat.PNG.extension, "social"
                 )
             }
             "smart_resize" -> {
@@ -445,8 +490,8 @@ fun ToolWorkspaceV6(
                     FaceBlurProcessor.blurFaces(context, bitmap, amount.toInt().coerceIn(5, 100))
                 }
                 RawExportItem(
-                    ImageProcessor.encode(out, OutputFormat.JPEG, 95),
-                    OutputFormat.JPEG.mime, OutputFormat.JPEG.extension, "face_blur"
+                    ImageProcessor.encode(out, OutputFormat.PNG, 100),
+                    OutputFormat.PNG.mime, OutputFormat.PNG.extension, "face_blur"
                 )
             }
             "heic_avif" -> {
@@ -653,7 +698,11 @@ fun ToolWorkspaceV6(
 
                     var processedCount = 0
                     processingProgress = 0.12f
-                    processingDetail = processingCopyV7(AppLanguageStore.get(context), "reading")
+                    processingDetail = if (tool.id == "background_remove") {
+                        processingCopyV7(AppLanguageStore.get(context), "model")
+                    } else {
+                        processingCopyV7(AppLanguageStore.get(context), "reading")
+                    }
                     when (tool.id) {
                         "split_grid" -> {
                             val outputs = mutableListOf<RawExportItem>()
@@ -760,7 +809,11 @@ fun ToolWorkspaceV6(
                             val items = mutableListOf<RawExportItem>()
                             sourceUris.forEachIndexed { itemIndex, uri ->
                                 processingProgress = (0.12f + 0.68f * itemIndex / sourceUris.size.coerceAtLeast(1)).coerceAtMost(0.82f)
-                                processingDetail = processingCopyV7(AppLanguageStore.get(context), "batch", itemIndex + 1, sourceUris.size)
+                                processingDetail = if (tool.id == "background_remove") {
+                                    processingCopyV7(AppLanguageStore.get(context), "model")
+                                } else {
+                                    processingCopyV7(AppLanguageStore.get(context), "batch", itemIndex + 1, sourceUris.size)
+                                }
                                 val bitmap = withContext(Dispatchers.IO) {
                                     ImageProcessor.decode(context, uri)
                                 } ?: return@forEachIndexed
@@ -1307,6 +1360,7 @@ private fun processingCopyV7(
 ): String = when (language) {
     AppLanguage.PT -> when (phase) {
         "reading" -> "A preparar e ler a imagem…"
+        "model" -> "A preparar o modelo de remoção de fundo; a primeira utilização pode descarregá-lo…"
         "processing" -> "A processar os dados da imagem…"
         "batch" -> "A processar imagem $current de $total…"
         "saving" -> "A guardar os ficheiros…"
@@ -1315,6 +1369,7 @@ private fun processingCopyV7(
     }
     AppLanguage.EN -> when (phase) {
         "reading" -> "Preparing and reading image…"
+        "model" -> "Preparing the background-removal model; first use may download it…"
         "processing" -> "Processing image data…"
         "batch" -> "Processing image $current of $total…"
         "saving" -> "Saving files…"
@@ -1323,6 +1378,7 @@ private fun processingCopyV7(
     }
     AppLanguage.ES -> when (phase) {
         "reading" -> "Preparando y leyendo la imagen…"
+        "model" -> "Preparando el modelo para quitar el fondo; la primera vez puede descargarlo…"
         "processing" -> "Procesando los datos de imagen…"
         "batch" -> "Procesando imagen $current de $total…"
         "saving" -> "Guardando archivos…"
@@ -1331,6 +1387,7 @@ private fun processingCopyV7(
     }
     AppLanguage.FR -> when (phase) {
         "reading" -> "Préparation et lecture de l’image…"
+        "model" -> "Préparation du modèle de suppression; le premier usage peut le télécharger…"
         "processing" -> "Traitement des données de l’image…"
         "batch" -> "Traitement de l’image $current sur $total…"
         "saving" -> "Enregistrement des fichiers…"
@@ -1457,21 +1514,53 @@ private fun ToolControlsV6(
                 }
             }
             "compress" -> {
-                StudioSliderPanelV8(strings.get("quality"), quality, 10f..100f, tool.start, Icons.Default.Compress, { onQuality(it) }, quality.toInt().toString() + "%")
-                StudioChoicePanelV8(strings.get("format"), listOf("JPEG" to "JPEG", "WEBP" to "WEBP"), format.name, tool.start, Icons.Default.Image) {
-                    onFormat(OutputFormat.valueOf(it))
+                if (format == OutputFormat.PNG || format == OutputFormat.WEBP_LOSSLESS) {
+                    StudioNoteV8(strings.get("quality.lossless.note"), tool.start)
+                } else {
+                    StudioSliderPanelV8(strings.get("quality"), quality, 10f..100f, tool.start, Icons.Default.Compress, { onQuality(it) }, quality.toInt().toString() + "%")
+                    StudioNoteV8(strings.get("quality.lossy.note"), tool.start)
                 }
+                StudioChoicePanelV8(
+                    strings.get("format"),
+                    listOf(
+                        "JPEG" to "JPEG",
+                        "WEBP" to "WEBP",
+                        "WEBP_LOSSLESS" to "WEBP Lossless",
+                        "PNG" to "PNG (lossless)"
+                    ),
+                    format.name, tool.start, Icons.Default.Image
+                ) { onFormat(OutputFormat.valueOf(it)) }
             }
             "base64" -> {
-                StudioChoicePanelV8(strings.get("format"), listOf("JPEG" to "JPEG", "PNG" to "PNG", "WEBP" to "WEBP"), format.name, tool.start, Icons.Default.Code) {
-                    onFormat(OutputFormat.valueOf(it))
+                StudioChoicePanelV8(
+                    strings.get("format"),
+                    listOf(
+                        "JPEG" to "JPEG",
+                        "PNG" to "PNG (lossless)",
+                        "WEBP" to "WEBP",
+                        "WEBP_LOSSLESS" to "WEBP Lossless"
+                    ),
+                    format.name, tool.start, Icons.Default.Code
+                ) { onFormat(OutputFormat.valueOf(it)) }
+                if (format == OutputFormat.PNG || format == OutputFormat.WEBP_LOSSLESS) {
+                    StudioNoteV8(strings.get("quality.lossless.note"), tool.start)
+                } else {
+                    StudioSliderPanelV8(strings.get("quality"), quality, 10f..100f, tool.start, Icons.Default.Tune, { onQuality(it) }, quality.toInt().toString() + "%")
                 }
-                StudioSliderPanelV8(strings.get("quality"), quality, 10f..100f, tool.start, Icons.Default.Tune, { onQuality(it) }, quality.toInt().toString() + "%")
             }
-            "convert", "metadata" -> StudioChoicePanelV8(
-                strings.get("format"), listOf("JPEG" to "JPEG", "PNG" to "PNG", "WEBP" to "WEBP"),
-                format.name, tool.start, Icons.Default.SwapHoriz
-            ) { onFormat(OutputFormat.valueOf(it)) }
+            "convert", "metadata" -> {
+                StudioChoicePanelV8(
+                    strings.get("format"),
+                    listOf(
+                        "JPEG" to "JPEG",
+                        "PNG" to "PNG (lossless)",
+                        "WEBP" to "WEBP",
+                        "WEBP_LOSSLESS" to "WEBP Lossless"
+                    ),
+                    format.name, tool.start, Icons.Default.SwapHoriz
+                ) { onFormat(OutputFormat.valueOf(it)) }
+                StudioNoteV8(strings.get("quality.convert.note"), tool.start)
+            }
 
             "crop" -> StudioChoicePanelV8(
                 strings.get("tool.crop.title"),
@@ -1555,6 +1644,7 @@ private fun ToolControlsV6(
                 StudioChoicePanelV8(strings.get("format"), listOf("JPEG" to "JPEG", "WEBP" to "WEBP"), format.name, tool.start, Icons.Default.Image) {
                     onFormat(OutputFormat.valueOf(it))
                 }
+                StudioNoteV8(strings.get("quality.lossy.note"), tool.start)
             }
             "split_grid" -> {
                 StudioChoicePanelV8(strings.get("grid.rows"), listOf("2" to "2", "3" to "3", "4" to "4"), gridRows.toString(), tool.start, Icons.Default.GridOn) { onGridRows(it.toInt()) }
@@ -1578,9 +1668,16 @@ private fun ToolControlsV6(
                         OutlinedTextField(smartHeight, { onSmartHeight(it.filter(Char::isDigit)) }, Modifier.weight(1f), label = { Text(strings.get("height")) }, suffix = { Text("px") }, singleLine = true, shape = RoundedCornerShape(14.dp))
                     }
                 }
-                StudioChoicePanelV8(strings.get("format"), listOf("JPEG" to "JPEG", "PNG" to "PNG", "WEBP" to "WEBP"), format.name, tool.start, Icons.Default.Image) {
-                    onFormat(OutputFormat.valueOf(it))
-                }
+                StudioChoicePanelV8(
+                    strings.get("format"),
+                    listOf(
+                        "JPEG" to "JPEG",
+                        "PNG" to "PNG (lossless)",
+                        "WEBP" to "WEBP",
+                        "WEBP_LOSSLESS" to "WEBP Lossless"
+                    ),
+                    format.name, tool.start, Icons.Default.Image
+                ) { onFormat(OutputFormat.valueOf(it)) }
             }
             "heic_avif" -> {
                 StudioChoicePanelV8(
@@ -1589,6 +1686,7 @@ private fun ToolControlsV6(
                 StudioSliderPanelV8(strings.get("quality"), quality, 10f..100f, tool.start, Icons.Default.Tune, { onQuality(it) }, quality.toInt().toString() + "%")
             }
             "gif_creator" -> StudioSliderPanelV8(strings.get("quality"), gifDelay, 100f..1500f, tool.start, Icons.Default.Gif, { onGifDelay(it) }, gifDelay.toInt().toString() + " ms")
+            "background_remove" -> StudioNoteV8(strings.get("tool.background_remove.subtitle"), tool.start)
             "css_palette" -> StudioNoteV8(strings.get("tool.css_palette.subtitle"), tool.start)
             "palette" -> StudioNoteV8(strings.get("tool.palette.subtitle"), tool.start)
             "ocr" -> StudioNoteV8(strings.get("tool.ocr.subtitle"), tool.start)
