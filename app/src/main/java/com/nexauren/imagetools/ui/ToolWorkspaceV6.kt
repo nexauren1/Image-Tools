@@ -68,6 +68,9 @@ fun ToolWorkspaceV6(
     var exportedUri by remember { mutableStateOf<Uri?>(null) }
     var exportedMime by remember { mutableStateOf("image/*") }
     var busy by remember { mutableStateOf(false) }
+    var processingProgress by remember { mutableFloatStateOf(0f) }
+    var processingDetail by remember { mutableStateOf("") }
+    var processingTitle by remember { mutableStateOf(strings.get("processing.title")) }
     var status by remember { mutableStateOf<String?>(null) }
     var statusIsError by remember { mutableStateOf(false) }
     var textResult by remember { mutableStateOf<String?>(null) }
@@ -561,6 +564,9 @@ fun ToolWorkspaceV6(
         }
         scope.launch {
             busy = true
+            processingTitle = strings.get("export")
+            processingProgress = 0.08f
+            processingDetail = processingCopyV7(AppLanguageStore.get(context), "saving")
             try {
                 val tree = OutputFolderStore.getTreeUri(context)
                 val first = pendingItems.first()
@@ -569,6 +575,8 @@ fun ToolWorkspaceV6(
                 }
                 exportedUri = uris.firstOrNull()
                 exportedMime = first.mime
+                processingProgress = 0.92f
+                processingDetail = processingCopyV7(AppLanguageStore.get(context), "finishing")
                 ProcessingStatsStore.recordExported(context, pendingItems.size)
                 HistoryStore.add(
                     context,
@@ -582,6 +590,8 @@ fun ToolWorkspaceV6(
                 )
                 status = strings.get("saved")
                 statusIsError = false
+                processingProgress = 1f
+                processingDetail = processingCopyV7(AppLanguageStore.get(context), "done")
             } catch (e: Exception) {
                 status = e.message ?: strings.get("save.error")
                 statusIsError = true
@@ -606,6 +616,9 @@ fun ToolWorkspaceV6(
 
         scope.launch {
             busy = true
+            processingTitle = strings.get("processing.title")
+            processingProgress = 0.05f
+            processingDetail = processingCopyV7(AppLanguageStore.get(context), "reading")
             pendingItems = emptyList()
             previewBitmaps = emptyList()
             textResult = null
@@ -619,11 +632,15 @@ fun ToolWorkspaceV6(
                         statusIsError = true
                         chooseInput()
                     } else {
+                        processingProgress = 0.28f
+                        processingDetail = processingCopyV7(AppLanguageStore.get(context), "processing")
                         val pdf = withContext(Dispatchers.IO) { PdfProcessor.merge(context, sourceUris) }
                         require(pdf.size.toLong() <= 96L * 1024L * 1024L) {
                             "The merged PDF is too large to prepare safely in memory. Choose fewer or smaller PDFs."
                         }
                         pendingItems = listOf(RawExportItem(pdf, "application/pdf", "pdf", "merged"))
+                        processingProgress = 0.92f
+                        processingDetail = processingCopyV7(AppLanguageStore.get(context), "finishing")
                         status = strings.get("ready")
                     }
                 } else {
@@ -635,6 +652,8 @@ fun ToolWorkspaceV6(
                     }
 
                     var processedCount = 0
+                    processingProgress = 0.12f
+                    processingDetail = processingCopyV7(AppLanguageStore.get(context), "reading")
                     when (tool.id) {
                         "split_grid" -> {
                             val outputs = mutableListOf<RawExportItem>()
@@ -663,6 +682,8 @@ fun ToolWorkspaceV6(
                                     outputs.addAll(imageOutputs)
                                     ensureBatchOutputSize(outputs)
                                     processedCount++
+                                    processingProgress = (0.12f + 0.76f * processedCount / sourceUris.size.coerceAtLeast(1)).coerceAtMost(0.90f)
+                                    processingDetail = processingCopyV7(AppLanguageStore.get(context), "batch", processedCount, sourceUris.size)
                                 } finally {
                                     if (!bitmap.isRecycled) bitmap.recycle()
                                 }
@@ -678,6 +699,8 @@ fun ToolWorkspaceV6(
                                 }
                             }
                             if (frames.isEmpty()) error(strings.get("process.error"))
+                            processingProgress = 0.55f
+                            processingDetail = processingCopyV7(AppLanguageStore.get(context), "processing")
                             try {
                                 val gif = withContext(Dispatchers.Default) {
                                     GifProcessor.encode(frames, gifDelay.toLong())
@@ -685,6 +708,8 @@ fun ToolWorkspaceV6(
                                 val output = RawExportItem(gif, "image/gif", "gif", "animation")
                                 ensureBatchOutputSize(listOf(output))
                                 pendingItems = listOf(output)
+                                processingProgress = 0.92f
+                                processingDetail = processingCopyV7(AppLanguageStore.get(context), "finishing")
                                 previewBitmaps = sourceUris.take(4).mapNotNull {
                                     decodeToolThumbnail(context, it)
                                 }
@@ -703,6 +728,8 @@ fun ToolWorkspaceV6(
                                 inputs.forEach { if (!it.isRecycled) it.recycle() }
                                 error(strings.get("collage.help"))
                             }
+                            processingProgress = 0.55f
+                            processingDetail = processingCopyV7(AppLanguageStore.get(context), "processing")
                             var collage: Bitmap? = null
                             try {
                                 val createdCollage = withContext(Dispatchers.Default) {
@@ -720,6 +747,8 @@ fun ToolWorkspaceV6(
                                 )
                                 ensureBatchOutputSize(listOf(output))
                                 pendingItems = listOf(output)
+                                processingProgress = 0.92f
+                                processingDetail = processingCopyV7(AppLanguageStore.get(context), "finishing")
                                 previewBitmaps = listOfNotNull(decodeToolPreview(bytes))
                                 processedCount = inputs.size
                             } finally {
@@ -729,7 +758,9 @@ fun ToolWorkspaceV6(
                         }
                         else -> {
                             val items = mutableListOf<RawExportItem>()
-                            sourceUris.forEach { uri ->
+                            sourceUris.forEachIndexed { itemIndex, uri ->
+                                processingProgress = (0.12f + 0.68f * itemIndex / sourceUris.size.coerceAtLeast(1)).coerceAtMost(0.82f)
+                                processingDetail = processingCopyV7(AppLanguageStore.get(context), "batch", itemIndex + 1, sourceUris.size)
                                 val bitmap = withContext(Dispatchers.IO) {
                                     ImageProcessor.decode(context, uri)
                                 } ?: return@forEach
@@ -737,6 +768,8 @@ fun ToolWorkspaceV6(
                                     items += analyzeBitmap(bitmap, uri)
                                     ensureBatchOutputSize(items)
                                     processedCount++
+                                    processingProgress = (0.12f + 0.76f * processedCount / sourceUris.size.coerceAtLeast(1)).coerceAtMost(0.90f)
+                                    processingDetail = processingCopyV7(AppLanguageStore.get(context), "batch", processedCount, sourceUris.size)
                                 } finally {
                                     if (!bitmap.isRecycled) bitmap.recycle()
                                 }
@@ -754,6 +787,8 @@ fun ToolWorkspaceV6(
                         }
                     }
 
+                    processingProgress = 0.94f
+                    processingDetail = processingCopyV7(AppLanguageStore.get(context), "finishing")
                     ProcessingStatsStore.recordProcessed(context, processedCount)
                     status = if (processedCount < sourceUris.size) {
                         strings.get("ready") + " (" + processedCount + "/" + sourceUris.size + ")"
@@ -761,6 +796,8 @@ fun ToolWorkspaceV6(
                         strings.get("ready")
                     }
                     statusIsError = false
+                    processingProgress = 1f
+                    processingDetail = processingCopyV7(AppLanguageStore.get(context), "done")
                 }
             } catch (e: Exception) {
                 status = e.message ?: strings.get("process.error")
@@ -1029,9 +1066,11 @@ fun ToolWorkspaceV6(
 
     if (busy) {
         PolishedProcessingDialogV7(
-            title = strings.get("processing.title"),
+            title = processingTitle,
             subtitle = if (batchMode) strings.get("processing.batch") else strings.get("processing.subtitle"),
-            localMessage = strings.get("local")
+            localMessage = strings.get("local"),
+            detail = processingDetail,
+            progress = processingProgress
         )
     }
 }
@@ -1260,8 +1299,54 @@ private fun StudioShareCardV8(title: String, subtitle: String, onOpen: () -> Uni
     }
 }
 
+private fun processingCopyV7(
+    language: AppLanguage,
+    phase: String,
+    current: Int = 0,
+    total: Int = 0
+): String = when (language) {
+    AppLanguage.PT -> when (phase) {
+        "reading" -> "A preparar e ler a imagem…"
+        "processing" -> "A processar os dados da imagem…"
+        "batch" -> "A processar imagem $current de $total…"
+        "saving" -> "A guardar os ficheiros…"
+        "finishing" -> "A preparar o resultado final…"
+        else -> "Concluído"
+    }
+    AppLanguage.EN -> when (phase) {
+        "reading" -> "Preparing and reading image…"
+        "processing" -> "Processing image data…"
+        "batch" -> "Processing image $current of $total…"
+        "saving" -> "Saving files…"
+        "finishing" -> "Preparing final result…"
+        else -> "Completed"
+    }
+    AppLanguage.ES -> when (phase) {
+        "reading" -> "Preparando y leyendo la imagen…"
+        "processing" -> "Procesando los datos de imagen…"
+        "batch" -> "Procesando imagen $current de $total…"
+        "saving" -> "Guardando archivos…"
+        "finishing" -> "Preparando el resultado final…"
+        else -> "Completado"
+    }
+    AppLanguage.FR -> when (phase) {
+        "reading" -> "Préparation et lecture de l’image…"
+        "processing" -> "Traitement des données de l’image…"
+        "batch" -> "Traitement de l’image $current sur $total…"
+        "saving" -> "Enregistrement des fichiers…"
+        "finishing" -> "Préparation du résultat final…"
+        else -> "Terminé"
+    }
+}
+
 @Composable
-private fun PolishedProcessingDialogV7(title: String, subtitle: String, localMessage: String) {
+private fun PolishedProcessingDialogV7(
+    title: String,
+    subtitle: String,
+    localMessage: String,
+    detail: String,
+    progress: Float
+) {
     Dialog(onDismissRequest = {}) {
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -1293,7 +1378,23 @@ private fun PolishedProcessingDialogV7(title: String, subtitle: String, localMes
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                Text(
+                    detail,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                LinearProgressIndicator(
+                    progress = { progress.coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    (progress.coerceIn(0f, 1f) * 100).toInt().toString() + "%",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Surface(
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     shape = RoundedCornerShape(13.dp)
