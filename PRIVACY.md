@@ -1,13 +1,13 @@
 # Image Tools Privacy Policy
 
-**Last updated: October 18, 2026**  
+**Last updated: November 1, 2026**  
 **App:** Image Tools for Android — com.nexauren.imagetools
 
 This policy describes the current Android release and supporting website/API.
 
 ## Images and files
 
-Normal editing tasks process selected images on the Android device. This includes resizing, compression, format conversion, cropping, rotation, filters, color adjustments, watermarking, blur/sharpen/pixelate effects, borders, palettes, collages, grid splitting, OCR, EXIF inspection, face-blur processing, GIF creation and PDF export/merging. The app does not send image contents to the Image Tools backend merely to perform these operations. The user chooses where exported files are saved. If a result is shared with another app, that destination's privacy practices apply.
+Normal editing tasks process selected images on the Android device. This includes resizing, compression, format conversion, cropping, rotation, filters, color adjustments, watermarking, blur/sharpen/pixelate effects, borders, palettes, collages, grid splitting, OCR, EXIF inspection, face-blur processing, on-device subject segmentation for transparent background removal, GIF creation and PDF export/merging. The app does not send image contents to the Image Tools backend merely to perform these operations. Background removal uses ML Kit subject segmentation on the device; Google Play services may need to download its model before first use, so an internet connection may be required for that model download. The user chooses where exported files are saved. If a result is shared with another app, that destination's privacy practices apply.
 
 ## Information stored on the device
 

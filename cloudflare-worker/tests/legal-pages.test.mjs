@@ -12,7 +12,7 @@ test("home page advertises the current app release and legal links", async () =>
   const { response, body } = await getPage("/");
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /text\/html/i);
-  assert.match(body, /version 1\.18\.0/);
+  assert.match(body, /version 1\.19\.0/);
   assert.match(body, /\/privacy/);
   assert.match(body, /\/terms/);
   assert.match(body, /\/support/);
@@ -23,12 +23,13 @@ test("privacy policy explains local processing, providers and account deletion",
   assert.equal(response.status, 200);
   assert.match(body, /Privacy Policy/);
   assert.match(body, /processed locally on your Android device/i);
+  assert.match(body, /ML Kit subject segmentation/i);
+  assert.match(body, /Google Play services may download the segmentation model/i);
   assert.match(body, /Firebase Authentication/);
   assert.match(body, /Firebase Analytics/);
   assert.match(body, /Cloudflare/);
   assert.match(body, /PayPal/);
   assert.match(body, /mailto:nexaurenstore@gmail\.com/);
-  assert.doesNotMatch(body, /remove backgrounds/i);
 });
 
 test("terms page is available and links to support", async () => {
@@ -51,5 +52,5 @@ test("account deletion route gives a private contact path, not a public data req
 test("legacy privacy URL remains available", async () => {
   const { response, body } = await getPage("/privacy-policy");
   assert.equal(response.status, 200);
-  assert.match(body, /Last updated: October 18, 2026/);
+  assert.match(body, /Last updated: November 1, 2026/);
 });
