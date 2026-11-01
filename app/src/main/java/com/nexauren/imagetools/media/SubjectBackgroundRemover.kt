@@ -25,8 +25,10 @@ object SubjectBackgroundRemover {
             // The model is delivered by Google Play services; first use may download it.
             segmenter.initTask.await()
             val result = segmenter.process(InputImage.fromBitmap(source, 0)).await()
-            val mask = result.foregroundConfidenceMask
-            require(mask.size >= pixelCount.toInt()) {
+            val mask = requireNotNull(result.foregroundConfidenceMask) {
+                "The background-removal model did not return a confidence mask."
+            }
+            require(mask.capacity().toLong() >= pixelCount) {
                 "The background-removal model returned an incomplete mask. Please try again."
             }
 
@@ -36,7 +38,7 @@ object SubjectBackgroundRemover {
             source.getPixels(pixels, 0, source.width, 0, 0, source.width, source.height)
 
             for (index in pixels.indices) {
-                val alpha = (mask[index].coerceIn(0f, 1f) * 255f)
+                val alpha = (mask.get(index).coerceIn(0f, 1f) * 255f)
                     .roundToInt()
                     .coerceIn(0, 255)
                 pixels[index] = (pixels[index] and 0x00FFFFFF) or (alpha shl 24)
