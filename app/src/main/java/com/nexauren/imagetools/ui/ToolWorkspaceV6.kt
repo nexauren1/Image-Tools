@@ -2,10 +2,13 @@ package com.nexauren.imagetools.ui
 
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -64,6 +67,7 @@ fun ToolWorkspaceV6(
 
     var batchMode by remember { mutableStateOf(tool.id == "collage" || tool.id == "gif_creator" || tool.id == "pdf_merge" || tool.id == "split_grid") }
     var sourceUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var captureUri by remember { mutableStateOf<Uri?>(null) }
     var previewBitmaps by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
     var pendingItems by remember { mutableStateOf<List<RawExportItem>>(emptyList()) }
     var exportedUri by remember { mutableStateOf<Uri?>(null) }
@@ -253,6 +257,60 @@ fun ToolWorkspaceV6(
             sourcePreviewBitmaps = emptyList()
             status = strings.get("ready")
             statusIsError = false
+        }
+    }
+
+    val cameraCapture = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { succeeded ->
+        val captured = captureUri
+        captureUri = null
+        if (captured != null) {
+            if (succeeded) {
+                runCatching {
+                    context.contentResolver.update(
+                        captured,
+                        ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) },
+                        null,
+                        null
+                    )
+                }
+                val selected = if (batchMode) (sourceUris + captured).take(20) else listOf(captured)
+                sourceUris = selected
+                previewBitmaps = emptyList()
+                pendingItems = emptyList()
+                textResult = null
+                exportedUri = null
+                status = strings.get("ready")
+                statusIsError = false
+                loadSourceThumbnails(selected)
+            } else {
+                runCatching { context.contentResolver.delete(captured, null, null) }
+            }
+        }
+    }
+
+    fun capturePhoto() {
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, "image_tools_" + System.currentTimeMillis() + ".jpg")
+            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+            put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Image Tools")
+            put(MediaStore.Images.Media.IS_PENDING, 1)
+        }
+        val uri = runCatching {
+            context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+        }.getOrNull()
+        if (uri == null) {
+            status = strings.get("camera.error")
+            statusIsError = true
+            return
+        }
+        captureUri = uri
+        runCatching { cameraCapture.launch(uri) }.onFailure {
+            captureUri = null
+            runCatching { context.contentResolver.delete(uri, null, null) }
+            status = strings.get("camera.error")
+            statusIsError = true
         }
     }
 
@@ -987,32 +1045,50 @@ fun ToolWorkspaceV6(
                     }
                 }
 
-                OutlinedButton(
-                    onClick = { chooseInput() },
-                    modifier = Modifier.fillMaxWidth().height(54.dp),
-                    shape = RoundedCornerShape(17.dp),
-                    border = BorderStroke(1.dp, tool.start.copy(alpha = 0.55f)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = tool.start)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        when (tool.id) {
-                            "pdf_merge" -> Icons.Default.PictureAsPdf
-                            "gif_creator", "collage" -> Icons.Default.Collections
-                            else -> if (batchMode) Icons.Default.Collections else Icons.Default.AddPhotoAlternate
-                        }, null
-                    )
-                    Spacer(Modifier.width(9.dp))
-                    Text(
-                        when (tool.id) {
-                            "pdf_merge" -> strings.get("choose.pdfs")
-                            "gif_creator", "collage" -> strings.get("choose.frames")
-                            else -> if (sourceUris.isEmpty()) {
-                                if (batchMode) strings.get("choose.images") else strings.get("choose.image")
-                            } else strings.get("choose.another")
-                        }, fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.weight(1f))
-                    Icon(Icons.Default.ArrowForward, null)
+                    OutlinedButton(
+                        onClick = { chooseInput() },
+                        modifier = Modifier.weight(1.2f).height(54.dp),
+                        shape = RoundedCornerShape(17.dp),
+                        border = BorderStroke(1.dp, tool.start.copy(alpha = 0.55f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = tool.start)
+                    ) {
+                        Icon(
+                            when (tool.id) {
+                                "pdf_merge" -> Icons.Default.PictureAsPdf
+                                "gif_creator", "collage" -> Icons.Default.Collections
+                                else -> if (batchMode) Icons.Default.Collections else Icons.Default.AddPhotoAlternate
+                            }, null
+                        )
+                        Spacer(Modifier.width(7.dp))
+                        Text(
+                            when (tool.id) {
+                                "pdf_merge" -> strings.get("choose.pdfs")
+                                "gif_creator", "collage" -> strings.get("choose.frames")
+                                else -> if (sourceUris.isEmpty()) {
+                                    if (batchMode) strings.get("choose.images") else strings.get("choose.image")
+                                } else strings.get("choose.another")
+                            },
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = { capturePhoto() },
+                        modifier = Modifier.weight(0.8f).height(54.dp),
+                        shape = RoundedCornerShape(17.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
+                        enabled = !busy
+                    ) {
+                        Icon(Icons.Default.PhotoCamera, null)
+                        Spacer(Modifier.width(6.dp))
+                        Text(strings.get("camera.capture"), fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
                 }
 
                 if (sourceUris.isNotEmpty()) {
