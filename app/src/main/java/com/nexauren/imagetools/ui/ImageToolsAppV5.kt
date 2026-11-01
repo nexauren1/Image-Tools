@@ -296,7 +296,7 @@ fun ImageToolsAppV5(
                                 }
                             },
                             navigationIcon = {
-                                if (isMainDestination) {
+                                if (isMainDestination && navigationStack.size == 1) {
                                     IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                         Icon(Icons.Default.Menu, strings.get("tools"))
                                     }
@@ -307,7 +307,7 @@ fun ImageToolsAppV5(
                                 }
                             },
                             actions = {
-                                if (isMainDestination) {
+                                if (isMainDestination && navigationStack.size == 1) {
                                     IconButton(onClick = { navigate("premium") }) {
                                         Icon(
                                             if (premium) Icons.Default.WorkspacePremium else Icons.Default.AutoAwesome,
