@@ -869,6 +869,25 @@ fun ToolWorkspaceV6(
         item { StudioHeroV8(tool, strings.toolTitle(tool.id), strings.toolSubtitle(tool.id), tool.premium, onBack) }
 
         item {
+            val activeStep = when {
+                exportedUri != null -> 4
+                pendingItems.isNotEmpty() -> 3
+                sourceUris.isNotEmpty() -> 2
+                else -> 1
+            }
+            StudioWorkflowStepperV9(
+                activeStep = activeStep,
+                labels = listOf(
+                    strings.get("choose.image"),
+                    strings.get("config"),
+                    strings.get("preview"),
+                    strings.get("export")
+                ),
+                accent = tool.start
+            )
+        }
+
+        item {
             StudioSectionV8(
                 number = "01", title = strings.get("choose.image"),
                 subtitle = when (tool.id) {
@@ -1136,6 +1155,63 @@ data class AnyToolDef(
     val premium: Boolean
 )
 
+
+@Composable
+private fun StudioWorkflowStepperV9(
+    activeStep: Int,
+    labels: List<String>,
+    accent: Color
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            labels.take(4).forEachIndexed { index, label ->
+                val step = index + 1
+                val complete = step <= activeStep
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier.size(27.dp)
+                            .clip(CircleShape)
+                            .background(if (complete) accent else MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (step < activeStep) {
+                            Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(15.dp))
+                        } else {
+                            Text(
+                                step.toString().padStart(2, '0'),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (complete) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Text(
+                        label,
+                        fontSize = 8.sp,
+                        fontWeight = if (step == activeStep) FontWeight.ExtraBold else FontWeight.Medium,
+                        color = if (complete) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun StudioHeroV8(
