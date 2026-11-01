@@ -143,7 +143,7 @@ fun ImageToolsAppV5(
             return@CompositionLocalProvider
         }
 
-        var navigationStack by remember { mutableStateOf(listOf("home")) }
+        var navigationStack by rememberSaveable { mutableStateOf(listOf("home")) }
         val currentRoute = navigationStack.last()
         val selectedTool = currentRoute.takeIf { it.startsWith("tool:") }?.removePrefix("tool:")
         val page = if (selectedTool != null) "tool" else currentRoute
@@ -367,10 +367,7 @@ fun ImageToolsAppV5(
                         page == "home" -> ImageToolsHomeV7(
                             strings = strings,
                             premium = premium,
-                            onOpenTool = { id ->
-                                val tool = TOOL_CATALOG.first { it.id == id }
-                                openTool(id)
-                            },
+                            onOpenTool = { id -> openTool(id) },
                             onOpenLibrary = { navigate("tools") },
                             onOpenPremium = { navigate("premium") }
                         )
@@ -395,7 +392,7 @@ fun ImageToolsAppV5(
                                         navigate("premium")
                                     } else {
                                         RecipeStore.setPending(context, recipe)
-                                        navigationStack = listOf("home", "tool:" + recipe.toolId)
+                                        navigationStack = navigationStack + ("tool:" + recipe.toolId)
                                     }
                                 }
                             }
