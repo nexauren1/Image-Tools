@@ -68,7 +68,7 @@ jobs:
           set -euo pipefail
           APK="app/build/outputs/apk/release/app-release-unsigned.apk"
           "$ANDROID_HOME/build-tools/37.0.0/aapt2" dump badging "$APK" > "$RUNNER_TEMP/apk-badging.txt"
-          grep -F "package: name='com.nexauren.imagetools' versionCode='41' versionName='1.19.0'" "$RUNNER_TEMP/apk-badging.txt"
+          grep -F "package: name='com.nexauren.imagetools' versionCode='42' versionName='1.20.0'" "$RUNNER_TEMP/apk-badging.txt"
 
       - name: Sign aligned release APK
         id: sign_apk
