@@ -76,6 +76,10 @@ fun ToolWorkspaceV6(
     var statusIsError by remember { mutableStateOf(false) }
     var textResult by remember { mutableStateOf<String?>(null) }
     var sourcePreviewBitmaps by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
+    var watermarkLogo by remember { mutableStateOf<Bitmap?>(null) }
+    var targetColorHex by remember { mutableStateOf("#E34C3D") }
+    var replacementColorHex by remember { mutableStateOf("#2563EB") }
+    var colorTolerance by remember { mutableFloatStateOf(25f) }
 
     var width by remember { mutableStateOf("1280") }
     var height by remember { mutableStateOf("1280") }
@@ -114,6 +118,11 @@ fun ToolWorkspaceV6(
         textResult = null
         exportedUri = null
         status = null
+        watermarkLogo?.let { if (!it.isRecycled) it.recycle() }
+        watermarkLogo = null
+        targetColorHex = "#E34C3D"
+        replacementColorHex = "#2563EB"
+        colorTolerance = 25f
         quality = 95f
         format = when (tool.id) {
             "compress" -> OutputFormat.WEBP_LOSSLESS
@@ -179,6 +188,29 @@ fun ToolWorkspaceV6(
             status = strings.get("ready")
             statusIsError = false
             loadSourceThumbnails(listOf(uri))
+        }
+    }
+
+    val logoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val loaded = withContext(Dispatchers.IO) {
+                    ImageProcessor.decode(context, uri, maxEdge = 2048)
+                }
+                if (loaded == null) {
+                    status = strings.get("logo.load.error")
+                    statusIsError = true
+                } else {
+                    watermarkLogo?.let { old ->
+                        if (!old.isRecycled && old !== loaded) old.recycle()
+                    }
+                    watermarkLogo = loaded
+                    status = strings.get("logo.loaded")
+                    statusIsError = false
+                }
+            }
         }
     }
 
@@ -341,6 +373,44 @@ fun ToolWorkspaceV6(
                     }
                 )
                 RawExportItem(ImageProcessor.encode(out, format, 100), format.mime, format.extension, tool.id)
+            }
+            "logo_watermark" -> {
+                val logo = watermarkLogo ?: error(strings.get("logo.required"))
+                val out = ImageProcessor.watermarkLogo(
+                    bitmap,
+                    logo,
+                    opacity.toInt(),
+                    position,
+                    amount.toInt()
+                )
+                try {
+                    RawExportItem(
+                        ImageProcessor.encode(out, OutputFormat.PNG, 100),
+                        OutputFormat.PNG.mime,
+                        OutputFormat.PNG.extension,
+                        tool.id
+                    )
+                } finally {
+                    if (!out.isRecycled && out !== bitmap) out.recycle()
+                }
+            }
+            "color_replace" -> {
+                val out = ImageProcessor.replaceColor(
+                    bitmap,
+                    targetColorHex,
+                    replacementColorHex,
+                    colorTolerance.toInt()
+                )
+                try {
+                    RawExportItem(
+                        ImageProcessor.encode(out, OutputFormat.PNG, 100),
+                        OutputFormat.PNG.mime,
+                        OutputFormat.PNG.extension,
+                        tool.id
+                    )
+                } finally {
+                    if (!out.isRecycled && out !== bitmap) out.recycle()
+                }
             }
             "brightness" -> RawExportItem(
                 ImageProcessor.encode(AdvancedImageProcessor.adjustColor(bitmap, amount.toInt(), 0, 0, 0), format, 100),
@@ -1013,8 +1083,43 @@ fun ToolWorkspaceV6(
                         duotonePreset, { duotonePreset = it }, socialPreset, { socialPreset = it },
                         modernFormat, { modernFormat = it }, smartWidth, { smartWidth = it }, smartHeight, { smartHeight = it },
                         gifDelay, { gifDelay = it }, fitBackground, { fitBackground = it }, targetKb, { targetKb = it },
-                        gridRows, { gridRows = it }, gridColumns, { gridColumns = it }, mirrorAxis, { mirrorAxis = it }
+                        gridRows, { gridRows = it }, gridColumns, { gridColumns = it }, mirrorAxis, { mirrorAxis = it },
+                        targetColorHex, { targetColorHex = it }, replacementColorHex, { replacementColorHex = it },
+                        colorTolerance, { colorTolerance = it }
                     )
+                    if (tool.id == "logo_watermark") {
+                        StudioControlPanelV8(
+                            strings.get("logo.choose"),
+                            strings.get("tool.logo_watermark.subtitle"),
+                            Icons.Default.Image,
+                            tool.start
+                        ) {
+                            Button(
+                                onClick = {
+                                    logoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !busy,
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Icon(Icons.Default.AddPhotoAlternate, null)
+                                Spacer(Modifier.width(7.dp))
+                                Text(if (watermarkLogo == null) strings.get("logo.choose") else strings.get("logo.change"))
+                            }
+                            watermarkLogo?.let { logo ->
+                                Image(
+                                    bitmap = logo.asImageBitmap(),
+                                    contentDescription = strings.get("logo.preview"),
+                                    modifier = Modifier.fillMaxWidth().heightIn(max = 112.dp).clip(RoundedCornerShape(14.dp)),
+                                    contentScale = ContentScale.Fit
+                                )
+                            } ?: Text(
+                                strings.get("logo.required"),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1025,7 +1130,7 @@ fun ToolWorkspaceV6(
                     accent = tool.start,
                     title = if (pendingItems.isNotEmpty()) strings.get("ready") else strings.get("action"),
                     description = if (batchMode) strings.get("processing.batch") else strings.get("processing.subtitle"),
-                    enabled = !busy, buttonTitle = strings.get("preview.button"),
+                    enabled = !busy && (tool.id != "logo_watermark" || watermarkLogo != null), buttonTitle = strings.get("preview.button"),
                     onRun = { processAction() },
                     leadingIcon = if (pendingItems.isNotEmpty()) Icons.Default.Refresh else Icons.Default.AutoAwesome
                 )
@@ -1085,6 +1190,37 @@ fun ToolWorkspaceV6(
                                     modifier = Modifier.weight(1f).aspectRatio(0.92f).clip(RoundedCornerShape(17.dp))
                                         .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), RoundedCornerShape(17.dp)),
                                     contentScale = ContentScale.Crop
+                                )
+                            }
+                        }
+                    }
+                    if (sourcePreviewBitmaps.isNotEmpty() && previewBitmaps.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            strings.get("compare.title"),
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 13.sp
+                        )
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(strings.get("compare.original"), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Image(
+                                    bitmap = sourcePreviewBitmaps.first().asImageBitmap(),
+                                    contentDescription = strings.get("compare.original"),
+                                    modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(14.dp)),
+                                    contentScale = ContentScale.Fit
+                                )
+                            }
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(strings.get("compare.result"), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Image(
+                                    bitmap = previewBitmaps.first().asImageBitmap(),
+                                    contentDescription = strings.get("compare.result"),
+                                    modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(14.dp)),
+                                    contentScale = ContentScale.Fit
                                 )
                             }
                         }
@@ -1572,10 +1708,88 @@ private fun ToolControlsV6(
     targetKb: Float, onTargetKb: (Float) -> Unit,
     gridRows: Int, onGridRows: (Int) -> Unit,
     gridColumns: Int, onGridColumns: (Int) -> Unit,
-    mirrorAxis: String, onMirrorAxis: (String) -> Unit
+    mirrorAxis: String, onMirrorAxis: (String) -> Unit,
+    targetColorHex: String, onTargetColorHex: (String) -> Unit,
+    replacementColorHex: String, onReplacementColorHex: (String) -> Unit,
+    colorTolerance: Float, onColorTolerance: (Float) -> Unit
 ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(11.dp)) {
         when (tool.id) {
+            "color_replace" -> {
+                StudioControlPanelV8(
+                    strings.get("color.replace.source"),
+                    strings.get("tool.color_replace.subtitle"),
+                    Icons.Default.ColorLens,
+                    tool.start
+                ) {
+                    OutlinedTextField(
+                        value = targetColorHex,
+                        onValueChange = { value ->
+                            onTargetColorHex(value.filter {
+                                it == '#' || it.isDigit() || it.uppercaseChar() in 'A'..'F'
+                            }.take(7).uppercase())
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(strings.get("color.replace.source")) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(14.dp)
+                    )
+                    OutlinedTextField(
+                        value = replacementColorHex,
+                        onValueChange = { value ->
+                            onReplacementColorHex(value.filter {
+                                it == '#' || it.isDigit() || it.uppercaseChar() in 'A'..'F'
+                            }.take(7).uppercase())
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(strings.get("color.replace.target")) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(14.dp)
+                    )
+                }
+                StudioSliderPanelV8(
+                    strings.get("color.tolerance"),
+                    colorTolerance,
+                    1f..100f,
+                    tool.start,
+                    Icons.Default.Tune,
+                    { onColorTolerance(it) },
+                    colorTolerance.toInt().toString() + "%"
+                )
+            }
+            "logo_watermark" -> {
+                StudioSliderPanelV8(
+                    strings.get("logo.scale"),
+                    amount,
+                    10f..60f,
+                    tool.start,
+                    Icons.Default.AspectRatio,
+                    { onAmount(it) },
+                    amount.toInt().toString() + "%"
+                )
+                StudioSliderPanelV8(
+                    strings.get("opacity"),
+                    opacity,
+                    5f..100f,
+                    tool.start,
+                    Icons.Default.Opacity,
+                    { onOpacity(it) },
+                    opacity.toInt().toString() + "%"
+                )
+                StudioChoicePanelV8(
+                    strings.get("position"),
+                    listOf(
+                        "top_left" to strings.get("position.top_left"),
+                        "top_right" to strings.get("position.top_right"),
+                        "center" to strings.get("position.center"),
+                        "bottom_left" to strings.get("position.bottom_left"),
+                        "bottom_right" to strings.get("position.bottom_right")
+                    ),
+                    position,
+                    tool.start,
+                    Icons.Default.ControlCamera
+                ) { onPosition(it) }
+            }
             "resize" -> StudioControlPanelV8(strings.get("width") + " × " + strings.get("height"), strings.get("aspect"), Icons.Default.AspectRatio, tool.start) {
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     OutlinedTextField(
