@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Base64
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -991,12 +992,30 @@ fun ToolWorkspaceV6(
         }
     }
 
+    BackHandler(enabled = busy) {
+        status = strings.get("processing.back.blocked")
+        statusIsError = false
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item { StudioHeroV8(tool, strings.toolTitle(tool.id), strings.toolSubtitle(tool.id), tool.premium, onBack) }
+        item {
+            StudioHeroV8(
+                tool,
+                strings.toolTitle(tool.id),
+                strings.toolSubtitle(tool.id),
+                tool.premium,
+                onBack = {
+                    if (busy) {
+                        status = strings.get("processing.back.blocked")
+                        statusIsError = false
+                    } else onBack()
+                }
+            )
+        }
 
         item {
             val activeStep = when {
