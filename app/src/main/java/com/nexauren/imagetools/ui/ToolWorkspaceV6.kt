@@ -275,7 +275,8 @@ fun ToolWorkspaceV6(
                         null
                     )
                 }
-                val selected = if (batchMode) (sourceUris + captured).take(20) else listOf(captured)
+                val maxSelected = if (tool.id == "collage") 9 else 20
+                val selected = if (batchMode) (sourceUris + captured).take(maxSelected) else listOf(captured)
                 sourceUris = selected
                 previewBitmaps = emptyList()
                 pendingItems = emptyList()
@@ -1051,7 +1052,7 @@ fun ToolWorkspaceV6(
                 ) {
                     OutlinedButton(
                         onClick = { chooseInput() },
-                        modifier = Modifier.weight(1.2f).height(54.dp),
+                        modifier = Modifier.weight(if (tool.id == "pdf_merge") 1f else 1.2f).height(54.dp),
                         shape = RoundedCornerShape(17.dp),
                         border = BorderStroke(1.dp, tool.start.copy(alpha = 0.55f)),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = tool.start)
@@ -1077,17 +1078,19 @@ fun ToolWorkspaceV6(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    OutlinedButton(
-                        onClick = { capturePhoto() },
-                        modifier = Modifier.weight(0.8f).height(54.dp),
-                        shape = RoundedCornerShape(17.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
-                        enabled = !busy
-                    ) {
-                        Icon(Icons.Default.PhotoCamera, null)
-                        Spacer(Modifier.width(6.dp))
-                        Text(strings.get("camera.capture"), fontWeight = FontWeight.Bold, maxLines = 1)
+                    if (tool.id != "pdf_merge") {
+                        OutlinedButton(
+                            onClick = { capturePhoto() },
+                            modifier = Modifier.weight(0.8f).height(54.dp),
+                            shape = RoundedCornerShape(17.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
+                            enabled = !busy
+                        ) {
+                            Icon(Icons.Default.PhotoCamera, null)
+                            Spacer(Modifier.width(6.dp))
+                            Text(strings.get("camera.capture"), fontWeight = FontWeight.Bold, maxLines = 1)
+                        }
                     }
                 }
 
