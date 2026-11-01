@@ -412,6 +412,7 @@ private fun HomeToolTileV7(
 
 private fun homeToolCategoryV7(id: String): String = when (id) {
     "resize", "compress", "convert", "crop", "rotate", "mirror", "fit_canvas", "smart_resize", "target_size" -> "essentials"
+    "logo_watermark", "color_replace" -> "creative"
     "pdf", "pdf_merge", "ocr", "scan_document", "base64" -> "documents"
     "details", "metadata", "exif", "face_blur" -> "privacy"
     else -> "creative"

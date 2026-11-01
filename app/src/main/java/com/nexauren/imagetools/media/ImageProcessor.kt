@@ -10,6 +10,7 @@ import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.Matrix
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
@@ -18,6 +19,7 @@ import android.provider.MediaStore
 import java.io.ByteArrayOutputStream
 import java.text.DecimalFormat
 import kotlin.math.min
+import kotlin.math.sqrt
 
 enum class OutputFormat(val label: String, val mime: String, val extension: String) {
     JPEG("JPEG", "image/jpeg", "jpg"),
@@ -247,6 +249,109 @@ object ImageProcessor {
         }
         paint.colorFilter = ColorMatrixColorFilter(matrix)
         canvas.drawBitmap(bitmap, 0f, 0f, paint)
+        return output
+    }
+
+    /**
+     * Replaces a selected RGB colour while preserving the original alpha channel.
+     * A narrow feather around the tolerance edge keeps the transition from looking jagged.
+     * Work is performed one scanline at a time to limit temporary memory.
+     */
+    fun replaceColor(bitmap: Bitmap, sourceHex: String, targetHex: String, tolerance: Int): Bitmap {
+        requireSafeOutputDimensions(bitmap.width, bitmap.height)
+        val sourceColor = parseHexColor(sourceHex)
+        val targetColor = parseHexColor(targetHex)
+        val sr = android.graphics.Color.red(sourceColor).toFloat()
+        val sg = android.graphics.Color.green(sourceColor).toFloat()
+        val sb = android.graphics.Color.blue(sourceColor).toFloat()
+        val tr = android.graphics.Color.red(targetColor).toFloat()
+        val tg = android.graphics.Color.green(targetColor).toFloat()
+        val tb = android.graphics.Color.blue(targetColor).toFloat()
+        val threshold = (tolerance.coerceIn(1, 100) / 100f) * 441.673f
+        val feather = (threshold * 0.16f).coerceAtLeast(10f)
+
+        val output = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        val row = IntArray(bitmap.width)
+        for (y in 0 until bitmap.height) {
+            bitmap.getPixels(row, 0, bitmap.width, 0, y, bitmap.width, 1)
+            for (x in row.indices) {
+                val pixel = row[x]
+                val alpha = android.graphics.Color.alpha(pixel)
+                if (alpha == 0) continue
+                val red = android.graphics.Color.red(pixel).toFloat()
+                val green = android.graphics.Color.green(pixel).toFloat()
+                val blue = android.graphics.Color.blue(pixel).toFloat()
+                val dr = red - sr
+                val dg = green - sg
+                val db = blue - sb
+                val distance = sqrt(dr * dr + dg * dg + db * db)
+                val mix = when {
+                    distance <= threshold -> 1f
+                    distance >= threshold + feather -> 0f
+                    else -> 1f - (distance - threshold) / feather
+                }
+                if (mix > 0f) {
+                    val outR = (red + (tr - red) * mix).toInt().coerceIn(0, 255)
+                    val outG = (green + (tg - green) * mix).toInt().coerceIn(0, 255)
+                    val outB = (blue + (tb - blue) * mix).toInt().coerceIn(0, 255)
+                    row[x] = android.graphics.Color.argb(alpha, outR, outG, outB)
+                }
+            }
+            output.setPixels(row, 0, bitmap.width, 0, y, bitmap.width, 1)
+        }
+        return output
+    }
+
+    private fun parseHexColor(value: String): Int {
+        val normalized = value.trim().uppercase()
+        require(Regex("^#[0-9A-F]{6}$").matches(normalized)) {
+            "Enter a valid colour in #RRGGBB format."
+        }
+        return android.graphics.Color.parseColor(normalized)
+    }
+
+    /**
+     * Overlays a transparent logo PNG/WebP on a photo without flattening the logo's alpha.
+     */
+    fun watermarkLogo(
+        bitmap: Bitmap,
+        logo: Bitmap,
+        opacity: Int,
+        position: String,
+        scalePercent: Int
+    ): Bitmap {
+        requireSafeOutputDimensions(bitmap.width, bitmap.height)
+        require(logo.width > 0 && logo.height > 0) { "The logo image is empty." }
+        val output = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+            ?: error("Could not prepare the output image.")
+        val canvas = Canvas(output)
+        val shortEdge = min(bitmap.width, bitmap.height).toFloat()
+        val maxWidth = shortEdge * (scalePercent.coerceIn(10, 60) / 100f)
+        val maxHeight = shortEdge * 0.42f
+        val ratio = min(maxWidth / logo.width, maxHeight / logo.height)
+        val drawWidth = (logo.width * ratio).coerceAtLeast(1f)
+        val drawHeight = (logo.height * ratio).coerceAtLeast(1f)
+        val margin = (shortEdge * 0.035f).coerceAtLeast(10f)
+        val left = when (position) {
+            "top_left", "Top left", "bottom_left", "Bottom left" -> margin
+            "center", "Center" -> (bitmap.width - drawWidth) / 2f
+            else -> bitmap.width - drawWidth - margin
+        }
+        val top = when (position) {
+            "top_left", "Top left", "top_right", "Top right" -> margin
+            "center", "Center" -> (bitmap.height - drawHeight) / 2f
+            else -> bitmap.height - drawHeight - margin
+        }
+        val destination = RectF(
+            left.coerceAtLeast(0f),
+            top.coerceAtLeast(0f),
+            (left + drawWidth).coerceAtMost(bitmap.width.toFloat()),
+            (top + drawHeight).coerceAtMost(bitmap.height.toFloat())
+        )
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+            alpha = opacity.coerceIn(5, 100) * 255 / 100
+        }
+        canvas.drawBitmap(logo, null, destination, paint)
         return output
     }
 
