@@ -745,11 +745,20 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
             ) {
                 SectionTitleV5(strings.get("all.tools"), filtered.size.toString())
                 if (premium) {
-                    AssistChip(
-                        onClick = {},
-                        label = { Text(strings.get("pro")) },
-                        leadingIcon = { Icon(Icons.Default.WorkspacePremium, null) }
-                    )
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Icon(Icons.Default.WorkspacePremium, null, modifier = Modifier.size(14.dp))
+                            Text(strings.get("pro"), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
                 }
             }
         }
