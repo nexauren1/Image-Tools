@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,14 +49,16 @@ fun BatchScreen(strings: UiText = LocalUiText.current) {
     val scope = rememberCoroutineScope()
     var uris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var results by remember { mutableStateOf<List<BatchResultItem>>(emptyList()) }
-    var operation by remember { mutableStateOf("resize") }
-    var width by remember { mutableStateOf("1280") }
-    var quality by remember { mutableFloatStateOf(80f) }
-    var format by remember { mutableStateOf(OutputFormat.JPEG) }
-    var filter by remember { mutableStateOf(ImageFilter.ORIGINAL) }
-    var watermark by remember { mutableStateOf("IMAGE TOOLS") }
+    var operation by rememberSaveable { mutableStateOf("resize") }
+    var width by rememberSaveable { mutableStateOf("1280") }
+    var quality by rememberSaveable { mutableFloatStateOf(95f) }
+    var formatName by rememberSaveable { mutableStateOf(OutputFormat.PNG.name) }
+    val format = remember(formatName) { OutputFormat.valueOf(formatName) }
+    var filterName by rememberSaveable { mutableStateOf(ImageFilter.ORIGINAL.name) }
+    val filter = remember(filterName) { ImageFilter.valueOf(filterName) }
+    var watermark by rememberSaveable { mutableStateOf("IMAGE TOOLS") }
     var busy by remember { mutableStateOf(false) }
-    var status by remember { mutableStateOf<String?>(null) }
+    var status by rememberSaveable { mutableStateOf<String?>(null) }
 
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(20)
@@ -156,7 +159,7 @@ fun BatchScreen(strings: UiText = LocalUiText.current) {
                                     OutputFormat.entries.forEach { option ->
                                         FilterChip(
                                             selected = format == option,
-                                            onClick = { format = option },
+                                            onClick = { formatName = option.name },
                                             label = { Text(option.extension.uppercase()) }
                                         )
                                     }
@@ -167,7 +170,7 @@ fun BatchScreen(strings: UiText = LocalUiText.current) {
                                     ImageFilter.entries.forEach { option ->
                                         FilterChip(
                                             selected = filter == option,
-                                            onClick = { filter = option },
+                                            onClick = { filterName = option.name },
                                             label = { Text(strings.filterTitle(option.name.lowercase()), fontSize = 9.sp) }
                                         )
                                     }

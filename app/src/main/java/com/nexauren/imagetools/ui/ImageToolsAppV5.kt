@@ -179,7 +179,7 @@ fun ImageToolsAppV5(
             scope.launch { drawerState.close() }
         }
 
-        BackHandler(enabled = navigationStack.size > 1) {
+        BackHandler(enabled = navigationStack.size > 1 && !drawerState.isOpen) {
             goBack()
         }
 
@@ -767,8 +767,8 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
 
 @Composable
 private fun ToolsScreenV5(strings: UiText, premium: Boolean, openTool: (String) -> Unit) {
-    var query by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("all") }
+    var query by rememberSaveable { mutableStateOf("") }
+    var category by rememberSaveable { mutableStateOf("all") }
     val context = LocalContext.current
     val filtered = TOOL_CATALOG.filter {
         (category == "all" || toolCategoryV5(it.id) == category) &&
