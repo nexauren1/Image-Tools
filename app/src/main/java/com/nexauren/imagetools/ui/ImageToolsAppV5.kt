@@ -79,6 +79,8 @@ internal val TOOL_CATALOG = listOf(
     ToolDef("filter", Icons.Default.FilterVintage, Color(0xFF0F766E), Color(0xFF14B8A6)),
     ToolDef("background_remove", Icons.Default.LayersClear, Color(0xFF0891B2), Color(0xFF6548E8)),
     ToolDef("watermark", Icons.Default.TextFields, Color(0xFF6548E8), Color(0xFFDB2777), true),
+    ToolDef("logo_watermark", Icons.Default.Image, Color(0xFF2563EB), Color(0xFF7C3AED)),
+    ToolDef("color_replace", Icons.Default.Palette, Color(0xFFDB2777), Color(0xFF8B5CF6)),
     ToolDef("details", Icons.Default.Info, Color(0xFF334155), Color(0xFF087F8C)),
     ToolDef("brightness", Icons.Default.LightMode, Color(0xFFF59E0B), Color(0xFFFBBF24)),
     ToolDef("contrast", Icons.Default.Contrast, Color(0xFF0F172A), Color(0xFF475569)),
@@ -427,7 +429,7 @@ private fun toolCategoryV5(id: String): String = when {
     id in setOf("details", "metadata", "exif", "face_blur") -> "privacy"
     id in setOf("pdf", "pdf_merge", "gif_creator", "ocr", "scan_document", "base64") -> "docs"
     id in setOf(
-        "filter", "watermark", "brightness", "contrast", "saturation", "warmth",
+        "filter", "watermark", "logo_watermark", "color_replace", "brightness", "contrast", "saturation", "warmth",
         "negative", "blur", "sharpen", "pixelate", "border", "round", "auto_enhance",
         "exposure", "tint", "vignette", "noise_reduction", "resize", "compress",
         "convert", "crop", "rotate", "mirror", "smart_resize", "fit_canvas", "target_size"
