@@ -12,7 +12,7 @@ test("home page advertises the current app release and legal links", async () =>
   const { response, body } = await getPage("/");
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /text\/html/i);
-  assert.match(body, /version 1\.19\.0/);
+  assert.match(body, /version 1\.21\.0/);
   assert.match(body, /\/privacy/);
   assert.match(body, /\/terms/);
   assert.match(body, /\/support/);
@@ -23,6 +23,9 @@ test("privacy policy explains local processing, providers and account deletion",
   assert.equal(response.status, 200);
   assert.match(body, /Privacy Policy/);
   assert.match(body, /processed locally on your Android device/i);
+  assert.match(body, /transparent-logo watermarking/i);
+  assert.match(body, /camera images selected by the user/i);
+  assert.match(body, /Image Tools folder in your Pictures library/i);
   assert.match(body, /ML Kit subject segmentation/i);
   assert.match(body, /Google Play services may download the segmentation model/i);
   assert.match(body, /Firebase Authentication/);

@@ -23,6 +23,11 @@ This checklist is for the Android release of Image Tools (`com.nexauren.imagetoo
 - Compare PNG and WEBP Lossless exports pixel-for-pixel with the decoded source; verify JPEG and regular WEBP show a clear quality control.
 - Test same-format conversion to confirm the original encoded file is copied without recompression.
 - Test background removal with Google Play services available, including first-use model download, transparent PNG alpha, model-download failure and a low-memory device.
+- Test camera capture success, camera-app unavailable/cancel path, and that captured photos appear in Pictures/Image Tools.
+- Test transparent logo watermark with PNG alpha, position, scale and opacity.
+- Test selective colour replacement with exact and near-match colours, tolerance, and transparent pixels.
+- Compare original/result previews and confirm the exported full-resolution result is not replaced by the thumbnail.
+- Confirm Back does not leave the tool during processing or export, then works normally after completion.
 - Test export, share, and reopening saved files.
 - Test Google/email sign-in, sign-out, session refresh, and account deletion request instructions.
 - Test Premium purchase, entitlement refresh, cancellation, failed payment, and restoration using the configured production PayPal plan before enabling live billing.
@@ -35,8 +40,8 @@ This checklist is for the Android release of Image Tools (`com.nexauren.imagetoo
 - Review target audience, content rating, permissions, ads declaration, and billing disclosures for the chosen store.
 
 ## Current known release configuration
-- Version name: 1.17.0
-- Version code: 39
+- Version name: 1.21.0
+- Version code: 43
 - Minimum Android: 10 (API 29)
 - Target Android: API 36
 

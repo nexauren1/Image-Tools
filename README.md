@@ -4,8 +4,8 @@ Image Tools is a modern Android toolbox for everyday image jobs, with a local-fi
 
 ## Current release
 
-- Version: 1.19.0
-- Version code: 41
+- Version: 1.21.0
+- Version code: 43
 - Package: `com.nexauren.imagetools`
 - Minimum Android: 10 (API 29)
 - Target Android: API 36
@@ -24,7 +24,10 @@ Image Tools is a modern Android toolbox for everyday image jobs, with a local-fi
 - Crop presets: 1:1, 4:5, 16:9, 9:16
 - Rotate and mirror
 - Grayscale, sepia and high-contrast filters
-- Watermark text
+- Watermark text and transparent logo watermark
+- Selective colour replacement with adjustable tolerance
+- Before/after comparison before export
+- Capture a full-resolution photo directly into the editing workflow
 - Image details
 
 ### Additional tools
@@ -131,6 +134,12 @@ Never commit:
 - Other production credentials
 
 
+
+### Release 1.21.0
+Adds transparent logo watermarking with size, opacity and position controls; selective colour replacement using #RRGGBB and tolerance; side-by-side original/result comparison; and direct camera capture into a tool workspace. Back navigation is prevented while a tool is processing or saving. The new tools use the existing on-device bitmap pipeline and lossless PNG export. The existing package ID is retained so this version updates 1.20.0 installations.
+
+### Release 1.20.0
+Improved navigation with a real back stack, contextual page headers, bottom navigation only on top-level destinations, preserved tool-library filters and batch selections, and a visible four-step workflow inside each tool.
 
 ### Release 1.19.0
 Rebuilt the home screen around the Image Studio reference, added guest access, and improved visible progress during processing and export. PNG and WEBP Lossless are available for lossless output; compression starts in WEBP Lossless and uses a 95% default for lossy formats. Same-format conversion preserves the original encoded bytes. Added on-device ML Kit subject segmentation for transparent background removal; Google Play services may download the model on first use. The existing package ID is retained so this version updates the installed app.
