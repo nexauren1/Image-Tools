@@ -25,6 +25,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -141,157 +143,243 @@ fun ImageToolsAppV5(
             return@CompositionLocalProvider
         }
 
-        var page by remember { mutableStateOf("home") }
-        var selectedTool by remember { mutableStateOf<String?>(null) }
+        var navigationStack by rememberSaveable { mutableStateOf(listOf("home")) }
+        val currentRoute = navigationStack.last()
+        val selectedTool = currentRoute.takeIf { it.startsWith("tool:") }?.removePrefix("tool:")
+        val page = if (selectedTool != null) "tool" else currentRoute
+        val isMainDestination = page in setOf("home", "tools", "batch")
+        val saveableStateHolder = rememberSaveableStateHolder()
         val scope = rememberCoroutineScope()
         val drawerState = rememberDrawerState(DrawerValue.Closed)
 
+        fun goBack() {
+            if (navigationStack.size > 1) {
+                navigationStack = navigationStack.dropLast(1)
+            }
+        }
+
         fun navigate(target: String) {
-            page = target
-            selectedTool = null
+            if (navigationStack.lastOrNull() != target) {
+                navigationStack = navigationStack + target
+            }
             scope.launch { drawerState.close() }
         }
 
-        BackHandler(enabled = selectedTool != null || page != "home") {
-            if (selectedTool != null) {
-                selectedTool = null
-            } else {
-                navigate("home")
+        fun selectMainDestination(target: String) {
+            navigationStack = listOf(target)
+            scope.launch { drawerState.close() }
+        }
+
+        fun openTool(id: String) {
+            val tool = TOOL_CATALOG.firstOrNull { it.id == id } ?: return
+            if (tool.premium && !premium) {
+                navigate("premium")
+                return
             }
+            val route = "tool:" + id
+            if (navigationStack.lastOrNull() != route) navigationStack = navigationStack + route
+            scope.launch { drawerState.close() }
+        }
+
+        BackHandler(enabled = navigationStack.size > 1 && !drawerState.isOpen) {
+            goBack()
         }
 
         ModalNavigationDrawer(
             drawerState = drawerState,
             drawerContent = {
                 ModalDrawerSheet {
-                    Spacer(Modifier.height(18.dp))
+                    Spacer(Modifier.height(14.dp))
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                        shape = RoundedCornerShape(22.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Row(
+                            Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(11.dp)
+                        ) {
+                            Box(
+                                Modifier.size(42.dp).clip(RoundedCornerShape(14.dp))
+                                    .background(Brush.linearGradient(listOf(Color(0xFF168DFF), Color(0xFF7C3AED), Color(0xFFDB28C8)))),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.AutoFixHigh, null, tint = Color.White, modifier = Modifier.size(23.dp))
+                            }
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text("IMAGE TOOLS", fontWeight = FontWeight.Black, letterSpacing = 1.1.sp)
+                                Text(
+                                    if (premium) strings.get("pro") else strings.get("local"),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
                     Text(
-                        "IMAGE TOOLS",
-                        Modifier.padding(horizontal = 22.dp),
+                        strings.get("home"),
+                        Modifier.padding(start = 24.dp, top = 3.dp, bottom = 5.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 2.sp
+                        letterSpacing = 1.sp
                     )
+                    DrawerEntryV5(Icons.Default.Home, strings.get("home"), selected = page == "home") { navigate("home") }
+                    DrawerEntryV5(Icons.Default.Build, strings.get("tools"), selected = page == "tools") { navigate("tools") }
+                    DrawerEntryV5(Icons.Default.DynamicFeed, strings.get("batch"), selected = page == "batch") { navigate("batch") }
+                    HorizontalDivider(Modifier.padding(horizontal = 18.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
                     Text(
-                        if (premium) strings.get("pro") else strings.get("local"),
-                        Modifier.padding(start = 22.dp, top = 4.dp, bottom = 16.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 11.sp
+                        strings.get("settings"),
+                        Modifier.padding(start = 24.dp, top = 3.dp, bottom = 5.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.sp
                     )
-                    DrawerEntryV5(Icons.Default.Home, strings.get("home")) { navigate("home") }
-                    DrawerEntryV5(Icons.Default.Build, strings.get("tools")) { navigate("tools") }
-                    DrawerEntryV5(Icons.Default.DynamicFeed, strings.get("batch")) { navigate("batch") }
-                    DrawerEntryV5(Icons.Default.WorkspacePremium, strings.get("premium")) { navigate("premium") }
-                    DrawerEntryV5(Icons.Default.Person, strings.get("account")) { navigate("account") }
-                    DrawerEntryV5(Icons.Default.Settings, strings.get("settings")) { navigate("settings") }
-                    DrawerEntryV5(Icons.Default.Favorite, favoritesLabelV5(context)) { navigate("favorites") }
-                    DrawerEntryV5(Icons.Default.History, strings.get("history")) { navigate("history") }
-                    DrawerEntryV5(Icons.Default.AutoAwesome, strings.get("recipes")) { navigate("recipes") }
-                    DrawerEntryV5(Icons.Default.Info, strings.get("about")) { navigate("about") }
+                    DrawerEntryV5(Icons.Default.WorkspacePremium, strings.get("premium"), selected = page == "premium") { navigate("premium") }
+                    DrawerEntryV5(Icons.Default.Person, strings.get("account"), selected = page == "account") { navigate("account") }
+                    DrawerEntryV5(Icons.Default.Favorite, favoritesLabelV5(context), selected = page == "favorites") { navigate("favorites") }
+                    DrawerEntryV5(Icons.Default.History, strings.get("history"), selected = page == "history") { navigate("history") }
+                    DrawerEntryV5(Icons.Default.AutoAwesome, strings.get("recipes"), selected = page == "recipes") { navigate("recipes") }
+                    DrawerEntryV5(Icons.Default.Settings, strings.get("settings"), selected = page == "settings") { navigate("settings") }
+                    DrawerEntryV5(Icons.Default.Info, strings.get("about"), selected = page == "about") { navigate("about") }
+                    Spacer(Modifier.height(12.dp))
                 }
             }
         ) {
             Scaffold(
                 topBar = {
-                    CenterAlignedTopAppBar(
-                        title = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(9.dp)
-                            ) {
-                                Box(
-                                    Modifier.size(36.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(Brush.linearGradient(listOf(Color(0xFF168DFF), Color(0xFF7C3AED), Color(0xFFDB28C8)))),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(Icons.Default.AutoFixHigh, null, tint = Color.White, modifier = Modifier.size(21.dp))
+                    if (selectedTool == null) {
+                        CenterAlignedTopAppBar(
+                            title = {
+                                if (page == "home") {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(9.dp)
+                                    ) {
+                                        Box(
+                                            Modifier.size(36.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(Brush.linearGradient(listOf(Color(0xFF168DFF), Color(0xFF7C3AED), Color(0xFFDB28C8)))),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.AutoFixHigh, null, tint = Color.White, modifier = Modifier.size(21.dp))
+                                        }
+                                        Column(horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                                            Text("Image Tools", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                                            Text(
+                                                if (premium) strings.get("pro") else strings.get("home.subtitle"),
+                                                fontSize = 8.sp,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    val title = when (page) {
+                                        "tools" -> strings.get("tools")
+                                        "batch" -> strings.get("batch")
+                                        "premium" -> strings.get("premium")
+                                        "account" -> strings.get("account")
+                                        "settings" -> strings.get("settings")
+                                        "favorites" -> favoritesLabelV5(context)
+                                        "history" -> strings.get("history")
+                                        "recipes" -> strings.get("recipes")
+                                        else -> strings.get("about")
+                                    }
+                                    Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
-                                Column(horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                                    Text("Image Tools", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
-                                    Text(
-                                        if (premium) strings.get("pro") else strings.get("home.subtitle"),
-                                        fontSize = 8.sp,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                            },
+                            navigationIcon = {
+                                if (isMainDestination && navigationStack.size == 1) {
+                                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                        Icon(Icons.Default.Menu, strings.get("tools"))
+                                    }
+                                } else {
+                                    IconButton(onClick = { goBack() }) {
+                                        Icon(Icons.Default.ArrowBack, strings.get("back"))
+                                    }
+                                }
+                            },
+                            actions = {
+                                if (isMainDestination && navigationStack.size == 1) {
+                                    IconButton(onClick = { navigate("premium") }) {
+                                        Icon(
+                                            if (premium) Icons.Default.WorkspacePremium else Icons.Default.AutoAwesome,
+                                            strings.get("premium")
+                                        )
+                                    }
+                                } else {
+                                    Spacer(Modifier.width(8.dp))
                                 }
                             }
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                Icon(Icons.Default.Menu, strings.get("tools"))
-                            }
-                        },
-                        actions = {
-                            IconButton(onClick = { navigate("premium") }) {
-                                Icon(
-                                    if (premium) Icons.Default.WorkspacePremium else Icons.Default.AutoAwesome,
-                                    strings.get("premium")
-                                )
-                            }
-                        }
-                    )
+                        )
+                    }
                 },
                 bottomBar = {
-                    NavigationBar {
-                        Row(Modifier.fillMaxWidth()) {
-                            BottomTabV5(
-                                page == "home",
-                                { navigate("home") },
-                                Icons.Default.Home,
-                                strings.get("home")
+                    if (selectedTool == null && isMainDestination) {
+                        NavigationBar(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 8.dp
+                        ) {
+                            NavigationBarItem(
+                                selected = page == "home",
+                                onClick = { selectMainDestination("home") },
+                                icon = { Icon(Icons.Default.Home, contentDescription = strings.get("home")) },
+                                label = { Text(strings.get("home"), fontWeight = FontWeight.SemiBold) },
+                                alwaysShowLabel = true
                             )
-                            BottomTabV5(
-                                page == "tools",
-                                { navigate("tools") },
-                                Icons.Default.Build,
-                                strings.get("tools")
+                            NavigationBarItem(
+                                selected = page == "tools",
+                                onClick = { selectMainDestination("tools") },
+                                icon = { Icon(Icons.Default.GridView, contentDescription = strings.get("tools")) },
+                                label = { Text(strings.get("tools"), fontWeight = FontWeight.SemiBold) },
+                                alwaysShowLabel = true
                             )
-                            BottomTabV5(
-                                page == "batch",
-                                { navigate("batch") },
-                                Icons.Default.DynamicFeed,
-                                strings.get("batch")
+                            NavigationBarItem(
+                                selected = page == "batch",
+                                onClick = { selectMainDestination("batch") },
+                                icon = { Icon(Icons.Default.DynamicFeed, contentDescription = strings.get("batch")) },
+                                label = { Text(strings.get("batch"), fontWeight = FontWeight.SemiBold) },
+                                alwaysShowLabel = true
                             )
                         }
                     }
                 },
             ) { padding ->
                 Box(Modifier.fillMaxSize().padding(padding)) {
+                    saveableStateHolder.SaveableStateProvider(currentRoute) {
                     when {
                         selectedTool != null -> {
                             val tool = TOOL_CATALOG.first { it.id == selectedTool }
                             ToolWorkspaceV6(
                                 tool = AnyToolDef(tool.id, tool.icon, tool.start, tool.end, tool.premium),
                                 premium = premium,
-                                onBack = { selectedTool = null },
+                                onBack = { goBack() },
                                 onNeedPremium = { navigate("premium") }
                             )
                         }
                         page == "home" -> ImageToolsHomeV7(
                             strings = strings,
                             premium = premium,
-                            onOpenTool = { id ->
-                                val tool = TOOL_CATALOG.first { it.id == id }
-                                if (tool.premium && !premium) navigate("premium") else selectedTool = id
-                            },
+                            onOpenTool = { id -> openTool(id) },
                             onOpenLibrary = { navigate("tools") },
                             onOpenPremium = { navigate("premium") }
                         )
                         page == "tools" -> ToolsScreenV5(strings, premium) { id ->
-                            val tool = TOOL_CATALOG.first { it.id == id }
-                            if (tool.premium && !premium) navigate("premium") else selectedTool = id
+                            openTool(id)
                         }
                         page == "batch" -> BatchScreen(strings)
                         page == "premium" -> PremiumScreenV5(auth, strings, premium, onStartPayment)
                         page == "account" -> AccountScreenV5(auth, strings, premium) { navigate("premium") }
                         page == "history" -> HistoryScreenV5(strings)
                         page == "favorites" -> FavoritesScreen(strings, premium) { id ->
-                            val tool = TOOL_CATALOG.firstOrNull { it.id == id }
-                            if (tool != null) {
-                                if (tool.premium && !premium) navigate("premium") else selectedTool = id
-                            }
+                            openTool(id)
                         }
                         page == "recipes" -> RecipesScreenV5(
                             auth = auth,
@@ -304,8 +392,7 @@ fun ImageToolsAppV5(
                                         navigate("premium")
                                     } else {
                                         RecipeStore.setPending(context, recipe)
-                                        page = "home"
-                                        selectedTool = recipe.toolId
+                                        navigationStack = navigationStack + ("tool:" + recipe.toolId)
                                     }
                                 }
                             }
@@ -321,6 +408,7 @@ fun ImageToolsAppV5(
                             }
                         )
                         else -> AboutScreenV5(strings)
+                    }
                     }
                 }
             }
@@ -348,10 +436,15 @@ private fun toolCategoryV5(id: String): String = when {
 }
 
 @Composable
-private fun DrawerEntryV5(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun DrawerEntryV5(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean = false,
+    onClick: () -> Unit
+) {
     NavigationDrawerItem(
-        label = { Text(label) },
-        selected = false,
+        label = { Text(label, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) },
+        selected = selected,
         onClick = onClick,
         icon = { Icon(icon, null) },
         modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
@@ -652,11 +745,20 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
             ) {
                 SectionTitleV5(strings.get("all.tools"), filtered.size.toString())
                 if (premium) {
-                    AssistChip(
-                        onClick = {},
-                        label = { Text(strings.get("pro")) },
-                        leadingIcon = { Icon(Icons.Default.WorkspacePremium, null) }
-                    )
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Icon(Icons.Default.WorkspacePremium, null, modifier = Modifier.size(14.dp))
+                            Text(strings.get("pro"), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
                 }
             }
         }
@@ -673,8 +775,8 @@ private fun HomeScreenV5(strings: UiText, premium: Boolean, openTool: (String) -
 
 @Composable
 private fun ToolsScreenV5(strings: UiText, premium: Boolean, openTool: (String) -> Unit) {
-    var query by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("all") }
+    var query by rememberSaveable { mutableStateOf("") }
+    var category by rememberSaveable { mutableStateOf("all") }
     val context = LocalContext.current
     val filtered = TOOL_CATALOG.filter {
         (category == "all" || toolCategoryV5(it.id) == category) &&
