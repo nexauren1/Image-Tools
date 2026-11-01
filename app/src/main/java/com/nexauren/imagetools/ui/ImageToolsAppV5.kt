@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -158,13 +159,14 @@ fun ImageToolsAppV5(
         }
 
         fun navigate(target: String) {
-            navigationStack = if (target in setOf("home", "tools", "batch")) {
-                listOf(target)
-            } else if (navigationStack.lastOrNull() == target) {
-                navigationStack
-            } else {
-                navigationStack + target
+            if (navigationStack.lastOrNull() != target) {
+                navigationStack = navigationStack + target
             }
+            scope.launch { drawerState.close() }
+        }
+
+        fun selectMainDestination(target: String) {
+            navigationStack = listOf(target)
             scope.launch { drawerState.close() }
         }
 
@@ -327,21 +329,21 @@ fun ImageToolsAppV5(
                         ) {
                             NavigationBarItem(
                                 selected = page == "home",
-                                onClick = { navigate("home") },
+                                onClick = { selectMainDestination("home") },
                                 icon = { Icon(Icons.Default.Home, contentDescription = strings.get("home")) },
                                 label = { Text(strings.get("home"), fontWeight = FontWeight.SemiBold) },
                                 alwaysShowLabel = true
                             )
                             NavigationBarItem(
                                 selected = page == "tools",
-                                onClick = { navigate("tools") },
+                                onClick = { selectMainDestination("tools") },
                                 icon = { Icon(Icons.Default.GridView, contentDescription = strings.get("tools")) },
                                 label = { Text(strings.get("tools"), fontWeight = FontWeight.SemiBold) },
                                 alwaysShowLabel = true
                             )
                             NavigationBarItem(
                                 selected = page == "batch",
-                                onClick = { navigate("batch") },
+                                onClick = { selectMainDestination("batch") },
                                 icon = { Icon(Icons.Default.DynamicFeed, contentDescription = strings.get("batch")) },
                                 label = { Text(strings.get("batch"), fontWeight = FontWeight.SemiBold) },
                                 alwaysShowLabel = true

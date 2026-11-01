@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,7 +48,11 @@ private data class BatchResultItem(
 fun BatchScreen(strings: UiText = LocalUiText.current) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var uris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    val uriListSaver = listSaver<List<Uri>, String>(
+        save = { items -> items.map(Uri::toString) },
+        restore = { items -> items.map(Uri::parse) }
+    )
+    var uris by rememberSaveable(stateSaver = uriListSaver) { mutableStateOf(emptyList()) }
     var results by remember { mutableStateOf<List<BatchResultItem>>(emptyList()) }
     var operation by rememberSaveable { mutableStateOf("resize") }
     var width by rememberSaveable { mutableStateOf("1280") }
