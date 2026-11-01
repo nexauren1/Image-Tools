@@ -34,7 +34,7 @@ object AppThemeStore {
 
     fun get(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getBoolean(KEY_DARK_MODE, false)
+            .getBoolean(KEY_DARK_MODE, true)
 
     fun save(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

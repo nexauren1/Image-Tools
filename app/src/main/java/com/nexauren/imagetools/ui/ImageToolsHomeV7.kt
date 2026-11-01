@@ -253,7 +253,7 @@ private fun StudioHomeHeroV7(
             Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
                 Surface(color = Color.White.copy(alpha = 0.12f), shape = RoundedCornerShape(9.dp)) {
                     Text(
-                        "IMAGE STUDIO  •  ${toolCount}+ " + homeCopyV7(language, "ferramentas", "tools", "herramientas", "outils"),
+                        "IMAGE STUDIO  •  ${toolCount} " + homeCopyV7(language, "ferramentas", "tools", "herramientas", "outils"),
                         modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
                         color = Color(0xFFB8E9FF),
                         fontSize = 9.sp,
