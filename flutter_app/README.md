@@ -5,7 +5,7 @@ This directory is the new Flutter/Dart application under construction. It intent
 ## Target Android identity
 
 - Application ID: `com.nexauren.imagetools`
-- First candidate version: `2.0.0+42`
+- First candidate version: `2.0.0+44`
 - Minimum Android: 10 (API 29)
 - Release signing: existing GitHub Actions production keystore secrets
 
