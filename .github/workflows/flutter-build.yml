@@ -45,7 +45,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.14.3"
+          gradle-version: "9.5.0"
 
       - name: Install Firebase Android configuration
         run: |
@@ -63,7 +63,7 @@ jobs:
           printf 'flutter.sdk=%s\n' "$FLUTTER_ROOT" > android/local.properties
           mkdir -p "$RUNNER_TEMP/gradle-wrapper"
           printf "rootProject.name = 'wrapper-bootstrap'\n" > "$RUNNER_TEMP/gradle-wrapper/settings.gradle"
-          gradle -p "$RUNNER_TEMP/gradle-wrapper" wrapper --gradle-version 8.14.3 --distribution-type all
+          gradle -p "$RUNNER_TEMP/gradle-wrapper" wrapper --gradle-version 9.5.0 --distribution-type all
           mkdir -p android/gradle/wrapper
           cp "$RUNNER_TEMP/gradle-wrapper/gradlew" android/gradlew
           cp "$RUNNER_TEMP/gradle-wrapper/gradlew.bat" android/gradlew.bat
