@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/catalog/tool_catalog.dart';
 import '../../core/theme/app_theme.dart';
+import '../community/community_screen.dart';
 import '../editor/tool_workspace_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -20,6 +21,25 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
+
+  void _openCommunity() {
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        transitionDuration: const Duration(milliseconds: 260),
+        pageBuilder: (_, animation, secondaryAnimation) => const CommunityScreen(),
+        transitionsBuilder: (_, animation, secondaryAnimation, child) {
+          final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+          return FadeTransition(
+            opacity: curved,
+            child: SlideTransition(
+              position: Tween<Offset>(begin: const Offset(0.035, 0), end: Offset.zero).animate(curved),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   void _openTool(ToolDescriptor tool) {
     Navigator.of(context).push(
@@ -61,6 +81,11 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: widget.isDarkMode ? 'Tema claro' : 'Tema escuro',
             onPressed: () => widget.onThemeChanged(!widget.isDarkMode),
             icon: Icon(widget.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
+          ),
+          IconButton(
+            tooltip: 'Partilhar e comunidade',
+            onPressed: _openCommunity,
+            icon: const Icon(Icons.share_outlined),
           ),
           IconButton(
             tooltip: 'Premium',
@@ -133,7 +158,50 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+          sliver: SliverToBoxAdapter(child: _communityCard()),
+        ),
       ],
+    );
+  }
+
+  Widget _communityCard() {
+    return Material(
+      color: Theme.of(context).colorScheme.surfaceContainer,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: _openCommunity,
+        child: Padding(
+          padding: const EdgeInsets.all(17),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(15),
+                  gradient: const LinearGradient(colors: [AppTheme.electricBlue, AppTheme.violet]),
+                ),
+                child: const Icon(Icons.campaign_rounded, color: Colors.white, size: 25),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Comunidade Nexauren', style: TextStyle(fontWeight: FontWeight.w900)),
+                    const SizedBox(height: 4),
+                    Text('Partilha a app e acompanha novidades', style: Theme.of(context).textTheme.bodySmall),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios_rounded, size: 17),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -285,6 +353,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 value: widget.isDarkMode,
                 onChanged: widget.onThemeChanged,
                 title: const Text('Tema escuro'),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: _openCommunity,
+                icon: const Icon(Icons.share_outlined),
+                label: const Text('Partilhar e seguir a Nexauren'),
               ),
             ],
           ],
