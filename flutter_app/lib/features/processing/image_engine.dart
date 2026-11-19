@@ -22,7 +22,7 @@ class ImageDetails {
 }
 
 abstract final class ImageEngine {
-  static const int maxPixels = 80 * 1000 * 1000;
+  static const int maxPixels = 40 * 1000 * 1000;
 
   static Future<img.Image> decodeForPreview(Uint8List bytes) {
     return Isolate.run(() {
@@ -135,6 +135,16 @@ abstract final class ImageEngine {
       if (decoded == null) {
         throw const FormatException('Não foi possível descodificar a imagem.');
       }
+      final sourceFormat = decoded.format.name.toLowerCase();
+      final sameFormat = switch (format) {
+        ImageOutputFormat.jpeg => sourceFormat == 'jpeg' || sourceFormat == 'jpg',
+        ImageOutputFormat.png => sourceFormat == 'png',
+        ImageOutputFormat.webp => sourceFormat == 'webp',
+      };
+      // Selecting the current format is a no-op: preserve the exact encoded
+      // bytes, metadata, original resolution and any camera colour profile.
+      if (sameFormat) return Uint8List.fromList(originalBytes);
+
       final source = img.bakeOrientation(decoded);
       if (source.width * source.height > maxPixels) {
         throw const FormatException('A imagem excede o limite seguro de processamento.');
