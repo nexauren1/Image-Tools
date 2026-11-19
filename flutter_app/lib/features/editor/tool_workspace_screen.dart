@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:material_ui/material_ui.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/catalog/tool_catalog.dart';
 import '../../core/theme/app_theme.dart';
@@ -221,7 +221,6 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.tool.title),
