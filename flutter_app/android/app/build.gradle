@@ -23,8 +23,8 @@ android {
         applicationId = "com.nexauren.imagetools"
         minSdk = 29
         targetSdk = 36
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionCode = 44
+        versionName = "2.0.0"
     }
 
     buildTypes {
