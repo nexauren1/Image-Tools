@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/catalog/tool_catalog.dart';
+import '../../core/theme/app_theme.dart';
 import '../processing/image_engine.dart';
 import '../processing/image_exporter.dart';
 import 'crop_editor_screen.dart';
@@ -259,7 +260,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             const SizedBox(height: 16),
             _operationControls(context),
             const SizedBox(height: 18),
-            FilledButton.icon(
+            if (widget.tool.id != ToolId.imageInfo) FilledButton.icon(
               onPressed: _processing ? null : _runOperation,
               icon: _processing
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
