@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 enum ToolId {
   crop,
+  rotate,
   resize,
   compress,
   convert,
@@ -50,6 +51,7 @@ class ToolDescriptor {
 abstract final class ToolCatalog {
   static const List<ToolDescriptor> primary = [
     ToolDescriptor(id: ToolId.crop, title: 'Editar imagem', subtitle: 'Cortar e ajustar', icon: Icons.crop, color: Color(0xFF168CFF)),
+    ToolDescriptor(id: ToolId.rotate, title: 'Rodar e espelhar', subtitle: 'Orientação da imagem', icon: Icons.rotate_right, color: Color(0xFF64748B)),
     ToolDescriptor(id: ToolId.resize, title: 'Redimensionar', subtitle: 'Tamanho e proporção', icon: Icons.fit_screen, color: Color(0xFF7C3AED)),
     ToolDescriptor(id: ToolId.compress, title: 'Comprimir', subtitle: 'Controlar qualidade', icon: Icons.storage_rounded, color: Color(0xFF16A34A)),
     ToolDescriptor(id: ToolId.convert, title: 'Converter', subtitle: 'JPG, PNG, WebP', icon: Icons.autorenew_rounded, color: Color(0xFFF97316)),
