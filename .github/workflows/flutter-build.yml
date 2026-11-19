@@ -109,7 +109,7 @@ jobs:
           APK="build/app/outputs/flutter-apk/image-tools-release.apk"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK"
           "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$APK" > "$RUNNER_TEMP/image-tools-badging.txt"
-          grep -F "package: name='com.nexauren.imagetools' versionCode='42' versionName='2.0.0'" "$RUNNER_TEMP/image-tools-badging.txt"
+          grep -F "package: name='com.nexauren.imagetools' versionCode='44' versionName='2.0.0'" "$RUNNER_TEMP/image-tools-badging.txt"
 
       - name: Upload release APK
         if: env.KEYSTORE_BASE64 != '' && env.KEYSTORE_PASSWORD != '' && env.KEY_ALIAS != '' && env.KEY_PASSWORD != ''
