@@ -1,10 +1,10 @@
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/theme/app_theme.dart';
-import '../processing/image_exporter.dart';
 import '../processing/image_engine.dart';
+import '../processing/image_exporter.dart';
 
 enum _CropHandle { move, left, right, top, bottom, topLeft, topRight, bottomLeft, bottomRight }
 
@@ -21,7 +21,6 @@ class _CropEditorScreenState extends State<CropEditorScreen> {
   Rect _crop = const Rect.fromLTWH(0.08, 0.08, 0.84, 0.84);
   String _ratioLabel = 'Livre';
   double? _lockedRatio;
-  Size? _previewSize;
   Offset? _dragStart;
   Rect? _startRect;
   _CropHandle _handle = _CropHandle.move;
@@ -82,7 +81,6 @@ class _CropEditorScreenState extends State<CropEditorScreen> {
   }
 
   void _onPanStart(DragStartDetails details, Size size) {
-    _previewSize = size;
     _dragStart = details.localPosition;
     _startRect = _crop;
     _handle = _hitTest(details.localPosition, size);
@@ -181,7 +179,6 @@ class _CropEditorScreenState extends State<CropEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Editar e recortar'),
