@@ -21,6 +21,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
+  bool _showLibrary = false;
   String _query = '';
   final TextEditingController _searchController = TextEditingController();
 
@@ -30,9 +31,16 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _goTo(BuildContext drawerContext, int index) {
+  void _goTo(
+    BuildContext drawerContext,
+    int index, {
+    bool showLibrary = false,
+  }) {
     Navigator.of(drawerContext).pop();
-    setState(() => _tab = index);
+    setState(() {
+      _tab = index;
+      _showLibrary = showLibrary;
+    });
   }
 
   void _openCommunity() {
@@ -126,7 +134,10 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             tooltip: 'Pesquisar ferramentas',
-            onPressed: () => setState(() => _tab = 1),
+            onPressed: () => setState(() {
+              _tab = 0;
+              _showLibrary = true;
+            }),
             icon: const Icon(Icons.search_rounded),
           ),
           IconButton(
@@ -145,8 +156,8 @@ class _HomeScreenState extends State<HomeScreen> {
         switchInCurve: Curves.easeOutCubic,
         switchOutCurve: Curves.easeInCubic,
         child: KeyedSubtree(
-          key: ValueKey<int>(_tab),
-          child: _pageForTab(),
+          key: ValueKey<String>('$_tab-$_showLibrary'),
+          child: _showLibrary ? _libraryBody() : _pageForTab(),
         ),
       ),
       bottomNavigationBar: NavigationBar(
@@ -154,7 +165,8 @@ class _HomeScreenState extends State<HomeScreen> {
         onDestinationSelected: (value) {
           setState(() {
             _tab = value;
-            if (value != 1) _query = '';
+            _showLibrary = false;
+            _query = '';
           });
         },
         destinations: const [
@@ -164,9 +176,9 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Início',
           ),
           NavigationDestination(
-            icon: Icon(Icons.grid_view_outlined),
-            selectedIcon: Icon(Icons.grid_view_rounded),
-            label: 'Ferramentas',
+            icon: Icon(Icons.folder_open_outlined),
+            selectedIcon: Icon(Icons.folder_rounded),
+            label: 'Projetos',
           ),
           NavigationDestination(
             icon: Icon(Icons.workspace_premium_outlined),
@@ -188,7 +200,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 0:
         return _homeBody();
       case 1:
-        return _libraryBody();
+        return _projectsBody();
       case 2:
         return _premiumBody();
       default:
@@ -206,7 +218,10 @@ class _HomeScreenState extends State<HomeScreen> {
         _sectionHeading(
           'Ferramentas principais',
           'Ver todas',
-          () => setState(() => _tab = 1),
+          () => setState(() {
+            _tab = 0;
+            _showLibrary = true;
+          }),
         ),
         const SizedBox(height: 12),
         GridView.builder(
@@ -226,7 +241,10 @@ class _HomeScreenState extends State<HomeScreen> {
         _sectionHeading(
           'Ferramentas avançadas',
           'Ver todas',
-          () => setState(() => _tab = 1),
+          () => setState(() {
+            _tab = 0;
+            _showLibrary = true;
+          }),
         ),
         const SizedBox(height: 12),
         GridView.builder(
@@ -856,7 +874,8 @@ class _HomeScreenState extends State<HomeScreen> {
               context,
               icon: Icons.grid_view_outlined,
               title: 'Biblioteca de ferramentas',
-              index: 1,
+              index: 0,
+              showLibrary: true,
             ),
             _drawerItem(
               context,
@@ -891,13 +910,18 @@ class _HomeScreenState extends State<HomeScreen> {
     required IconData icon,
     required String title,
     required int index,
+    bool showLibrary = false,
   }) {
     return Builder(
       builder: (tileContext) => ListTile(
-        selected: _tab == index,
+        selected: _tab == index && _showLibrary == showLibrary,
         leading: Icon(icon),
         title: Text(title),
-        onTap: () => _goTo(tileContext, index),
+        onTap: () => _goTo(
+          tileContext,
+          index,
+          showLibrary: showLibrary,
+        ),
       ),
     );
   }
