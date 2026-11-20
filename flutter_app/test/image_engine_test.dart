@@ -73,6 +73,54 @@ void main() {
     expect(decoded.height, 8);
   });
 
+  test('adds an outer border without changing the source pixels', () async {
+    final output = await ImageEngine.addBorder(
+      makeTestPng(),
+      thickness: 5,
+      red: 20,
+      green: 40,
+      blue: 80,
+    );
+    final decoded = img.decodePng(output);
+    expect(decoded, isNotNull);
+    expect(decoded!.width, 18);
+    expect(decoded.height, 16);
+  });
+
+  test('pixelation preserves the image dimensions', () async {
+    final output = await ImageEngine.pixelate(
+      makeTestPng(),
+      blockSize: 3,
+    );
+    final decoded = img.decodePng(output);
+    expect(decoded, isNotNull);
+    expect(decoded!.width, 8);
+    expect(decoded.height, 6);
+  });
+
+  test('social preset creates the requested output dimensions', () async {
+    final output = await ImageEngine.fitSocialPreset(
+      makeTestPng(),
+      width: 128,
+      height: 128,
+    );
+    final decoded = img.decodePng(output);
+    expect(decoded, isNotNull);
+    expect(decoded!.width, 128);
+    expect(decoded.height, 128);
+  });
+
+  test('collage contains one tile per selected image', () async {
+    final output = await ImageEngine.createCollage([
+      makeTestPng(),
+      makeTestPng(),
+    ], canvasSize: 600, gap: 10);
+    final decoded = img.decodePng(output);
+    expect(decoded, isNotNull);
+    expect(decoded!.width, greaterThan(500));
+    expect(decoded.height, greaterThan(200));
+  });
+
   test('rejects invalid crop bounds rather than exporting a partial image', () async {
     expect(
       () => ImageEngine.cropToPng(
