@@ -711,30 +711,56 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             _emptyImageCard(context),
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: _loading ? null : () => _pickImage(ImageSource.gallery),
+              onPressed: _loading ? null : _pickForTool,
               icon: _loading
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.photo_library_outlined),
-              label: Text(_loading ? 'A abrir a galeria…' : 'Selecionar da galeria'),
+              label: Text(
+                _loading
+                    ? 'A abrir a galeria…'
+                    : (widget.tool.id == ToolId.collage || widget.tool.id == ToolId.batch
+                        ? 'Selecionar várias imagens'
+                        : 'Selecionar da galeria'),
+              ),
             ),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: _loading ? null : () => _pickImage(ImageSource.camera),
-              icon: const Icon(Icons.camera_alt_outlined),
-              label: const Text('Tirar fotografia'),
-            ),
+            if (widget.tool.id != ToolId.collage && widget.tool.id != ToolId.batch) ...[
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: _loading ? null : () => _pickImage(ImageSource.camera),
+                icon: const Icon(Icons.camera_alt_outlined),
+                label: const Text('Tirar fotografia'),
+              ),
+            ],
+            if (_selectedImages.length > 1) ...[
+              const SizedBox(height: 10),
+              Text(
+                _selectedImages.length.toString() + ' imagens selecionadas',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
           ] else ...[
             _sourcePreview(context),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
+            if (_details != null) _recommendationPanel(context),
+            const SizedBox(height: 14),
             _operationControls(context),
             const SizedBox(height: 18),
-            if (widget.tool.id != ToolId.imageInfo) FilledButton.icon(
+            if (widget.tool.id != ToolId.imageInfo && widget.tool.id != ToolId.crop) FilledButton.icon(
               onPressed: _processing ? null : _runOperation,
               icon: _processing
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.bolt_rounded),
               label: Text(_processing ? 'A processar no dispositivo…' : _actionLabel),
             ),
+            if (_paletteColors.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _palettePreview(context),
+            ],
+            if (_textResult != null) ...[
+              const SizedBox(height: 14),
+              _textResultPanel(context),
+            ],
             if (_resultBytes != null) ...[
               const SizedBox(height: 18),
               _resultPreview(context),
@@ -752,6 +778,24 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         ToolId.enhance => 'Melhorar e guardar',
         ToolId.filters => 'Aplicar efeito e guardar',
         ToolId.rotate => 'Rodar e guardar',
+        ToolId.addText => 'Adicionar texto e guardar',
+        ToolId.watermark => 'Aplicar marca de água e guardar',
+        ToolId.border => 'Adicionar moldura e guardar',
+        ToolId.pixelate => 'Pixelizar e guardar',
+        ToolId.socialPresets => 'Preparar formato social e guardar',
+        ToolId.blur => 'Aplicar desfoque e guardar',
+        ToolId.sharpen => 'Melhorar nitidez e guardar',
+        ToolId.collage => 'Criar colagem e guardar',
+        ToolId.batch => 'Comprimir e guardar todas',
+        ToolId.imageToPdf => 'Criar PDF e partilhar',
+        ToolId.removeBackground => 'Remover fundo e guardar',
+        ToolId.faceBlur => 'Desfocar rostos e guardar',
+        ToolId.ocr => 'Extrair texto',
+        ToolId.palette => 'Extrair paleta de cores',
+        ToolId.base64 => 'Gerar e copiar Base64',
+        ToolId.metadata => 'Criar cópia sem metadados',
+        ToolId.splitImage => 'Dividir em 9 imagens',
+        ToolId.documentScan => 'Melhorar documento',
         _ => 'Executar ferramenta',
       };
 
@@ -850,8 +894,69 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         return _filterControls(context);
       case ToolId.rotate:
         return _rotateControls(context);
+      case ToolId.blur:
+      case ToolId.sharpen:
+        return _effectControls(context);
+      case ToolId.addText:
+      case ToolId.watermark:
+        return _watermarkControls(context);
+      case ToolId.border:
+        return _borderControls(context);
+      case ToolId.pixelate:
+        return _pixelateControls(context);
+      case ToolId.socialPresets:
+        return _socialControls(context);
+      case ToolId.collage:
+      case ToolId.batch:
+        return _multiImageControls(context);
       case ToolId.imageInfo:
+      case ToolId.metadata:
         return _infoControls(context);
+      case ToolId.palette:
+        return _messagePanel(
+          'Paleta de cores',
+          'Extrai até oito cores dominantes da imagem e copia os respetivos códigos HEX.',
+        );
+      case ToolId.ocr:
+        return _messagePanel(
+          'Reconhecimento de texto',
+          'O OCR corre no dispositivo através do Google ML Kit. A primeira utilização pode precisar de transferir o modelo.',
+        );
+      case ToolId.removeBackground:
+        return _messagePanel(
+          'Remover fundo',
+          'A segmentação tenta separar o primeiro plano do fundo e exporta um PNG com transparência. O resultado depende da imagem e do modelo instalado.',
+        );
+      case ToolId.faceBlur:
+        return _messagePanel(
+          'Privacidade de rostos',
+          'Deteta rostos e desfoca as regiões encontradas antes de guardar uma cópia.',
+        );
+      case ToolId.imageToPdf:
+        return _messagePanel(
+          'Imagem para PDF',
+          'Cria um documento PDF a partir da imagem selecionada. O ficheiro abre o menu de partilha do Android.',
+        );
+      case ToolId.base64:
+        return _messagePanel(
+          'Imagem para Base64',
+          'Converte os bytes da imagem para Base64 e copia o resultado para a área de transferência.',
+        );
+      case ToolId.splitImage:
+        return _messagePanel(
+          'Dividir imagem',
+          'Divide a imagem em nove partes iguais e guarda cada segmento na galeria.',
+        );
+      case ToolId.documentScan:
+        return _messagePanel(
+          'Digitalizar documento',
+          'Aplica tons de cinzento, brilho e contraste para aumentar a legibilidade do papel.',
+        );
+      case ToolId.crop:
+        return _messagePanel(
+          'Editor de recorte',
+          'O editor de recorte abre automaticamente quando selecionas a imagem.',
+        );
       default:
         return _pendingControls(context);
     }
@@ -1123,6 +1228,338 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
     );
   }
 
+  Widget _effectControls(BuildContext context) {
+    final isBlur = widget.tool.id == ToolId.blur;
+    return _panel(
+      context,
+      isBlur ? 'Intensidade do desfoque' : 'Nível de nitidez',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${(_effectStrength * 100).round()}%'),
+          Slider(
+            value: _effectStrength,
+            min: 0.1,
+            max: 1,
+            divisions: 18,
+            onChanged: (value) => setState(() => _effectStrength = value),
+          ),
+          Text(
+            isBlur
+                ? 'Usa um desfoque progressivo para suavizar detalhes.'
+                : 'Realça os contornos com um filtro de nitidez.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _watermarkControls(BuildContext context) {
+    return _panel(
+      context,
+      widget.tool.id == ToolId.addText ? 'Texto sobre a imagem' : 'Marca de água',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _watermarkController,
+            maxLength: 80,
+            decoration: const InputDecoration(
+              labelText: 'Texto',
+              hintText: 'Escreve o texto a inserir',
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text('Opacidade: ${(_watermarkOpacity * 100).round()}%'),
+          Slider(
+            value: _watermarkOpacity,
+            min: 0.12,
+            max: 1,
+            onChanged: (value) => setState(() => _watermarkOpacity = value),
+          ),
+          const Text('Posição'),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: [
+              for (final option in [
+                'topLeft',
+                'topRight',
+                'center',
+                'bottomLeft',
+                'bottomRight',
+              ])
+                ChoiceChip(
+                  label: Text(
+                    switch (option) {
+                      'topLeft' => 'Superior esquerda',
+                      'topRight' => 'Superior direita',
+                      'center' => 'Centro',
+                      'bottomLeft' => 'Inferior esquerda',
+                      _ => 'Inferior direita',
+                    },
+                  ),
+                  selected: _watermarkPosition == option,
+                  onSelected: (_) =>
+                      setState(() => _watermarkPosition = option),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _borderControls(BuildContext context) {
+    return _panel(
+      context,
+      'Moldura da imagem',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Espessura: $_frameThickness px'),
+          Slider(
+            value: _frameThickness.toDouble(),
+            min: 2,
+            max: 120,
+            divisions: 59,
+            onChanged: (value) =>
+                setState(() => _frameThickness = value.round()),
+          ),
+          const Text('Cor da moldura'),
+          _formatChips(['white', 'black', 'blue', 'violet']),
+        ],
+      ),
+    );
+  }
+
+  Widget _pixelateControls(BuildContext context) {
+    return _panel(
+      context,
+      'Efeito mosaico',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Tamanho dos blocos: $_pixelBlock px'),
+          Slider(
+            value: _pixelBlock.toDouble(),
+            min: 3,
+            max: 96,
+            divisions: 31,
+            onChanged: (value) => setState(() => _pixelBlock = value.round()),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _socialControls(BuildContext context) {
+    const choices = {
+      'square': 'Quadrado 1:1',
+      'story': 'Story 9:16',
+      'landscape': 'Publicação 1.91:1',
+      'video': 'Vídeo 16:9',
+      'profile': 'Perfil 1:1',
+    };
+    return _panel(
+      context,
+      'Tamanho para redes sociais',
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: choices.entries.map((entry) {
+          return ChoiceChip(
+            label: Text(entry.value),
+            selected: _socialPreset == entry.key,
+            onSelected: (_) => setState(() => _socialPreset = entry.key),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _multiImageControls(BuildContext context) {
+    return _panel(
+      context,
+      widget.tool.id == ToolId.collage ? 'Composição da colagem' : 'Compressão em lote',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _selectedImages.length.toString() + ' imagem(ns) selecionada(s)',
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          if (widget.tool.id == ToolId.batch) ...[
+            _formatChips(['jpeg', 'webp']),
+            const SizedBox(height: 10),
+            Text('Qualidade: $_quality%'),
+            Slider(
+              value: _quality.toDouble(),
+              min: 10,
+              max: 100,
+              divisions: 18,
+              onChanged: (value) => setState(() => _quality = value.round()),
+            ),
+          ] else
+            const Text(
+              'Escolhe entre 2 e 9 imagens. O estúdio organiza-as automaticamente numa grelha.',
+            ),
+          TextButton.icon(
+            onPressed: _loading || _processing ? null : _pickMultipleImages,
+            icon: const Icon(Icons.add_photo_alternate_outlined),
+            label: const Text('Escolher imagens'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _messagePanel(String title, String message) {
+    return _panel(
+      context,
+      title,
+      Text(message, style: Theme.of(context).textTheme.bodyMedium),
+    );
+  }
+
+  Widget _recommendationPanel(BuildContext context) {
+    final details = _details;
+    if (details == null) return const SizedBox.shrink();
+    final recommendations = ImageRecommendationEngine.forImage(details);
+    return _panel(
+      context,
+      'Recomendações para esta imagem',
+      Column(
+        children: recommendations.map((recommendation) {
+          final tool = ToolCatalog.all.firstWhere(
+            (item) => item.id.name == recommendation.toolId,
+            orElse: () => ToolCatalog.primary.first,
+          );
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 9),
+            child: Material(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(15),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(15),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ToolWorkspaceScreen(tool: tool),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: tool.color,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(tool.icon, color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              recommendation.title,
+                              style: const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              recommendation.description,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _palettePreview(BuildContext context) {
+    return _panel(
+      context,
+      'Cores dominantes',
+      Wrap(
+        spacing: 9,
+        runSpacing: 9,
+        children: _paletteColors.map((hex) {
+          final value = int.tryParse(hex.substring(1), radix: 16) ?? 0;
+          return InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => Clipboard.setData(ClipboardData(text: hex)),
+            child: Container(
+              width: 78,
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: Color(0xFF000000 | value),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(hex, style: const TextStyle(fontSize: 10)),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _textResultPanel(BuildContext context) {
+    final text = _textResult ?? '';
+    return _panel(
+      context,
+      _resultLabel ?? 'Resultado de texto',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SelectableText(text, maxLines: 8),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => Clipboard.setData(ClipboardData(text: text)),
+                icon: const Icon(Icons.copy_rounded),
+                label: const Text('Copiar'),
+              ),
+              OutlinedButton.icon(
+                onPressed: _shareTextResult,
+                icon: const Icon(Icons.share_outlined),
+                label: const Text('Partilhar'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _infoControls(BuildContext context) {
     final info = _details!;
     return _panel(
@@ -1168,25 +1605,76 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
   }
 
   Widget _resultPreview(BuildContext context) {
+    final isPdf = _resultMimeType == 'application/pdf';
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppTheme.electricBlue.withValues(alpha: 0.20),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(_resultLabel ?? 'Resultado', style: const TextStyle(fontWeight: FontWeight.w900)),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(15),
-            child: Image.memory(_resultBytes!, height: 220, width: double.infinity, fit: BoxFit.contain, cacheWidth: 1400),
+          Row(
+            children: [
+              Icon(
+                isPdf ? Icons.picture_as_pdf_rounded : Icons.check_circle_rounded,
+                color: isPdf ? const Color(0xFFEF4444) : AppTheme.cyan,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _resultLabel ?? 'Resultado',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (isPdf)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.picture_as_pdf_rounded, size: 58, color: Color(0xFFEF4444)),
+                  SizedBox(height: 8),
+                  Text('Documento PDF pronto', style: TextStyle(fontWeight: FontWeight.w800)),
+                ],
+              ),
+            )
+          else
+            ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: Image.memory(
+                _resultBytes!,
+                height: 220,
+                width: double.infinity,
+                fit: BoxFit.contain,
+                cacheWidth: 1400,
+              ),
+            ),
+          const SizedBox(height: 9),
+          Text(
+            'Ficheiro: ' + _formatBytes(_resultBytes!.length),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
-          Text('Resultado: ${_formatBytes(_resultBytes!.length)}', style: Theme.of(context).textTheme.bodySmall),
+          FilledButton.icon(
+            onPressed: _shareResult,
+            icon: const Icon(Icons.share_rounded),
+            label: const Text('Partilhar resultado'),
+          ),
         ],
       ),
     );
   }
+
 }
