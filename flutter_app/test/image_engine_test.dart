@@ -121,6 +121,26 @@ void main() {
     expect(decoded.height, greaterThan(200));
   });
 
+  test('metadata export re-encodes a same-format PNG', () async {
+    final input = makeTestPng();
+    final output = await ImageEngine.stripMetadataToPng(input);
+    expect(output, isNotEmpty);
+    final decoded = img.decodePng(output);
+    expect(decoded, isNotNull);
+    expect(decoded!.width, 8);
+    expect(decoded.height, 6);
+  });
+
+  test('rounded corners keep the original dimensions and add alpha', () async {
+    final output = await ImageEngine.roundCorners(makeTestPng(), radius: 3);
+    final decoded = img.decodePng(output);
+    expect(decoded, isNotNull);
+    expect(decoded!.width, 8);
+    expect(decoded.height, 6);
+    expect(decoded.getPixel(0, 0).a, 0);
+    expect(decoded.getPixel(4, 3).a, 255);
+  });
+
   test('rejects invalid crop bounds rather than exporting a partial image', () async {
     expect(
       () => ImageEngine.cropToPng(

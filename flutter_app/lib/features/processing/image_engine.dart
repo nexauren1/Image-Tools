@@ -589,6 +589,123 @@ abstract final class ImageEngine {
     });
   }
 
+
+  static Future<Uint8List> stripMetadataToPng(Uint8List originalBytes) {
+    return Isolate.run(() {
+      final decoded = img.decodeImage(originalBytes);
+      if (decoded == null) {
+        throw const FormatException('Não foi possível descodificar a imagem.');
+      }
+      final source = img.bakeOrientation(decoded);
+      if (source.width * source.height > maxPixels) {
+        throw const FormatException('A imagem excede o limite seguro de processamento.');
+      }
+      // Always re-encode. Same-format conversion is deliberately a byte-preserving no-op.
+      return Uint8List.fromList(img.encodePng(source, level: 6));
+    });
+  }
+
+  static Future<Uint8List> replaceColor(
+    Uint8List originalBytes, {
+    required int targetRed,
+    required int targetGreen,
+    required int targetBlue,
+    required int replacementRed,
+    required int replacementGreen,
+    required int replacementBlue,
+    int tolerance = 72,
+  }) {
+    return Isolate.run(() {
+      final decoded = img.decodeImage(originalBytes);
+      if (decoded == null) {
+        throw const FormatException('Não foi possível descodificar a imagem.');
+      }
+      final source = img.bakeOrientation(decoded);
+      if (source.width * source.height > maxPixels) {
+        throw const FormatException('A imagem excede o limite seguro de processamento.');
+      }
+      final output = source.clone();
+      final limit = tolerance.clamp(1, 441);
+      final squaredLimit = limit * limit;
+      for (var y = 0; y < source.height; y++) {
+        for (var x = 0; x < source.width; x++) {
+          final pixel = source.getPixel(x, y);
+          final dr = pixel.r.toInt() - targetRed;
+          final dg = pixel.g.toInt() - targetGreen;
+          final db = pixel.b.toInt() - targetBlue;
+          final distanceSquared = dr * dr + dg * dg + db * db;
+          if (distanceSquared <= squaredLimit) {
+            output.setPixelRgba(
+              x,
+              y,
+              replacementRed.clamp(0, 255),
+              replacementGreen.clamp(0, 255),
+              replacementBlue.clamp(0, 255),
+              pixel.a,
+            );
+          }
+        }
+      }
+      return Uint8List.fromList(img.encodePng(output, level: 6));
+    });
+  }
+
+  static Future<Uint8List> roundCorners(
+    Uint8List originalBytes, {
+    int radius = 48,
+  }) {
+    return Isolate.run(() {
+      final decoded = img.decodeImage(originalBytes);
+      if (decoded == null) {
+        throw const FormatException('Não foi possível descodificar a imagem.');
+      }
+      final source = img.bakeOrientation(decoded);
+      if (source.width * source.height > maxPixels) {
+        throw const FormatException('A imagem excede o limite seguro de processamento.');
+      }
+      final safeRadius = radius.clamp(1, math.min(source.width, source.height) ~/ 2);
+      final output = img.Image(
+        width: source.width,
+        height: source.height,
+        numChannels: 4,
+      );
+      img.compositeImage(output, source);
+      final r2 = safeRadius * safeRadius;
+
+      for (var y = 0; y < safeRadius; y++) {
+        for (var x = 0; x < safeRadius; x++) {
+          final corners = <(int, int, int, int)>[
+            (x, y, safeRadius - 1, safeRadius - 1),
+            (source.width - 1 - x, y, source.width - safeRadius, safeRadius - 1),
+            (x, source.height - 1 - y, safeRadius - 1, source.height - safeRadius),
+            (
+              source.width - 1 - x,
+              source.height - 1 - y,
+              source.width - safeRadius,
+              source.height - safeRadius,
+            ),
+          ];
+          for (final corner in corners) {
+            final dx = corner.$1 - corner.$3;
+            final dy = corner.$2 - corner.$4;
+            if (dx * dx + dy * dy > r2) {
+              final pixel = output.getPixel(corner.$1, corner.$2);
+              output.setPixelRgba(
+                corner.$1,
+                corner.$2,
+                pixel.r,
+                pixel.g,
+                pixel.b,
+                0,
+              );
+            }
+          }
+        }
+      }
+      return Uint8List.fromList(img.encodePng(output, level: 6));
+    });
+  }
+
   static Uint8List _encode(img.Image image, ImageOutputFormat format, int quality) {
     final safeQuality = quality.clamp(1, 100);
     switch (format) {
