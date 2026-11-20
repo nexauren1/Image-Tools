@@ -42,7 +42,7 @@ void main() {
     expect(find.text('Ferramentas principais'), findsOneWidget);
     expect(find.text('Ferramentas avançadas'), findsOneWidget);
     expect(find.text('Início'), findsOneWidget);
-    expect(find.text('Ferramentas'), findsOneWidget);
+    expect(find.text('Projetos'), findsOneWidget);
     expect(find.text('Premium'), findsOneWidget);
     expect(find.text('Definições'), findsOneWidget);
   });

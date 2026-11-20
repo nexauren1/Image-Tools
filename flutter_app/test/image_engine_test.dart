@@ -58,6 +58,21 @@ void main() {
     expect(decoded.height, 6);
   });
 
+  test('quarter-turn rotation swaps the output dimensions', () async {
+    final source = img.Image(width: 8, height: 6);
+    final input = Uint8List.fromList(img.encodePng(source));
+
+    final output = await ImageEngine.rotate(
+      input,
+      quarterTurns: 1,
+    );
+    final decoded = img.decodePng(output);
+
+    expect(decoded, isNotNull);
+    expect(decoded!.width, 6);
+    expect(decoded.height, 8);
+  });
+
   test('rejects invalid crop bounds rather than exporting a partial image', () async {
     expect(
       () => ImageEngine.cropToPng(
