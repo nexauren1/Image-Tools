@@ -1,12 +1,18 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:cross_file/cross_file.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/catalog/tool_catalog.dart';
 import '../../core/theme/app_theme.dart';
+import '../processing/document_engine.dart';
 import '../processing/image_engine.dart';
 import '../processing/image_exporter.dart';
+import '../processing/image_intelligence.dart';
+import '../processing/image_recommendation_engine.dart';
 import 'crop_editor_screen.dart';
 
 class ToolWorkspaceScreen extends StatefulWidget {
@@ -22,8 +28,23 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
   final ImagePicker _picker = ImagePicker();
   final TextEditingController _widthController = TextEditingController();
   final TextEditingController _heightController = TextEditingController();
+  final TextEditingController _watermarkController =
+      TextEditingController(text: 'NEXAUREN');
 
   Uint8List? _imageBytes;
+  String? _sourcePath;
+  List<Uint8List> _selectedImages = [];
+  List<String> _paletteColors = [];
+  String? _textResult;
+  String _resultExtension = 'png';
+  String _resultMimeType = 'image/png';
+  int _frameThickness = 28;
+  int _pixelBlock = 18;
+  int _faceCount = 0;
+  double _effectStrength = 0.55;
+  double _watermarkOpacity = 0.72;
+  String _watermarkPosition = 'bottomRight';
+  String _socialPreset = 'square';
   Uint8List? _resultBytes;
   String? _fileName;
   String? _resultLabel;
@@ -46,6 +67,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
   void dispose() {
     _widthController.dispose();
     _heightController.dispose();
+    _watermarkController.dispose();
     super.dispose();
   }
 
@@ -61,8 +83,12 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
 
       setState(() {
         _imageBytes = bytes;
+        _sourcePath = file.path;
+        _selectedImages = [bytes];
         _resultBytes = null;
         _resultLabel = null;
+        _textResult = null;
+        _paletteColors = [];
         _fileName = file.name;
         _details = details;
         _widthController.text = details.width.toString();
@@ -77,6 +103,58 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _pickForTool() async {
+    if (widget.tool.id == ToolId.collage || widget.tool.id == ToolId.batch) {
+      await _pickMultipleImages();
+    } else {
+      await _pickImage(ImageSource.gallery);
+    }
+  }
+
+  Future<void> _pickMultipleImages() async {
+    setState(() => _loading = true);
+    try {
+      final files = await _picker.pickMultiImage();
+      if (files.isEmpty) return;
+      if (widget.tool.id == ToolId.collage && files.length < 2) {
+        throw const FormatException('Escolhe pelo menos duas imagens para criar uma colagem.');
+      }
+      if (files.length > 60) {
+        throw const FormatException('O limite de processamento em lote é 60 imagens.');
+      }
+      final bytesList = <Uint8List>[];
+      for (final file in files) {
+        final bytes = await file.readAsBytes();
+        if (bytes.isNotEmpty) bytesList.add(bytes);
+      }
+      if (bytesList.isEmpty) {
+        throw const FormatException('Não foi possível ler as imagens selecionadas.');
+      }
+      final details = await ImageEngine.inspect(bytesList.first);
+      if (!mounted) return;
+      setState(() {
+        _selectedImages = bytesList;
+        _imageBytes = bytesList.first;
+        _sourcePath = files.first.path;
+        _fileName = files.length.toString() + ' imagens selecionadas';
+        _details = details;
+        _resultBytes = null;
+        _resultLabel = null;
+        _textResult = null;
+        _paletteColors = [];
+        _widthController.text = details.width.toString();
+        _heightController.text = details.height.toString();
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -101,34 +179,221 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
   Future<void> _runOperation() async {
     final input = _imageBytes;
     final details = _details;
-    if (input == null || details == null || _processing) return;
+    if ((input == null || details == null) && _selectedImages.isEmpty) return;
+    if (_processing || _loading) return;
 
-    setState(() => _processing = true);
+    setState(() {
+      _processing = true;
+      _resultBytes = null;
+      _textResult = null;
+      _paletteColors = [];
+    });
+
     try {
+      final toolId = widget.tool.id;
+
+      if (toolId == ToolId.imageInfo || toolId == ToolId.metadata) {
+        setState(() => _resultLabel = toolId == ToolId.imageInfo
+            ? 'Informação técnica disponível abaixo.'
+            : 'A exportação sem metadados cria uma cópia limpa em PNG.');
+        if (toolId == ToolId.metadata && input != null) {
+          final cleaned = await ImageEngine.convert(
+            input,
+            format: ImageOutputFormat.png,
+          );
+          await _saveImageOutput(cleaned, 'png', 'image/png', 'Cópia sem metadados');
+        }
+        return;
+      }
+
+      if (toolId == ToolId.palette && input != null) {
+        final palette = await ImageEngine.extractPalette(input, colorCount: 8);
+        if (!mounted) return;
+        setState(() {
+          _paletteColors = palette;
+          _resultLabel = 'Paleta extraída';
+        });
+        return;
+      }
+
+      if (toolId == ToolId.ocr) {
+        final sourcePath = _sourcePath;
+        if (sourcePath == null) {
+          throw const FormatException('Escolhe novamente o ficheiro para executar o OCR.');
+        }
+        final recognized = await ImageIntelligence.recognizeText(sourcePath);
+        if (!mounted) return;
+        setState(() {
+          _textResult = recognized.isEmpty
+              ? 'Não foi encontrado texto legível nesta imagem.'
+              : recognized;
+          _resultLabel = 'Texto reconhecido';
+        });
+        return;
+      }
+
+      if (toolId == ToolId.base64 && input != null) {
+        final encoded = base64Encode(input);
+        await Clipboard.setData(ClipboardData(text: encoded));
+        if (!mounted) return;
+        setState(() {
+          _textResult = encoded;
+          _resultLabel = 'Base64 copiado para a área de transferência';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Base64 copiado.')),
+        );
+        return;
+      }
+
+      if (toolId == ToolId.batch) {
+        final sourceImages = _selectedImages;
+        if (sourceImages.isEmpty) {
+          throw const FormatException('Seleciona várias imagens primeiro.');
+        }
+        final format = _format == 'webp'
+            ? ImageOutputFormat.webp
+            : ImageOutputFormat.jpeg;
+        final outputs = await ImageEngine.batchCompress(
+          sourceImages,
+          quality: _quality,
+          format: format,
+        );
+        final extension = _extensionFor(format);
+        final mime = _mimeFor(format);
+        final stamp = DateTime.now().millisecondsSinceEpoch;
+        for (var index = 0; index < outputs.length; index++) {
+          await ImageExporter.saveToGallery(
+            bytes: outputs[index],
+            fileName: 'ImageTools_Batch_' + stamp.toString() + '_' + index.toString() + '.' + extension,
+            mimeType: mime,
+          );
+        }
+        if (!mounted) return;
+        setState(() {
+          _resultBytes = outputs.first;
+          _resultLabel = outputs.length.toString() + ' imagens comprimidas e guardadas';
+          _resultExtension = extension;
+          _resultMimeType = mime;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(outputs.length.toString() + ' imagens processadas e guardadas.')),
+        );
+        return;
+      }
+
+      if (toolId == ToolId.collage) {
+        final sourceImages = _selectedImages;
+        if (sourceImages.length < 2) {
+          throw const FormatException('Seleciona de 2 a 9 imagens para criar uma colagem.');
+        }
+        final output = await ImageEngine.createCollage(sourceImages);
+        await _saveImageOutput(output, 'png', 'image/png', 'Colagem criada');
+        return;
+      }
+
+      if (toolId == ToolId.splitImage) {
+        if (input == null) throw const FormatException('Escolhe uma imagem primeiro.');
+        final outputs = await ImageEngine.splitIntoGrid(input, rows: 3, columns: 3);
+        final stamp = DateTime.now().millisecondsSinceEpoch;
+        for (var index = 0; index < outputs.length; index++) {
+          await ImageExporter.saveToGallery(
+            bytes: outputs[index],
+            fileName: 'ImageTools_Split_' + stamp.toString() + '_' + (index + 1).toString() + '.png',
+            mimeType: 'image/png',
+          );
+        }
+        if (!mounted) return;
+        setState(() {
+          _resultBytes = outputs.first;
+          _resultLabel = '9 segmentos guardados na galeria';
+          _resultExtension = 'png';
+          _resultMimeType = 'image/png';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('A imagem foi dividida em 9 partes.')),
+        );
+        return;
+      }
+
+      if (toolId == ToolId.removeBackground) {
+        final sourcePath = _sourcePath;
+        if (input == null || sourcePath == null) {
+          throw const FormatException('Seleciona novamente a imagem antes de remover o fundo.');
+        }
+        final output = await ImageIntelligence.removeBackground(
+          sourcePath,
+          input,
+        );
+        await _saveImageOutput(output, 'png', 'image/png', 'Fundo removido');
+        return;
+      }
+
+      if (toolId == ToolId.faceBlur) {
+        final sourcePath = _sourcePath;
+        if (input == null || sourcePath == null) {
+          throw const FormatException('Seleciona novamente a imagem antes de detetar rostos.');
+        }
+        final result = await ImageIntelligence.blurFaces(
+          sourcePath,
+          input,
+          blurStrength: 22,
+        );
+        if (result.faceCount == 0) {
+          throw const FormatException('Não foram detetados rostos nesta imagem.');
+        }
+        _faceCount = result.faceCount;
+        await _saveImageOutput(
+          result.bytes,
+          'png',
+          'image/png',
+          result.faceCount.toString() + ' rostos desfocados',
+        );
+        return;
+      }
+
+      if (toolId == ToolId.imageToPdf) {
+        if (input == null) throw const FormatException('Escolhe uma imagem primeiro.');
+        final output = await DocumentEngine.imagesToPdf([input]);
+        await _saveDocumentOutput(
+          output,
+          'ImageTools_' + DateTime.now().millisecondsSinceEpoch.toString() + '.pdf',
+        );
+        return;
+      }
+
+      if (input == null) {
+        throw const FormatException('Escolhe uma imagem para começar.');
+      }
+
       late final Uint8List output;
       late final String extension;
       late final String mimeType;
       late final String label;
 
-      switch (widget.tool.id) {
+      switch (toolId) {
         case ToolId.resize:
           final width = int.tryParse(_widthController.text.trim());
           final height = int.tryParse(_heightController.text.trim());
           if (width == null || height == null) {
-            throw const FormatException('Introduza uma largura e uma altura válidas.');
+            throw const FormatException('Introduz uma largura e altura válidas.');
           }
           output = await ImageEngine.resize(input, width: width, height: height);
           extension = 'png';
           mimeType = 'image/png';
           label = 'Imagem redimensionada';
           break;
+
         case ToolId.compress:
-          final format = _format == 'webp' ? ImageOutputFormat.webp : ImageOutputFormat.jpeg;
+          final format = _format == 'webp'
+              ? ImageOutputFormat.webp
+              : ImageOutputFormat.jpeg;
           output = await ImageEngine.compress(input, format: format, quality: _quality);
-          extension = _format == 'webp' ? 'webp' : 'jpg';
-          mimeType = _format == 'webp' ? 'image/webp' : 'image/jpeg';
+          extension = _extensionFor(format);
+          mimeType = _mimeFor(format);
           label = 'Imagem comprimida';
           break;
+
         case ToolId.convert:
           final format = _outputFormat;
           output = await ImageEngine.convert(input, format: format, quality: _quality);
@@ -136,6 +401,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           mimeType = _mimeFor(format);
           label = 'Formato convertido';
           break;
+
         case ToolId.enhance:
           output = await ImageEngine.enhance(
             input,
@@ -147,6 +413,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           mimeType = 'image/png';
           label = 'Imagem melhorada';
           break;
+
         case ToolId.filters:
           output = await ImageEngine.applyFilter(
             input,
@@ -157,6 +424,29 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           mimeType = 'image/png';
           label = 'Efeito aplicado';
           break;
+
+        case ToolId.blur:
+          output = await ImageEngine.applyFilter(
+            input,
+            filter: 'blur',
+            strength: _effectStrength,
+          );
+          extension = 'png';
+          mimeType = 'image/png';
+          label = 'Desfoque aplicado';
+          break;
+
+        case ToolId.sharpen:
+          output = await ImageEngine.applyFilter(
+            input,
+            filter: 'sharpen',
+            strength: _effectStrength,
+          );
+          extension = 'png';
+          mimeType = 'image/png';
+          label = 'Nitidez aplicada';
+          break;
+
         case ToolId.rotate:
           output = await ImageEngine.rotate(
             input,
@@ -168,35 +458,206 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           mimeType = 'image/png';
           label = 'Orientação atualizada';
           break;
+
+        case ToolId.addText:
+        case ToolId.watermark:
+          output = await ImageEngine.addTextWatermark(
+            input,
+            text: _watermarkController.text,
+            opacity: _watermarkOpacity,
+            position: _watermarkPosition,
+          );
+          extension = 'png';
+          mimeType = 'image/png';
+          label = 'Marca de água aplicada';
+          break;
+
+        case ToolId.border:
+          output = await ImageEngine.addBorder(
+            input,
+            thickness: _frameThickness,
+            red: _frameColor.$1,
+            green: _frameColor.$2,
+            blue: _frameColor.$3,
+          );
+          extension = 'png';
+          mimeType = 'image/png';
+          label = 'Moldura aplicada';
+          break;
+
+        case ToolId.pixelate:
+          output = await ImageEngine.pixelate(
+            input,
+            blockSize: _pixelBlock,
+          );
+          extension = 'png';
+          mimeType = 'image/png';
+          label = 'Efeito mosaico aplicado';
+          break;
+
+        case ToolId.socialPresets:
+          final size = _socialDimensions;
+          output = await ImageEngine.fitSocialPreset(
+            input,
+            width: size.$1,
+            height: size.$2,
+          );
+          extension = 'png';
+          mimeType = 'image/png';
+          label = 'Formato social preparado';
+          break;
+
+        case ToolId.documentScan:
+          final gray = await ImageEngine.applyFilter(
+            input,
+            filter: 'grayscale',
+            strength: 1,
+          );
+          output = await ImageEngine.enhance(
+            gray,
+            brightness: 1.08,
+            contrast: 1.35,
+            saturation: 0,
+          );
+          extension = 'png';
+          mimeType = 'image/png';
+          label = 'Documento realçado';
+          break;
+
         default:
-          throw StateError('O motor desta ferramenta ainda está a ser integrado.');
+          throw StateError('Esta ferramenta ainda não foi ativada.');
       }
 
-      final savedUri = await ImageExporter.saveToGallery(
-        bytes: output,
-        fileName: 'ImageTools_${widget.tool.id.name}_${DateTime.now().millisecondsSinceEpoch}.$extension',
-        mimeType: mimeType,
-      );
-
-      if (!mounted) return;
-      setState(() {
-        _resultBytes = output;
-        _resultLabel = label;
-      });
-      final savedSize = _formatBytes(output.length);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$label • $savedSize • guardada na galeria')),
-      );
-      debugPrint('Image Tools export URI: $savedUri');
+      await _saveImageOutput(output, extension, mimeType, label);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString()), backgroundColor: Theme.of(context).colorScheme.error),
+        SnackBar(
+          content: Text(error.toString()),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
       );
     } finally {
       if (mounted) setState(() => _processing = false);
     }
   }
+
+  Future<void> _saveImageOutput(
+    Uint8List output,
+    String extension,
+    String mimeType,
+    String label,
+  ) async {
+    await ImageExporter.saveToGallery(
+      bytes: output,
+      fileName: 'ImageTools_' +
+          widget.tool.id.name +
+          '_' +
+          DateTime.now().millisecondsSinceEpoch.toString() +
+          '.' +
+          extension,
+      mimeType: mimeType,
+    );
+    if (!mounted) return;
+    setState(() {
+      _resultBytes = output;
+      _resultLabel = label;
+      _resultExtension = extension;
+      _resultMimeType = mimeType;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          label + ' • ' + _formatBytes(output.length) + ' • guardada na galeria',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveDocumentOutput(Uint8List output, String fileName) async {
+    final result = await SharePlus.instance.share(
+      ShareParams(
+        files: [
+          XFile.fromData(
+            output,
+            mimeType: 'application/pdf',
+          ),
+        ],
+        fileNameOverrides: [fileName],
+        title: 'Partilhar documento PDF',
+        text: 'PDF criado com Image Tools.',
+      ),
+    );
+    if (!mounted) return;
+    setState(() {
+      _resultBytes = output;
+      _resultLabel = 'PDF pronto para partilhar (' + _formatBytes(output.length) + ')';
+      _resultExtension = 'pdf';
+      _resultMimeType = 'application/pdf';
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result.status == ShareResultStatus.unavailable
+              ? 'PDF criado. Usa o botão de partilha para o enviar.'
+              : 'PDF criado e partilhado.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _shareResult() async {
+    final bytes = _resultBytes;
+    if (bytes == null) return;
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile.fromData(
+              bytes,
+              mimeType: _resultMimeType,
+            ),
+          ],
+          fileNameOverrides: [
+            'ImageTools_' + widget.tool.id.name + '_result.' + _resultExtension,
+          ],
+          title: 'Partilhar resultado do Image Tools',
+          text: 'Editado com Image Tools.',
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Falha ao partilhar: ' + error.toString())),
+      );
+    }
+  }
+
+  Future<void> _shareTextResult() async {
+    final text = _textResult;
+    if (text == null || text.isEmpty) return;
+    await SharePlus.instance.share(
+      ShareParams(
+        text: text,
+        title: 'Partilhar resultado do Image Tools',
+      ),
+    );
+  }
+
+  (int, int, int) get _frameColor => switch (_format) {
+        'black' => (18, 20, 28),
+        'blue' => (22, 140, 255),
+        'violet' => (139, 92, 246),
+        _ => (255, 255, 255),
+      };
+
+  (int, int) get _socialDimensions => switch (_socialPreset) {
+        'story' => (1080, 1920),
+        'landscape' => (1200, 628),
+        'video' => (1280, 720),
+        'profile' => (1080, 1080),
+        _ => (1080, 1080),
+      };
 
   ImageOutputFormat get _outputFormat {
     switch (_format) {
