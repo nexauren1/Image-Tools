@@ -30,8 +30,8 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _goTo(int index) {
-    Navigator.of(context).maybePop();
+  void _goTo(BuildContext drawerContext, int index) {
+    Navigator.of(drawerContext).pop();
     setState(() => _tab = index);
   }
 
@@ -892,11 +892,13 @@ class _HomeScreenState extends State<HomeScreen> {
     required String title,
     required int index,
   }) {
-    return ListTile(
-      selected: _tab == index,
-      leading: Icon(icon),
-      title: Text(title),
-      onTap: () => _goTo(index),
+    return Builder(
+      builder: (tileContext) => ListTile(
+        selected: _tab == index,
+        leading: Icon(icon),
+        title: Text(title),
+        onTap: () => _goTo(tileContext, index),
+      ),
     );
   }
 }
