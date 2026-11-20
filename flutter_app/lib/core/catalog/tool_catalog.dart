@@ -23,6 +23,7 @@ enum ToolId {
   socialPresets,
   replaceColor,
   border,
+  roundCorners,
   blur,
   sharpen,
   pixelate,
@@ -211,6 +212,13 @@ abstract final class ToolCatalog {
       title: 'Molduras e cantos',
       subtitle: 'Bordas e arredondamento',
       icon: Icons.crop_square,
+      color: Color(0xFF64748B),
+    ),
+    ToolDescriptor(
+      id: ToolId.roundCorners,
+      title: 'Cantos arredondados',
+      subtitle: 'PNG com cantos transparentes',
+      icon: Icons.rounded_corner,
       color: Color(0xFF64748B),
     ),
     ToolDescriptor(

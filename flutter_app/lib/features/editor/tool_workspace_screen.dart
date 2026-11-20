@@ -45,6 +45,9 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
   double _watermarkOpacity = 0.72;
   String _watermarkPosition = 'bottomRight';
   String _socialPreset = 'square';
+  String _targetColorKey = 'red';
+  String _replacementColorKey = 'blue';
+  int _cornerRadius = 48;
   Uint8List? _resultBytes;
   String? _fileName;
   String? _resultLabel;
@@ -109,7 +112,9 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
   }
 
   Future<void> _pickForTool() async {
-    if (widget.tool.id == ToolId.collage || widget.tool.id == ToolId.batch) {
+    if (widget.tool.id == ToolId.collage ||
+        widget.tool.id == ToolId.batch ||
+        widget.tool.id == ToolId.imageToPdf) {
       await _pickMultipleImages();
     } else {
       await _pickImage(ImageSource.gallery);
@@ -197,10 +202,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             ? 'Informação técnica disponível abaixo.'
             : 'A exportação sem metadados cria uma cópia limpa em PNG.');
         if (toolId == ToolId.metadata && input != null) {
-          final cleaned = await ImageEngine.convert(
-            input,
-            format: ImageOutputFormat.png,
-          );
+          final cleaned = await ImageEngine.stripMetadataToPng(input);
           await _saveImageOutput(cleaned, 'png', 'image/png', 'Cópia sem metadados');
         }
         return;
@@ -353,7 +355,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
 
       if (toolId == ToolId.imageToPdf) {
         if (input == null) throw const FormatException('Escolhe uma imagem primeiro.');
-        final output = await DocumentEngine.imagesToPdf([input]);
+        final output = await DocumentEngine.imagesToPdf(_selectedImages);
         await _saveDocumentOutput(
           output,
           'ImageTools_${DateTime.now().millisecondsSinceEpoch}.pdf',
@@ -471,6 +473,24 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           label = 'Marca de água aplicada';
           break;
 
+        case ToolId.replaceColor:
+          final target = _rgbFor(_targetColorKey);
+          final replacement = _rgbFor(_replacementColorKey);
+          output = await ImageEngine.replaceColor(
+            input,
+            targetRed: target.$1,
+            targetGreen: target.$2,
+            targetBlue: target.$3,
+            replacementRed: replacement.$1,
+            replacementGreen: replacement.$2,
+            replacementBlue: replacement.$3,
+            tolerance: 84,
+          );
+          extension = 'png';
+          mimeType = 'image/png';
+          label = 'Cor substituída';
+          break;
+
         case ToolId.border:
           output = await ImageEngine.addBorder(
             input,
@@ -482,6 +502,16 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           extension = 'png';
           mimeType = 'image/png';
           label = 'Moldura aplicada';
+          break;
+
+        case ToolId.roundCorners:
+          output = await ImageEngine.roundCorners(
+            input,
+            radius: _cornerRadius,
+          );
+          extension = 'png';
+          mimeType = 'image/png';
+          label = 'Cantos arredondados';
           break;
 
         case ToolId.pixelate:
@@ -775,6 +805,8 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         ToolId.addText => 'Adicionar texto e guardar',
         ToolId.watermark => 'Aplicar marca de água e guardar',
         ToolId.border => 'Adicionar moldura e guardar',
+        ToolId.roundCorners => 'Arredondar cantos e guardar',
+        ToolId.replaceColor => 'Substituir cor e guardar',
         ToolId.pixelate => 'Pixelizar e guardar',
         ToolId.socialPresets => 'Preparar formato social e guardar',
         ToolId.blur => 'Aplicar desfoque e guardar',
@@ -896,6 +928,10 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         return _watermarkControls(context);
       case ToolId.border:
         return _borderControls(context);
+      case ToolId.roundCorners:
+        return _roundedCornerControls(context);
+      case ToolId.replaceColor:
+        return _colorReplacementControls(context);
       case ToolId.pixelate:
         return _pixelateControls(context);
       case ToolId.socialPresets:
@@ -1323,6 +1359,95 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           ),
           const Text('Cor da moldura'),
           _formatChips(['white', 'black', 'blue', 'violet']),
+        ],
+      ),
+    );
+  }
+
+  (int, int, int) _rgbFor(String key) => switch (key) {
+        'red' => (230, 45, 65),
+        'orange' => (249, 115, 22),
+        'yellow' => (250, 204, 21),
+        'green' => (22, 163, 74),
+        'cyan' => (6, 182, 212),
+        'blue' => (37, 99, 235),
+        'violet' => (139, 92, 246),
+        'black' => (15, 23, 42),
+        'white' => (255, 255, 255),
+        _ => (230, 45, 65),
+      };
+
+  Widget _colorReplacementControls(BuildContext context) {
+    const colors = ['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'violet', 'black', 'white'];
+    return _panel(
+      context,
+      'Substituição seletiva de cor',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Cor que será encontrada'),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: colors.map((key) {
+              final color = _rgbFor(key);
+              return ChoiceChip(
+                label: Text(key.toUpperCase()),
+                selected: _targetColorKey == key,
+                avatar: CircleAvatar(
+                  backgroundColor: Color.fromARGB(255, color.$1, color.$2, color.$3),
+                  radius: 7,
+                ),
+                onSelected: (_) => setState(() => _targetColorKey = key),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+          const Text('Nova cor'),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: colors.map((key) {
+              final color = _rgbFor(key);
+              return ChoiceChip(
+                label: Text(key.toUpperCase()),
+                selected: _replacementColorKey == key,
+                avatar: CircleAvatar(
+                  backgroundColor: Color.fromARGB(255, color.$1, color.$2, color.$3),
+                  radius: 7,
+                ),
+                onSelected: (_) => setState(() => _replacementColorKey = key),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'A substituição usa uma tolerância fixa de cor; tons próximos também podem ser afetados.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _roundedCornerControls(BuildContext context) {
+    return _panel(
+      context,
+      'Cantos arredondados',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Raio: $_cornerRadius px'),
+          Slider(
+            value: _cornerRadius.toDouble(),
+            min: 4,
+            max: 240,
+            divisions: 59,
+            onChanged: (value) => setState(() => _cornerRadius = value.round()),
+          ),
+          const Text(
+            'O resultado é exportado em PNG com transparência nos quatro cantos.',
+          ),
         ],
       ),
     );
