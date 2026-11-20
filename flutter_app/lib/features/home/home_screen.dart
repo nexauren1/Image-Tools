@@ -260,8 +260,128 @@ class _HomeScreenState extends State<HomeScreen> {
           itemBuilder: (context, index) =>
               _toolCard(advancedPreview[index], primary: false),
         ),
+        const SizedBox(height: 20),
+        _studioNews(),
         const SizedBox(height: 16),
         _localProcessingCard(),
+      ],
+    );
+  }
+
+  Widget _studioNews() {
+    final newTools = [
+      (
+        icon: Icons.auto_fix_high_rounded,
+        title: 'Remover fundo',
+        subtitle: 'PNG com transparência, processado no dispositivo.',
+        id: ToolId.removeBackground,
+        badge: 'NOVO',
+      ),
+      (
+        icon: Icons.grid_view_rounded,
+        title: 'Colagem e lote',
+        subtitle: 'Combina várias fotografias ou comprime em série.',
+        id: ToolId.collage,
+        badge: 'PRODUTIVIDADE',
+      ),
+      (
+        icon: Icons.picture_as_pdf_rounded,
+        title: 'Imagem para PDF',
+        subtitle: 'Cria um documento e partilha pelo Android.',
+        id: ToolId.imageToPdf,
+        badge: 'EXPORTAR',
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeading(
+          'Novidades e recomendações',
+          'Explorar',
+          () => setState(() {
+            _tab = 0;
+            _showLibrary = true;
+          }),
+        ),
+        const SizedBox(height: 10),
+        ...newTools.map((item) {
+          final descriptor = ToolCatalog.all.firstWhere(
+            (tool) => tool.id == item.id,
+          );
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 9),
+            child: Material(
+              color: Theme.of(context).colorScheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(18),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () => _openTool(descriptor),
+                child: Padding(
+                  padding: const EdgeInsets.all(13),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: descriptor.color,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(item.icon, color: Colors.white),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.title,
+                              style: const TextStyle(fontWeight: FontWeight.w900),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              item.subtitle,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+        Material(
+          color: const Color(0xFF172C5E),
+          borderRadius: BorderRadius.circular(18),
+          child: InkWell(
+            onTap: _openCommunity,
+            borderRadius: BorderRadius.circular(18),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+              child: Row(
+                children: [
+                  Icon(Icons.share_rounded, color: AppTheme.cyan),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Partilha o Image Tools e acompanha as novidades da Nexauren',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: Colors.white),
+                ],
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
