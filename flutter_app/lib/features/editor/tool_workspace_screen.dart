@@ -5,6 +5,7 @@ import 'package:cross_file/cross_file.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/catalog/tool_catalog.dart';
 import '../../core/theme/app_theme.dart';
@@ -40,7 +41,6 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
   String _resultMimeType = 'image/png';
   int _frameThickness = 28;
   int _pixelBlock = 18;
-  int _faceCount = 0;
   double _effectStrength = 0.55;
   double _watermarkOpacity = 0.72;
   String _watermarkPosition = 'bottomRight';
@@ -141,7 +141,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         _selectedImages = bytesList;
         _imageBytes = bytesList.first;
         _sourcePath = files.first.path;
-        _fileName = files.length.toString() + ' imagens selecionadas';
+        _fileName = '${files.length} imagens selecionadas';
         _details = details;
         _resultBytes = null;
         _resultLabel = null;
@@ -265,19 +265,19 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         for (var index = 0; index < outputs.length; index++) {
           await ImageExporter.saveToGallery(
             bytes: outputs[index],
-            fileName: 'ImageTools_Batch_' + stamp.toString() + '_' + index.toString() + '.' + extension,
+            fileName: 'ImageTools_Batch_${stamp}_${index}.$extension',
             mimeType: mime,
           );
         }
         if (!mounted) return;
         setState(() {
           _resultBytes = outputs.first;
-          _resultLabel = outputs.length.toString() + ' imagens comprimidas e guardadas';
+          _resultLabel = '${outputs.length} imagens comprimidas e guardadas';
           _resultExtension = extension;
           _resultMimeType = mime;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(outputs.length.toString() + ' imagens processadas e guardadas.')),
+          SnackBar(content: Text('${outputs.length} imagens processadas e guardadas.')),
         );
         return;
       }
@@ -299,7 +299,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         for (var index = 0; index < outputs.length; index++) {
           await ImageExporter.saveToGallery(
             bytes: outputs[index],
-            fileName: 'ImageTools_Split_' + stamp.toString() + '_' + (index + 1).toString() + '.png',
+            fileName: 'ImageTools_Split_${stamp}_${index + 1}.png',
             mimeType: 'image/png',
           );
         }
@@ -342,12 +342,11 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         if (result.faceCount == 0) {
           throw const FormatException('Não foram detetados rostos nesta imagem.');
         }
-        _faceCount = result.faceCount;
         await _saveImageOutput(
           result.bytes,
           'png',
           'image/png',
-          result.faceCount.toString() + ' rostos desfocados',
+          '${result.faceCount} rostos desfocados',
         );
         return;
       }
@@ -357,7 +356,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         final output = await DocumentEngine.imagesToPdf([input]);
         await _saveDocumentOutput(
           output,
-          'ImageTools_' + DateTime.now().millisecondsSinceEpoch.toString() + '.pdf',
+          'ImageTools_${DateTime.now().millisecondsSinceEpoch}.pdf',
         );
         return;
       }
@@ -550,12 +549,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
   ) async {
     await ImageExporter.saveToGallery(
       bytes: output,
-      fileName: 'ImageTools_' +
-          widget.tool.id.name +
-          '_' +
-          DateTime.now().millisecondsSinceEpoch.toString() +
-          '.' +
-          extension,
+      fileName: 'ImageTools_${widget.tool.id.name}_${DateTime.now().millisecondsSinceEpoch}.$extension',
       mimeType: mimeType,
     );
     if (!mounted) return;
@@ -568,7 +562,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          label + ' • ' + _formatBytes(output.length) + ' • guardada na galeria',
+          '$label • ${_formatBytes(output.length)} • guardada na galeria',
         ),
       ),
     );
@@ -591,7 +585,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
     if (!mounted) return;
     setState(() {
       _resultBytes = output;
-      _resultLabel = 'PDF pronto para partilhar (' + _formatBytes(output.length) + ')';
+      _resultLabel = 'PDF pronto para partilhar (${_formatBytes(output.length)})';
       _resultExtension = 'pdf';
       _resultMimeType = 'application/pdf';
     });
@@ -619,7 +613,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             ),
           ],
           fileNameOverrides: [
-            'ImageTools_' + widget.tool.id.name + '_result.' + _resultExtension,
+            'ImageTools_${widget.tool.id.name}_result.$_resultExtension',
           ],
           title: 'Partilhar resultado do Image Tools',
           text: 'Editado com Image Tools.',
@@ -628,7 +622,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Falha ao partilhar: ' + error.toString())),
+        SnackBar(content: Text('Falha ao partilhar: $error')),
       );
     }
   }
@@ -1387,7 +1381,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _selectedImages.length.toString() + ' imagem(ns) selecionada(s)',
+            '${_selectedImages.length} imagem(ns) selecionada(s)',
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
@@ -1663,7 +1657,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             ),
           const SizedBox(height: 9),
           Text(
-            'Ficheiro: ' + _formatBytes(_resultBytes!.length),
+            'Ficheiro: ${_formatBytes(_resultBytes!.length)}',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),

@@ -45,7 +45,7 @@ abstract final class ImageIntelligence {
         );
       }
 
-      return Isolate.run(() {
+      return await Isolate.run(() {
         final decoded = img.decodeImage(originalBytes);
         if (decoded == null) {
           throw const FormatException('Não foi possível descodificar a imagem.');

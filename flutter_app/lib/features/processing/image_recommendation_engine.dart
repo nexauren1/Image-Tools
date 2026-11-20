@@ -25,9 +25,7 @@ abstract final class ImageRecommendationEngine {
       recommendations.add(
         ImageRecommendation(
           title: 'Reduzir o tamanho do ficheiro',
-          description: 'O ficheiro ocupa ' +
-              sizeMb.toStringAsFixed(1) +
-              ' MB. JPEG ou WebP a 82% costuma reduzir o peso sem alterar as dimensões.',
+          description: 'O ficheiro ocupa ${sizeMb.toStringAsFixed(1)} MB. JPEG ou WebP a 82% costuma reduzir o peso sem alterar as dimensões.',
           toolId: 'compress',
           estimatedBenefit: 'Poupar espaço',
         ),
@@ -38,11 +36,7 @@ abstract final class ImageRecommendationEngine {
       recommendations.add(
         ImageRecommendation(
           title: 'Preparar para partilha',
-          description: 'A imagem tem ' +
-              details.width.toString() +
-              ' × ' +
-              details.height.toString() +
-              ' px. Um preset de rede social evita enviar uma imagem maior do que o necessário.',
+          description: 'A imagem tem ${details.width} × ${details.height} px. Um preset de rede social evita enviar uma imagem maior do que o necessário.',
           toolId: 'socialPresets',
           estimatedBenefit: 'Dimensão adequada',
         ),
