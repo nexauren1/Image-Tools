@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/catalog/tool_catalog.dart';
 import '../../core/theme/app_theme.dart';
@@ -588,7 +588,7 @@ class _HomeScreenState extends State<HomeScreen> {
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                   itemCount: tools.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 9),
+                  separatorBuilder: (_, _) => const SizedBox(height: 9),
                   itemBuilder: (context, index) {
                     final tool = tools[index];
                     return Material(
