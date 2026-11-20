@@ -32,6 +32,9 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
   bool _processing = false;
   bool _lockAspect = true;
   int _quality = 88;
+  int _quarterTurns = 1;
+  bool _flipHorizontal = false;
+  bool _flipVertical = false;
   double _brightness = 1;
   double _contrast = 1;
   double _saturation = 1;
@@ -155,10 +158,15 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           label = 'Efeito aplicado';
           break;
         case ToolId.rotate:
-          output = await ImageEngine.rotate(input, quarterTurns: 1);
+          output = await ImageEngine.rotate(
+            input,
+            quarterTurns: _quarterTurns,
+            flipHorizontal: _flipHorizontal,
+            flipVertical: _flipVertical,
+          );
           extension = 'png';
           mimeType = 'image/png';
-          label = 'Imagem rodada';
+          label = 'Orientação atualizada';
           break;
         default:
           throw StateError('O motor desta ferramenta ainda está a ser integrado.');
@@ -379,6 +387,8 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         return _enhanceControls(context);
       case ToolId.filters:
         return _filterControls(context);
+      case ToolId.rotate:
+        return _rotateControls(context);
       case ToolId.imageInfo:
         return _infoControls(context);
       default:
@@ -550,6 +560,60 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         ),
         Slider(value: value, min: 0, max: 2, divisions: 40, onChanged: onChanged),
       ],
+    );
+  }
+
+  Widget _rotateControls(BuildContext context) {
+    return _panel(
+      context,
+      'Orientação da imagem',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Escolhe o ângulo de rotação e, se necessário, espelha a imagem.',
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final turns in [1, 2, 3])
+                ChoiceChip(
+                  label: Text('${turns * 90}°'),
+                  selected: _quarterTurns == turns,
+                  onSelected: (_) => setState(() => _quarterTurns = turns),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Espelhar horizontalmente'),
+            value: _flipHorizontal,
+            onChanged: (value) =>
+                setState(() => _flipHorizontal = value),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Espelhar verticalmente'),
+            value: _flipVertical,
+            onChanged: (value) => setState(() => _flipVertical = value),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => setState(() {
+                _quarterTurns = 0;
+                _flipHorizontal = false;
+                _flipVertical = false;
+              }),
+              icon: const Icon(Icons.restart_alt_rounded),
+              label: const Text('Repor orientação'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
