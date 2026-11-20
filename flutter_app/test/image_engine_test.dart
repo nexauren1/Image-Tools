@@ -141,6 +141,31 @@ void main() {
     expect(decoded.getPixel(4, 3).a, 255);
   });
 
+  test('replaces pixels close to the selected color', () async {
+    final source = img.Image(width: 4, height: 4);
+    for (var y = 0; y < source.height; y++) {
+      for (var x = 0; x < source.width; x++) {
+        source.setPixelRgb(x, y, 255, 0, 0);
+      }
+    }
+    final input = Uint8List.fromList(img.encodePng(source));
+    final output = await ImageEngine.replaceColor(
+      input,
+      targetRed: 255,
+      targetGreen: 0,
+      targetBlue: 0,
+      replacementRed: 0,
+      replacementGreen: 0,
+      replacementBlue: 255,
+      tolerance: 10,
+    );
+    final decoded = img.decodePng(output);
+    expect(decoded, isNotNull);
+    final pixel = decoded!.getPixel(1, 1);
+    expect(pixel.r.round(), 0);
+    expect(pixel.b.round(), 255);
+  });
+
   test('rejects invalid crop bounds rather than exporting a partial image', () async {
     expect(
       () => ImageEngine.cropToPng(

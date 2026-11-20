@@ -663,7 +663,7 @@ abstract final class ImageEngine {
       if (source.width * source.height > maxPixels) {
         throw const FormatException('A imagem excede o limite seguro de processamento.');
       }
-      final safeRadius = radius.clamp(1, math.min(source.width, source.height) ~/ 2);
+      final safeRadius = radius.clamp(1, math.min(source.width, source.height) ~/ 2).toInt();
       final output = img.Image(
         width: source.width,
         height: source.height,
@@ -675,9 +675,9 @@ abstract final class ImageEngine {
       for (var y = 0; y < safeRadius; y++) {
         for (var x = 0; x < safeRadius; x++) {
           final corners = <(int, int, int, int)>[
-            (x, y, safeRadius - 1, safeRadius - 1),
-            (source.width - 1 - x, y, source.width - safeRadius, safeRadius - 1),
-            (x, source.height - 1 - y, safeRadius - 1, source.height - safeRadius),
+            (x, y, safeRadius, safeRadius),
+            (source.width - 1 - x, y, source.width - safeRadius, safeRadius),
+            (x, source.height - 1 - y, safeRadius, source.height - safeRadius),
             (
               source.width - 1 - x,
               source.height - 1 - y,
