@@ -8,6 +8,7 @@ enum ToolId {
   convert,
   enhance,
   autoEnhance,
+  colorGrade,
   addText,
   filters,
   collage,
@@ -98,10 +99,10 @@ abstract final class ToolCatalog {
 
   static const List<ToolDescriptor> advanced = [
     ToolDescriptor(
-      id: ToolId.autoEnhance,
-      title: 'Melhoria automática',
-      subtitle: 'Ajuste rápido de luz, contraste e cor',
-      icon: Icons.auto_fix_high_rounded,
+      id: ToolId.colorGrade,
+      title: 'Temperatura e tonalidade',
+      subtitle: 'Ajustar tons quentes, frios e matiz',
+      icon: Icons.thermostat_rounded,
       color: Color(0xFF0EA5E9),
     ),
     ToolDescriptor(

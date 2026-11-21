@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -348,7 +349,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           _resultMimeType = 'image/png';
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('A imagem foi dividida em 9 partes.')),
+          SnackBar(content: Text('A imagem foi dividida em ${outputs.length} partes.')),
         );
         return;
       }
@@ -442,6 +443,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           break;
 
         case ToolId.enhance:
+        case ToolId.colorGrade:
           output = await ImageEngine.enhance(
             input,
             brightness: _brightness,
@@ -844,6 +846,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         ToolId.compress => 'Comprimir e guardar',
         ToolId.convert => 'Converter e guardar',
         ToolId.enhance => 'Ajustar e guardar',
+        ToolId.colorGrade => 'Aplicar temperatura e tonalidade',
         ToolId.autoEnhance => 'Melhorar automaticamente',
 
         ToolId.filters => 'Aplicar efeito e guardar',
@@ -960,6 +963,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
       case ToolId.convert:
         return _convertControls(context);
       case ToolId.enhance:
+      case ToolId.colorGrade:
         return _enhanceControls(context);
       case ToolId.filters:
         return _filterControls(context);
@@ -998,17 +1002,10 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
       case ToolId.imageInfo:
       case ToolId.metadata:
         return _infoControls(context);
-      case ToolId.palette:
-        return _paletteControls(context);
       case ToolId.ocr:
         return _messagePanel(
           'Reconhecimento de texto',
           'O OCR corre no dispositivo através do Google ML Kit. A primeira utilização pode precisar de transferir o modelo.',
-        );
-      case ToolId.faceBlur:
-        return _messagePanel(
-          'Privacidade de rostos',
-          'Deteta rostos e desfoca as regiões encontradas antes de guardar uma cópia.',
         );
       case ToolId.imageToPdf:
         return _messagePanel(
@@ -1019,11 +1016,6 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         return _messagePanel(
           'Imagem para Base64',
           'Converte os bytes da imagem para Base64 e copia o resultado para a área de transferência.',
-        );
-      case ToolId.splitImage:
-        return _messagePanel(
-          'Dividir imagem',
-          'Divide a imagem em nove partes iguais e guarda cada segmento na galeria.',
         );
       case ToolId.documentScan:
         return _messagePanel(
@@ -1214,6 +1206,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
   Widget _formatChips(List<String> formats) {
     return Wrap(
       spacing: 8,
+      runSpacing: 8,
       children: formats.map((format) {
         final selected = _format == format;
         return ChoiceChip(
@@ -1222,6 +1215,42 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           onSelected: (_) => setState(() => _format = format),
         );
       }).toList(),
+    );
+  }
+
+  Widget _collageBackgroundChips() {
+    const options = {
+      'navy': 'Azul escuro',
+      'white': 'Branco',
+      'black': 'Preto',
+      'transparent': 'Transparente',
+    };
+    return Wrap(
+      spacing: 7,
+      runSpacing: 7,
+      children: options.entries.map((option) => ChoiceChip(
+        label: Text(option.value),
+        selected: _collageBackground == option.key,
+        onSelected: (_) => setState(() => _collageBackground = option.key),
+      )).toList(),
+    );
+  }
+
+  Widget _watermarkColorChips() {
+    const options = {
+      'white': 'Branco',
+      'black': 'Preto',
+      'blue': 'Azul',
+      'violet': 'Violeta',
+    };
+    return Wrap(
+      spacing: 7,
+      runSpacing: 7,
+      children: options.entries.map((option) => ChoiceChip(
+        label: Text(option.value),
+        selected: _watermarkColor == option.key,
+        onSelected: (_) => setState(() => _watermarkColor = option.key),
+      )).toList(),
     );
   }
 
@@ -1441,7 +1470,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           ),
           const SizedBox(height: 8),
           const Text('Cor do texto'),
-          _formatChips(['white', 'black', 'blue', 'violet']),
+          _watermarkColorChips(),
           const SizedBox(height: 8),
           Text('Opacidade: ${(_watermarkOpacity * 100).round()}%'),
           Slider(
@@ -1714,7 +1743,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             ),
             const SizedBox(height: 8),
             const Text('Fundo da colagem'),
-            _formatChips(['navy', 'white', 'black', 'transparent']),
+            _collageBackgroundChips(),
           ] else ...[
             _formatChips(['jpeg', 'webp']),
             const SizedBox(height: 10),
