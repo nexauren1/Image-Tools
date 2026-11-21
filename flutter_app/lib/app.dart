@@ -2,12 +2,18 @@ import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/theme/app_theme.dart';
+import 'features/auth/app_session.dart';
 import 'features/home/home_screen.dart';
 
 class ImageToolsApp extends StatefulWidget {
-  const ImageToolsApp({super.key, required this.initialDarkMode});
+  const ImageToolsApp({
+    super.key,
+    required this.initialDarkMode,
+    required this.session,
+  });
 
   final bool initialDarkMode;
+  final AppSession session;
 
   @override
   State<ImageToolsApp> createState() => _ImageToolsAppState();
@@ -26,16 +32,21 @@ class _ImageToolsAppState extends State<ImageToolsApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Image Tools',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: _themeMode,
-      home: HomeScreen(
-        isDarkMode: _themeMode == ThemeMode.dark,
-        onThemeChanged: _setDarkMode,
-      ),
+    return AnimatedBuilder(
+      animation: widget.session,
+      builder: (context, _) {
+        return MaterialApp(
+          title: 'Image Tools',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: _themeMode,
+          home: HomeScreen(
+            isDarkMode: _themeMode == ThemeMode.dark,
+            onThemeChanged: _setDarkMode,
+            session: widget.session,
+          ),
+        );
+      },
     );
-  }
-}
+  }}

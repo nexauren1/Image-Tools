@@ -1,5 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../auth/account_screen.dart';
+import '../auth/app_session.dart';
+
 import '../../core/catalog/tool_catalog.dart';
 import '../../core/theme/app_theme.dart';
 import '../community/community_screen.dart';
@@ -10,10 +13,12 @@ class HomeScreen extends StatefulWidget {
     super.key,
     required this.isDarkMode,
     required this.onThemeChanged,
+    this.session,
   });
 
   final bool isDarkMode;
   final ValueChanged<bool> onThemeChanged;
+  final AppSession? session;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -43,6 +48,35 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _openAccount() {
+    final session = widget.session;
+    if (session == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AccountScreen(session: session),
+      ),
+    );
+  }
+
+  Future<void> _startPremiumCheckout() async {
+    final session = widget.session;
+    if (session == null) return;
+    try {
+      await session.startPremiumCheckout();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('O PayPal foi aberto. Regressa à aplicação após aprovares a assinatura.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    }
+  }
+
   void _openCommunity() {
     Navigator.of(context).push(
       PageRouteBuilder<void>(
@@ -70,6 +104,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openTool(ToolDescriptor tool) {
+    final session = widget.session;
+    if (tool.premium && session != null && !session.isPremium) {
+      setState(() => _tab = 2);
+      return;
+    }
     Navigator.of(context).push(
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 320),
@@ -851,6 +890,31 @@ class _HomeScreenState extends State<HomeScreen> {
           'Processamento local',
           'As operações compatíveis continuam no próprio dispositivo.',
         ),
+        if (widget.session != null) ...[
+          const SizedBox(height: 8),
+          if (widget.session!.user == null)
+            FilledButton.icon(
+              onPressed: _openAccount,
+              icon: const Icon(Icons.login_rounded),
+              label: const Text('Iniciar sessão para ativar Premium'),
+            )
+          else if (widget.session!.isPremium)
+            ListTile(
+              tileColor: Theme.of(context).colorScheme.surfaceContainer,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17)),
+              leading: const Icon(Icons.verified_rounded, color: AppTheme.cyan),
+              title: const Text('Premium ativo'),
+              subtitle: const Text('A assinatura foi confirmada pelo servidor.'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: _openAccount,
+            )
+          else
+            FilledButton.icon(
+              onPressed: _startPremiumCheckout,
+              icon: const Icon(Icons.payments_rounded),
+              label: const Text('Subscrever com PayPal'),
+            ),
+        ],
       ],
     );
   }
@@ -897,6 +961,25 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.circular(18),
           ),
         ),
+        if (widget.session != null) ...[
+          const SizedBox(height: 10),
+          ListTile(
+            tileColor: Theme.of(context).colorScheme.surfaceContainer,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            leading: const Icon(Icons.account_circle_outlined),
+            title: const Text(
+              'Conta Nexauren',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+            subtitle: Text(
+              widget.session!.user?.email ?? 'Iniciar sessão ou criar conta',
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: _openAccount,
+          ),
+        ],
         const SizedBox(height: 10),
         ListTile(
           tileColor: Theme.of(context).colorScheme.surfaceContainer,

@@ -17,6 +17,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
   Future<void> _shareApp() async {
     const message = 'Experimenta o Image Tools — ferramentas para recortar, redimensionar, comprimir, converter e melhorar imagens no Android.\n\n'
+        'Instala o Image Tools: https://apkpure.com/p/com.nexauren.imagetools\n'
         'Segue a Nexauren no Facebook: https://www.facebook.com/nexaurentech\n'
         'Acompanha novidades e aplicações: https://www.nexaurenstory.com';
 
