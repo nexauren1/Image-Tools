@@ -1,33 +1,46 @@
-# Image Tools 2.0 — Flutter source
+# Image Tools — production Flutter application
 
-This directory is the new Flutter/Dart application under construction. It intentionally lives beside the current Kotlin application while the migration branch is tested.
+This directory contains the **single production Android application** for Image Tools. All image tools are part of this app and are delivered together in one universal APK.
 
-## Target Android identity
+## Release identity
 
 - Application ID: `com.nexauren.imagetools`
-- First candidate version: `2.0.0+44`
+- Version: `2.1.0+46`
 - Minimum Android: 10 (API 29)
+- Target Android: API 36
 - Release signing: existing GitHub Actions production keystore secrets
 
-## Build locally
+Do not change the production application ID or replace the existing signing key. A store update must remain compatible with the already-published application.
 
-Install Flutter 3.50 or newer and Android SDK 36, then run:
+## Universal APK
+
+The production workflow runs:
 
 ```bash
-cd flutter_app
-flutter pub get
 flutter build apk --release
 ```
 
-The Android project uses the Flutter Gradle plugin. The signed release pipeline will reuse the existing production keystore; never replace it with a debug key.
+It deliberately does **not** use `--split-per-abi`. The result is one APK containing the runtime libraries for ARMv7, ARM64, and x86_64:
 
-## Current migration slice
+`build/app/outputs/flutter-apk/image-tools-universal-release.apk`
 
-- New dark/light design system.
-- Reference-inspired home screen and full tool catalogue.
-- Dedicated tool workspaces with local image selection.
-- Interactive crop frame with touch drag, edge/corner handles, and aspect presets.
-- Isolate-based crop/resize/convert/enhance operations.
-- Android MediaStore export to Pictures/Image Tools.
+CI checks all three ABI libraries, the package name and version, APK alignment, and the production signing certificate before uploading the artifact.
 
-The catalogue records the full target scope. Tools are not marked release-ready merely because their cards are visible; each engine must be implemented and tested before the migration can replace the production build.
+## Product structure
+
+The home screen provides one integrated catalogue, global search, primary and advanced tools, projects, Premium, and settings. Every tool opens its own dedicated workspace; the catalogue and workspaces belong to the same application and APK.
+
+The app supports dark and light themes, motion feedback, visible processing/export states, accessible touch targets, and back/undo behaviour. Image processing is on-device; the payment service does not receive source images.
+
+## Build locally
+
+Install Flutter stable and Android SDK 36, then run:
+
+```bash
+flutter pub get
+flutter analyze
+flutter test
+flutter build apk --release
+```
+
+For production, use the **Android Build** GitHub Actions workflow so the universal APK is signed with the existing production key and checked before release.
