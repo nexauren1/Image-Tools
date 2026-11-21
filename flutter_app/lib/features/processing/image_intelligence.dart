@@ -2,7 +2,6 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
-import 'package:google_mlkit_subject_segmentation/google_mlkit_subject_segmentation.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image/image.dart' as img;
 
@@ -16,76 +15,6 @@ abstract final class ImageIntelligence {
       return result.text.trim();
     } finally {
       await recognizer.close();
-    }
-  }
-
-  static Future<Uint8List> removeBackground(
-    String filePath,
-    Uint8List originalBytes, {
-    double threshold = 0.42,
-  }) async {
-    final segmenter = SubjectSegmenter(
-      options: SubjectSegmenterOptions(
-        enableForegroundBitmap: false,
-        enableForegroundConfidenceMask: true,
-        enableMultipleSubjects: SubjectResultOptions(
-          enableConfidenceMask: false,
-          enableSubjectBitmap: false,
-        ),
-      ),
-    );
-    try {
-      final segmentation = await segmenter.processImage(
-        InputImage.fromFilePath(filePath),
-      );
-      final mask = segmentation.foregroundConfidenceMask;
-      if (mask == null || mask.isEmpty) {
-        throw const FormatException(
-          'O modelo não devolveu uma máscara. Confirma a transferência do modelo ML Kit e tenta novamente.',
-        );
-      }
-
-      return await Isolate.run(() {
-        final decoded = img.decodeImage(originalBytes);
-        if (decoded == null) {
-          throw const FormatException('Não foi possível descodificar a imagem.');
-        }
-        final source = img.bakeOrientation(decoded);
-        if (mask.length != source.width * source.height) {
-          throw const FormatException(
-            'A resolução da máscara não corresponde à imagem original.',
-          );
-        }
-        final result = img.Image(
-          width: source.width,
-          height: source.height,
-          numChannels: 4,
-        );
-        var index = 0;
-        for (var y = 0; y < source.height; y++) {
-          for (var x = 0; x < source.width; x++) {
-            final pixel = source.getPixel(x, y);
-            final confidence = mask[index++].clamp(0.0, 1.0);
-            final alpha = ((confidence - threshold) /
-                    (1.0 - threshold).clamp(0.01, 1.0) *
-                    255)
-                .round()
-                .clamp(0, 255)
-                .toInt();
-            result.setPixelRgba(
-              x,
-              y,
-              pixel.r,
-              pixel.g,
-              pixel.b,
-              alpha,
-            );
-          }
-        }
-        return Uint8List.fromList(img.encodePng(result, level: 6));
-      });
-    } finally {
-      await segmenter.close();
     }
   }
 

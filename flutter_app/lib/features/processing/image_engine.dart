@@ -584,9 +584,9 @@ abstract final class ImageEngine {
       final rows = (images.length / safeColumns).ceil();
       final size = canvasSize.clamp(600, 2400).toInt();
       final spacing = gap.clamp(0, 48).toInt();
-      final cellWidth = (size - spacing * (safeColumns + 1)) ~/ columns;
+      final cellWidth = (size - spacing * (safeColumns + 1)) ~/ safeColumns;
       final cellHeight = (size - spacing * (rows + 1)) ~/ rows;
-      final canvasWidth = cellWidth * columns + spacing * (safeColumns + 1);
+      final canvasWidth = cellWidth * safeColumns + spacing * (safeColumns + 1);
       final canvasHeight = cellHeight * rows + spacing * (rows + 1);
       if (canvasWidth * canvasHeight > maxPixels) {
         throw const FormatException('A colagem excede o limite de memória seguro.');
