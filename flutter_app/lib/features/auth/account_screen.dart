@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart' show User;
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -333,7 +334,7 @@ class _AccountScreenState extends State<AccountScreen> {
     );
   }
 
-  Widget _signedInPanel(BuildContext context, dynamic user) {
+  Widget _signedInPanel(BuildContext context, User user) {
     final isEmailProvider = user.providerData.any(
       (provider) => provider.providerId == 'password',
     );

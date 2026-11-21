@@ -1,10 +1,9 @@
 import 'package:material_ui/material_ui.dart';
 
-import '../auth/account_screen.dart';
-import '../auth/app_session.dart';
-
 import '../../core/catalog/tool_catalog.dart';
 import '../../core/theme/app_theme.dart';
+import '../auth/account_screen.dart';
+import '../auth/app_session.dart';
 import '../community/community_screen.dart';
 import '../editor/tool_workspace_screen.dart';
 

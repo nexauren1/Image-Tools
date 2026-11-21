@@ -23,7 +23,7 @@ android {
         applicationId = "com.nexauren.imagetools"
         minSdk = 29
         targetSdk = 36
-        versionCode = 44
+        versionCode = 45
         versionName = "2.0.0"
     }
 
