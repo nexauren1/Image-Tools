@@ -586,8 +586,10 @@ abstract final class ImageEngine {
       final spacing = gap.clamp(0, 48).toInt();
       final cellWidth = (size - spacing * (safeColumns + 1)) ~/ safeColumns;
       final cellHeight = (size - spacing * (rows + 1)) ~/ rows;
-      final canvasWidth = cellWidth * safeColumns + spacing * (safeColumns + 1);
-      final canvasHeight = cellHeight * rows + spacing * (rows + 1);
+      // Keep the selected square canvas size exact. Integer tile rounding may
+      // leave a few background pixels at the trailing edge.
+      final canvasWidth = size;
+      final canvasHeight = size;
       if (canvasWidth * canvasHeight > maxPixels) {
         throw const FormatException('A colagem excede o limite de memória seguro.');
       }
