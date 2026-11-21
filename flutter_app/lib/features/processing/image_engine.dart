@@ -158,6 +158,7 @@ abstract final class ImageEngine {
     Uint8List originalBytes, {
     required ImageOutputFormat format,
     required int quality,
+    int maxDimension = 0,
   }) {
     return Isolate.run(() {
       final decoded = img.decodeImage(originalBytes);
@@ -171,7 +172,16 @@ abstract final class ImageEngine {
       if (format == ImageOutputFormat.png) {
         throw const FormatException('PNG não utiliza um nível de qualidade JPEG. Use JPEG ou WebP para compressão com perdas.');
       }
-      return _encode(source, format, quality);
+      final limit = maxDimension.clamp(0, 12000);
+      final processed = limit > 0 && math.max(source.width, source.height) > limit
+          ? img.copyResize(
+              source,
+              width: math.max(1, (source.width * limit / math.max(source.width, source.height)).round()),
+              height: math.max(1, (source.height * limit / math.max(source.width, source.height)).round()),
+              interpolation: img.Interpolation.cubic,
+            )
+          : source;
+      return _encode(processed, format, quality);
     });
   }
 
@@ -241,6 +251,30 @@ abstract final class ImageEngine {
         case 'sharpen':
           result = img.convolution(source, filter: [0, -1, 0, -1, 5, -1, 0, -1, 0]);
           break;
+        case 'warm':
+          result = img.adjustColor(source, saturation: 1 + amount * 0.12, brightness: 1 + amount * 0.025);
+          for (var y = 0; y < result.height; y++) {
+            for (var x = 0; x < result.width; x++) {
+              final p = result.getPixel(x, y);
+              result.setPixelRgba(x, y, (p.r + amount * 22).round().clamp(0, 255), p.g, (p.b - amount * 16).round().clamp(0, 255), p.a);
+            }
+          }
+          break;
+        case 'cool':
+          result = img.adjustColor(source, saturation: 1 + amount * 0.08, brightness: 1 + amount * 0.02);
+          for (var y = 0; y < result.height; y++) {
+            for (var x = 0; x < result.width; x++) {
+              final p = result.getPixel(x, y);
+              result.setPixelRgba(x, y, (p.r - amount * 14).round().clamp(0, 255), p.g, (p.b + amount * 24).round().clamp(0, 255), p.a);
+            }
+          }
+          break;
+        case 'vintage':
+          result = img.adjustColor(img.sepia(source), contrast: 0.92, saturation: 0.78, brightness: 1.03);
+          break;
+        case 'fade':
+          result = img.adjustColor(source, contrast: 1 - amount * 0.22, saturation: 1 - amount * 0.18, brightness: 1 + amount * 0.06);
+          break;
         default:
           throw ArgumentError.value(filter, 'filter', 'Filtro não suportado.');
       }
@@ -253,6 +287,8 @@ abstract final class ImageEngine {
     required double brightness,
     required double contrast,
     required double saturation,
+    double temperature = 0,
+    double tint = 0,
   }) {
     return Isolate.run(() {
       final decoded = img.decodeImage(originalBytes);
@@ -269,16 +305,72 @@ abstract final class ImageEngine {
         contrast: contrast,
         saturation: saturation,
       );
+      final warm = temperature.clamp(-100, 100) / 100;
+      final greenShift = tint.clamp(-100, 100) / 100;
+      if (warm != 0 || greenShift != 0) {
+        for (var y = 0; y < result.height; y++) {
+          for (var x = 0; x < result.width; x++) {
+            final pixel = result.getPixel(x, y);
+            result.setPixelRgba(
+              x,
+              y,
+              (pixel.r + warm * 24).round().clamp(0, 255),
+              (pixel.g + greenShift * 16).round().clamp(0, 255),
+              (pixel.b - warm * 24).round().clamp(0, 255),
+              pixel.a,
+            );
+          }
+        }
+      }
       return Uint8List.fromList(img.encodePng(result, level: 6));
     });
   }
 
+
+
+  static Future<Uint8List> autoEnhance(Uint8List originalBytes) {
+    return Isolate.run(() {
+      final decoded = img.decodeImage(originalBytes);
+      if (decoded == null) {
+        throw const FormatException('Não foi possível descodificar a imagem.');
+      }
+      final source = img.bakeOrientation(decoded);
+      if (source.width * source.height > maxPixels) {
+        throw const FormatException('A imagem excede o limite seguro de processamento.');
+      }
+
+      final strideX = (source.width / 160).ceil().clamp(1, source.width).toInt();
+      final strideY = (source.height / 160).ceil().clamp(1, source.height).toInt();
+      var luminanceSum = 0.0;
+      var samples = 0;
+      for (var y = 0; y < source.height; y += strideY) {
+        for (var x = 0; x < source.width; x += strideX) {
+          final pixel = source.getPixel(x, y);
+          luminanceSum += 0.2126 * pixel.r + 0.7152 * pixel.g + 0.0722 * pixel.b;
+          samples++;
+        }
+      }
+      final average = samples == 0 ? 128.0 : luminanceSum / samples;
+      final brightness = (1 + (128 - average) / 520).clamp(0.82, 1.22);
+      final result = img.adjustColor(
+        source,
+        brightness: brightness,
+        contrast: 1.12,
+        saturation: 1.08,
+      );
+      return Uint8List.fromList(img.encodePng(result, level: 6));
+    });
+  }
 
   static Future<Uint8List> addTextWatermark(
     Uint8List originalBytes, {
     required String text,
     double opacity = 0.72,
     String position = 'bottomRight',
+    int fontSize = 24,
+    int red = 255,
+    int green = 255,
+    int blue = 255,
   }) {
     return Isolate.run(() {
       final decoded = img.decodeImage(originalBytes);
@@ -294,8 +386,9 @@ abstract final class ImageEngine {
         throw const FormatException('Escreve o texto da marca de água.');
       }
       final safeOpacity = (opacity.clamp(0.12, 1.0) * 255).round();
-      final font = source.width >= 1800 ? img.arial48 : img.arial24;
-      final estimatedWidth = (cleanText.length * (source.width >= 1800 ? 28 : 14))
+      final useLargeFont = fontSize >= 36;
+      final font = useLargeFont ? img.arial48 : img.arial24;
+      final estimatedWidth = (cleanText.length * (useLargeFont ? 28 : 14))
           .clamp(1, source.width - 16).toInt();
       final margin = (source.width * 0.025).round().clamp(8, 64).toInt();
       final int x = switch (position) {
@@ -315,7 +408,12 @@ abstract final class ImageEngine {
         font: font,
         x: x,
         y: y,
-        color: img.ColorRgba8(255, 255, 255, safeOpacity),
+        color: img.ColorRgba8(
+          red.clamp(0, 255).toInt(),
+          green.clamp(0, 255).toInt(),
+          blue.clamp(0, 255).toInt(),
+          safeOpacity,
+        ),
         wrap: true,
       );
       return Uint8List.fromList(img.encodePng(source, level: 6));
@@ -472,28 +570,38 @@ abstract final class ImageEngine {
     List<Uint8List> images, {
     int canvasSize = 1200,
     int gap = 18,
+    int columns = 0,
+    String background = 'navy',
+    String fitMode = 'contain',
   }) {
     return Isolate.run(() {
       if (images.length < 2 || images.length > 9) {
         throw const FormatException('Escolhe entre 2 e 9 imagens para a colagem.');
       }
-      final columns = math.sqrt(images.length).ceil();
-      final rows = (images.length / columns).ceil();
+      final safeColumns = (columns <= 0 ? math.sqrt(images.length).ceil() : columns)
+          .clamp(1, 3)
+          .toInt();
+      final rows = (images.length / safeColumns).ceil();
       final size = canvasSize.clamp(600, 2400).toInt();
       final spacing = gap.clamp(0, 48).toInt();
-      final cellWidth = (size - spacing * (columns + 1)) ~/ columns;
+      final cellWidth = (size - spacing * (safeColumns + 1)) ~/ columns;
       final cellHeight = (size - spacing * (rows + 1)) ~/ rows;
-      final canvasWidth = cellWidth * columns + spacing * (columns + 1);
+      final canvasWidth = cellWidth * columns + spacing * (safeColumns + 1);
       final canvasHeight = cellHeight * rows + spacing * (rows + 1);
       if (canvasWidth * canvasHeight > maxPixels) {
         throw const FormatException('A colagem excede o limite de memória seguro.');
       }
-      final background = img.ColorRgba8(12, 18, 33, 255);
+      final backgroundColor = switch (background) {
+        'white' => img.ColorRgba8(255, 255, 255, 255),
+        'black' => img.ColorRgba8(0, 0, 0, 255),
+        'transparent' => img.ColorRgba8(0, 0, 0, 0),
+        _ => img.ColorRgba8(12, 18, 33, 255),
+      };
       final canvas = img.Image(
         width: canvasWidth,
         height: canvasHeight,
         numChannels: 4,
-        backgroundColor: background,
+        backgroundColor: backgroundColor,
       );
       for (var index = 0; index < images.length; index++) {
         final decoded = img.decodeImage(images[index]);
@@ -502,16 +610,36 @@ abstract final class ImageEngine {
         if (source.width * source.height > maxPixels) {
           throw const FormatException('Uma das imagens excede o limite seguro.');
         }
-        final tile = img.copyResize(
-          source,
-          width: cellWidth,
-          height: cellHeight,
-          maintainAspect: true,
-          backgroundColor: background,
-          interpolation: img.Interpolation.cubic,
-        );
-        final column = index % columns;
-        final row = index ~/ columns;
+        img.Image tile;
+        if (fitMode == 'cover') {
+          final scale = math.max(cellWidth / source.width, cellHeight / source.height);
+          final scaled = img.copyResize(
+            source,
+            width: (source.width * scale).ceil(),
+            height: (source.height * scale).ceil(),
+            interpolation: img.Interpolation.cubic,
+          );
+          final cropX = ((scaled.width - cellWidth) / 2).floor();
+          final cropY = ((scaled.height - cellHeight) / 2).floor();
+          tile = img.copyCrop(
+            scaled,
+            x: cropX,
+            y: cropY,
+            width: cellWidth,
+            height: cellHeight,
+          );
+        } else {
+          tile = img.copyResize(
+            source,
+            width: cellWidth,
+            height: cellHeight,
+            maintainAspect: true,
+            backgroundColor: backgroundColor,
+            interpolation: img.Interpolation.cubic,
+          );
+        }
+        final column = index % safeColumns;
+        final row = index ~/ safeColumns;
         img.compositeImage(
           canvas,
           tile,
@@ -564,6 +692,7 @@ abstract final class ImageEngine {
     List<Uint8List> images, {
     int quality = 82,
     ImageOutputFormat format = ImageOutputFormat.jpeg,
+    int maxDimension = 0,
   }) {
     return Isolate.run(() {
       if (images.isEmpty || images.length > 60) {
@@ -580,7 +709,16 @@ abstract final class ImageEngine {
         if (source.width * source.height > maxPixels) {
           throw const FormatException('Uma imagem excede o limite seguro de processamento.');
         }
-        output.add(_encode(source, format, quality));
+        final limit = maxDimension.clamp(0, 12000);
+        final processed = limit > 0 && math.max(source.width, source.height) > limit
+            ? img.copyResize(
+                source,
+                width: math.max(1, (source.width * limit / math.max(source.width, source.height)).round()),
+                height: math.max(1, (source.height * limit / math.max(source.width, source.height)).round()),
+                interpolation: img.Interpolation.cubic,
+              )
+            : source;
+        output.add(_encode(processed, format, quality));
       }
       if (output.isEmpty) {
         throw const FormatException('Não foi possível processar nenhuma imagem.');
