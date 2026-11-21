@@ -114,7 +114,7 @@ class MainActivity : FlutterActivity() {
             .build()
         val detector = FaceDetection.getClient(options)
         try {
-            val image = InputImage.fromFilePath(this, java.io.File(filePath).toUri())
+            val image = InputImage.fromFilePath(this, android.net.Uri.fromFile(java.io.File(filePath)))
             detector.process(image)
                 .addOnSuccessListener { faces ->
                     flutterResult.success(
