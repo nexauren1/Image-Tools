@@ -1010,7 +1010,7 @@ class _HomeScreenState extends State<HomeScreen> {
           onTap: () => showAboutDialog(
             context: context,
             applicationName: 'Image Tools',
-            applicationVersion: '2.0.0',
+            applicationVersion: '2.1.0',
             applicationLegalese: 'Nexauren',
           ),
         ),
