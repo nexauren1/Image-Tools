@@ -1,11 +1,9 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
-import 'package:cross_file/cross_file.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:flutter/services.dart';
 
 import '../../core/catalog/tool_catalog.dart';
 import '../../core/theme/app_theme.dart';
@@ -267,7 +265,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         for (var index = 0; index < outputs.length; index++) {
           await ImageExporter.saveToGallery(
             bytes: outputs[index],
-            fileName: 'ImageTools_Batch_${stamp}_${index}.$extension',
+            fileName: 'ImageTools_Batch_${stamp}_$index.$extension',
             mimeType: mime,
           );
         }
@@ -758,7 +756,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             if (_selectedImages.length > 1) ...[
               const SizedBox(height: 10),
               Text(
-                _selectedImages.length.toString() + ' imagens selecionadas',
+                '${_selectedImages.length} imagens selecionadas',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -987,8 +985,6 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           'Editor de recorte',
           'O editor de recorte abre automaticamente quando selecionas a imagem.',
         );
-      default:
-        return _pendingControls(context);
     }
   }
 
@@ -1702,22 +1698,6 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         children: [
           Expanded(child: Text(label)),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
-        ],
-      ),
-    );
-  }
-
-  Widget _pendingControls(BuildContext context) {
-    return _panel(
-      context,
-      'Ferramenta selecionada',
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('A interface e o fluxo de importação estão preparados para esta ferramenta. O respetivo motor ainda está a ser migrado e será ativado depois de passar os testes de saída.'),
-          const SizedBox(height: 10),
-          Text('A ferramenta não será apresentada como concluída antes de o processamento e a exportação estarem verificados.',
-              style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
     );
