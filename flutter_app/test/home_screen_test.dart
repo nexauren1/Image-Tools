@@ -15,9 +15,11 @@ void main() {
         'Comprimir',
         'Converter',
         'Melhorar imagem',
-        'Remover fundo',
+        'Melhorar automaticamente',
       ]),
     );
+    expect(ToolCatalog.all.map((tool) => tool.id), contains(ToolId.autoEnhance));
+    expect(ToolCatalog.all.map((tool) => tool.id), contains(ToolId.colorGrade));
   });
 
   testWidgets('home screen renders its reference sections and navigation',

@@ -23,8 +23,8 @@ android {
         applicationId = "com.nexauren.imagetools"
         minSdk = 29
         targetSdk = 36
-        versionCode = 45
-        versionName = "2.0.0"
+        versionCode = 46
+        versionName = "2.1.0"
     }
 
     buildTypes {
@@ -32,10 +32,18 @@ android {
             // CI signs the final aligned APK with the same production keystore
             // used by the already-published Android application.
             signingConfig = null
-            minifyEnabled = false
-            shrinkResources = false
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+}
+
+dependencies {
+    // Thin ML Kit clients: models are provided by Google Play services,
+    // instead of bundling OCR and face-detector native models in every APK.
+    implementation "com.google.android.gms:play-services-mlkit-text-recognition:19.0.1"
+    implementation "com.google.android.gms:play-services-mlkit-face-detection:17.1.0"
 }
 
 flutter {

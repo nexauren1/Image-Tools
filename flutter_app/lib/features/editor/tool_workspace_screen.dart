@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -46,6 +47,22 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
   String _targetColorKey = 'red';
   String _replacementColorKey = 'blue';
   int _cornerRadius = 48;
+  int _replaceTolerance = 84;
+  int _paletteColorCount = 8;
+  int _splitRows = 3;
+  int _splitColumns = 3;
+  int _collageColumns = 2;
+  int _collageGap = 18;
+  int _collageCanvasSize = 1200;
+  String _collageBackground = 'navy';
+  String _collageFit = 'contain';
+  int _maxDimension = 0;
+  int _faceBlurStrength = 22;
+  int _watermarkFontSize = 24;
+  String _watermarkColor = 'white';
+  String _resizeFormat = 'png';
+  double _temperature = 0;
+  double _tint = 0;
   Uint8List? _resultBytes;
   String? _fileName;
   String? _resultLabel;
@@ -127,8 +144,8 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
       if (widget.tool.id == ToolId.collage && files.length < 2) {
         throw const FormatException('Escolhe pelo menos duas imagens para criar uma colagem.');
       }
-      if (files.length > 60) {
-        throw const FormatException('O limite de processamento em lote é 60 imagens.');
+      if (files.length > 30) {
+        throw const FormatException('O limite de processamento em lote é 30 imagens para proteger a memória do dispositivo.');
       }
       final bytesList = <Uint8List>[];
       for (final file in files) {
@@ -206,8 +223,17 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         return;
       }
 
+      if (toolId == ToolId.autoEnhance && input != null) {
+        final output = await ImageEngine.autoEnhance(input);
+        await _saveImageOutput(output, 'png', 'image/png', 'Imagem melhorada automaticamente');
+        return;
+      }
+
       if (toolId == ToolId.palette && input != null) {
-        final palette = await ImageEngine.extractPalette(input, colorCount: 8);
+        final palette = await ImageEngine.extractPalette(
+          input,
+          colorCount: _paletteColorCount,
+        );
         if (!mounted) return;
         setState(() {
           _paletteColors = palette;
@@ -258,6 +284,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           sourceImages,
           quality: _quality,
           format: format,
+          maxDimension: _maxDimension,
         );
         final extension = _extensionFor(format);
         final mime = _mimeFor(format);
@@ -287,14 +314,25 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         if (sourceImages.length < 2) {
           throw const FormatException('Seleciona de 2 a 9 imagens para criar uma colagem.');
         }
-        final output = await ImageEngine.createCollage(sourceImages);
+        final output = await ImageEngine.createCollage(
+          sourceImages,
+          canvasSize: _collageCanvasSize,
+          gap: _collageGap,
+          columns: _collageColumns,
+          background: _collageBackground,
+          fitMode: _collageFit,
+        );
         await _saveImageOutput(output, 'png', 'image/png', 'Colagem criada');
         return;
       }
 
       if (toolId == ToolId.splitImage) {
         if (input == null) throw const FormatException('Escolhe uma imagem primeiro.');
-        final outputs = await ImageEngine.splitIntoGrid(input, rows: 3, columns: 3);
+        final outputs = await ImageEngine.splitIntoGrid(
+          input,
+          rows: _splitRows,
+          columns: _splitColumns,
+        );
         final stamp = DateTime.now().millisecondsSinceEpoch;
         for (var index = 0; index < outputs.length; index++) {
           await ImageExporter.saveToGallery(
@@ -306,26 +344,13 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         if (!mounted) return;
         setState(() {
           _resultBytes = outputs.first;
-          _resultLabel = '9 segmentos guardados na galeria';
+          _resultLabel = '${outputs.length} segmentos guardados na galeria';
           _resultExtension = 'png';
           _resultMimeType = 'image/png';
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('A imagem foi dividida em 9 partes.')),
+          SnackBar(content: Text('A imagem foi dividida em ${outputs.length} partes.')),
         );
-        return;
-      }
-
-      if (toolId == ToolId.removeBackground) {
-        final sourcePath = _sourcePath;
-        if (input == null || sourcePath == null) {
-          throw const FormatException('Seleciona novamente a imagem antes de remover o fundo.');
-        }
-        final output = await ImageIntelligence.removeBackground(
-          sourcePath,
-          input,
-        );
-        await _saveImageOutput(output, 'png', 'image/png', 'Fundo removido');
         return;
       }
 
@@ -337,7 +362,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         final result = await ImageIntelligence.blurFaces(
           sourcePath,
           input,
-          blurStrength: 22,
+          blurStrength: _faceBlurStrength.toDouble(),
         );
         if (result.faceCount == 0) {
           throw const FormatException('Não foram detetados rostos nesta imagem.');
@@ -377,9 +402,20 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           if (width == null || height == null) {
             throw const FormatException('Introduz uma largura e altura válidas.');
           }
-          output = await ImageEngine.resize(input, width: width, height: height);
-          extension = 'png';
-          mimeType = 'image/png';
+          final format = switch (_resizeFormat) {
+            'jpeg' => ImageOutputFormat.jpeg,
+            'webp' => ImageOutputFormat.webp,
+            _ => ImageOutputFormat.png,
+          };
+          output = await ImageEngine.resize(
+            input,
+            width: width,
+            height: height,
+            format: format,
+            quality: _quality,
+          );
+          extension = _extensionFor(format);
+          mimeType = _mimeFor(format);
           label = 'Imagem redimensionada';
           break;
 
@@ -387,7 +423,12 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           final format = _format == 'webp'
               ? ImageOutputFormat.webp
               : ImageOutputFormat.jpeg;
-          output = await ImageEngine.compress(input, format: format, quality: _quality);
+          output = await ImageEngine.compress(
+            input,
+            format: format,
+            quality: _quality,
+            maxDimension: _maxDimension,
+          );
           extension = _extensionFor(format);
           mimeType = _mimeFor(format);
           label = 'Imagem comprimida';
@@ -402,11 +443,14 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           break;
 
         case ToolId.enhance:
+        case ToolId.colorGrade:
           output = await ImageEngine.enhance(
             input,
             brightness: _brightness,
             contrast: _contrast,
             saturation: _saturation,
+            temperature: _temperature,
+            tint: _tint,
           );
           extension = 'png';
           mimeType = 'image/png';
@@ -465,6 +509,10 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             text: _watermarkController.text,
             opacity: _watermarkOpacity,
             position: _watermarkPosition,
+            fontSize: _watermarkFontSize,
+            red: _textRgbFor(_watermarkColor).$1,
+            green: _textRgbFor(_watermarkColor).$2,
+            blue: _textRgbFor(_watermarkColor).$3,
           );
           extension = 'png';
           mimeType = 'image/png';
@@ -482,7 +530,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             replacementRed: replacement.$1,
             replacementGreen: replacement.$2,
             replacementBlue: replacement.$3,
-            tolerance: 84,
+            tolerance: _replaceTolerance,
           );
           extension = 'png';
           mimeType = 'image/png';
@@ -740,12 +788,16 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
               label: Text(
                 _loading
                     ? 'A abrir a galeria…'
-                    : (widget.tool.id == ToolId.collage || widget.tool.id == ToolId.batch
+                    : (widget.tool.id == ToolId.collage ||
+                        widget.tool.id == ToolId.batch ||
+                        widget.tool.id == ToolId.imageToPdf
                         ? 'Selecionar várias imagens'
                         : 'Selecionar da galeria'),
               ),
             ),
-            if (widget.tool.id != ToolId.collage && widget.tool.id != ToolId.batch) ...[
+            if (widget.tool.id != ToolId.collage &&
+                widget.tool.id != ToolId.batch &&
+                widget.tool.id != ToolId.imageToPdf) ...[
               const SizedBox(height: 10),
               OutlinedButton.icon(
                 onPressed: _loading ? null : () => _pickImage(ImageSource.camera),
@@ -797,7 +849,10 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         ToolId.resize => 'Redimensionar e guardar',
         ToolId.compress => 'Comprimir e guardar',
         ToolId.convert => 'Converter e guardar',
-        ToolId.enhance => 'Melhorar e guardar',
+        ToolId.enhance => 'Ajustar e guardar',
+        ToolId.colorGrade => 'Aplicar temperatura e tonalidade',
+        ToolId.autoEnhance => 'Melhorar automaticamente',
+
         ToolId.filters => 'Aplicar efeito e guardar',
         ToolId.rotate => 'Rodar e guardar',
         ToolId.addText => 'Adicionar texto e guardar',
@@ -812,13 +867,12 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         ToolId.collage => 'Criar colagem e guardar',
         ToolId.batch => 'Comprimir e guardar todas',
         ToolId.imageToPdf => 'Criar PDF e partilhar',
-        ToolId.removeBackground => 'Remover fundo e guardar',
         ToolId.faceBlur => 'Desfocar rostos e guardar',
         ToolId.ocr => 'Extrair texto',
         ToolId.palette => 'Extrair paleta de cores',
         ToolId.base64 => 'Gerar e copiar Base64',
         ToolId.metadata => 'Criar cópia sem metadados',
-        ToolId.splitImage => 'Dividir em 9 imagens',
+        ToolId.splitImage => 'Dividir em ${_splitRows * _splitColumns} imagens',
         ToolId.documentScan => 'Melhorar documento',
         _ => 'Executar ferramenta',
       };
@@ -913,6 +967,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
       case ToolId.convert:
         return _convertControls(context);
       case ToolId.enhance:
+      case ToolId.colorGrade:
         return _enhanceControls(context);
       case ToolId.filters:
         return _filterControls(context);
@@ -932,6 +987,17 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         return _colorReplacementControls(context);
       case ToolId.pixelate:
         return _pixelateControls(context);
+      case ToolId.splitImage:
+        return _splitControls(context);
+      case ToolId.faceBlur:
+        return _faceBlurControls(context);
+      case ToolId.palette:
+        return _paletteControls(context);
+      case ToolId.autoEnhance:
+        return _messagePanel(
+          'Melhoria automática',
+          'Analisa a luminosidade média e aplica correção equilibrada de brilho, contraste e saturação. O original fica preservado.',
+        );
       case ToolId.socialPresets:
         return _socialControls(context);
       case ToolId.collage:
@@ -940,40 +1006,20 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
       case ToolId.imageInfo:
       case ToolId.metadata:
         return _infoControls(context);
-      case ToolId.palette:
-        return _messagePanel(
-          'Paleta de cores',
-          'Extrai até oito cores dominantes da imagem e copia os respetivos códigos HEX.',
-        );
       case ToolId.ocr:
         return _messagePanel(
           'Reconhecimento de texto',
           'O OCR corre no dispositivo através do Google ML Kit. A primeira utilização pode precisar de transferir o modelo.',
         );
-      case ToolId.removeBackground:
-        return _messagePanel(
-          'Remover fundo',
-          'A segmentação tenta separar o primeiro plano do fundo e exporta um PNG com transparência. O resultado depende da imagem e do modelo instalado.',
-        );
-      case ToolId.faceBlur:
-        return _messagePanel(
-          'Privacidade de rostos',
-          'Deteta rostos e desfoca as regiões encontradas antes de guardar uma cópia.',
-        );
       case ToolId.imageToPdf:
         return _messagePanel(
           'Imagem para PDF',
-          'Cria um documento PDF a partir da imagem selecionada. O ficheiro abre o menu de partilha do Android.',
+          'Cria um PDF de uma ou várias imagens. O ficheiro abre o menu de partilha do Android.',
         );
       case ToolId.base64:
         return _messagePanel(
           'Imagem para Base64',
           'Converte os bytes da imagem para Base64 e copia o resultado para a área de transferência.',
-        );
-      case ToolId.splitImage:
-        return _messagePanel(
-          'Dividir imagem',
-          'Divide a imagem em nove partes iguais e guarda cada segmento na galeria.',
         );
       case ToolId.documentScan:
         return _messagePanel(
@@ -1025,7 +1071,52 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             onChanged: (value) => setState(() => _lockAspect = value),
             title: const Text('Manter proporção original'),
           ),
-          Text('A imagem original não será alterada. O novo tamanho só será aplicado ao guardar.',
+          const SizedBox(height: 12),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Formato de saída', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+          Wrap(
+            spacing: 8,
+            children: ['png', 'jpeg', 'webp'].map((format) => ChoiceChip(
+              label: Text(format.toUpperCase()),
+              selected: _resizeFormat == format,
+              onSelected: (_) => setState(() => _resizeFormat = format),
+            )).toList(),
+          ),
+          if (_resizeFormat != 'png') ...[
+            const SizedBox(height: 8),
+            Text('Qualidade: $_quality%'),
+            Slider(
+              value: _quality.toDouble(),
+              min: 10,
+              max: 100,
+              divisions: 18,
+              onChanged: (value) => setState(() => _quality = value.round()),
+            ),
+          ],
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: [
+              for (final preset in [(720, '720 px'), (1080, '1080 px'), (1440, '1440 px'), (2048, '2048 px')])
+                ActionChip(
+                  label: Text(preset.$2),
+                  onPressed: () {
+                    final details = _details;
+                    if (details == null) return;
+                    final scale = preset.$1 / math.max(details.width, details.height);
+                    setState(() {
+                      _widthController.text = (details.width * scale).round().toString();
+                      _heightController.text = (details.height * scale).round().toString();
+                      _lockAspect = true;
+                    });
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text('A imagem original não será alterada. Escolhe um tamanho ou introduz dimensões personalizadas.',
               style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
@@ -1064,7 +1155,22 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             label: '$_quality%',
             onChanged: (value) => setState(() => _quality = value.round()),
           ),
-          Text('Qualidade mais baixa gera ficheiros menores. A compressão JPEG/WebP é com perdas.',
+          const SizedBox(height: 6),
+          const Text('Limite do lado maior', style: TextStyle(fontWeight: FontWeight.w700)),
+          Wrap(
+            spacing: 7,
+            children: [
+              (0, 'Original'),
+              (2560, '2.560 px'),
+              (1920, '1.920 px'),
+              (1280, '1.280 px'),
+            ].map((option) => ChoiceChip(
+              label: Text(option.$2),
+              selected: _maxDimension == option.$1,
+              onSelected: (_) => setState(() => _maxDimension = option.$1),
+            )).toList(),
+          ),
+          Text('Qualidade mais baixa e um limite de dimensão menor geram ficheiros mais pequenos. JPEG/WebP usam compressão com perdas.',
               style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
@@ -1104,6 +1210,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
   Widget _formatChips(List<String> formats) {
     return Wrap(
       spacing: 8,
+      runSpacing: 8,
       children: formats.map((format) {
         final selected = _format == format;
         return ChoiceChip(
@@ -1112,6 +1219,42 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           onSelected: (_) => setState(() => _format = format),
         );
       }).toList(),
+    );
+  }
+
+  Widget _collageBackgroundChips() {
+    const options = {
+      'navy': 'Azul escuro',
+      'white': 'Branco',
+      'black': 'Preto',
+      'transparent': 'Transparente',
+    };
+    return Wrap(
+      spacing: 7,
+      runSpacing: 7,
+      children: options.entries.map((option) => ChoiceChip(
+        label: Text(option.value),
+        selected: _collageBackground == option.key,
+        onSelected: (_) => setState(() => _collageBackground = option.key),
+      )).toList(),
+    );
+  }
+
+  Widget _watermarkColorChips() {
+    const options = {
+      'white': 'Branco',
+      'black': 'Preto',
+      'blue': 'Azul',
+      'violet': 'Violeta',
+    };
+    return Wrap(
+      spacing: 7,
+      runSpacing: 7,
+      children: options.entries.map((option) => ChoiceChip(
+        label: Text(option.value),
+        selected: _watermarkColor == option.key,
+        onSelected: (_) => setState(() => _watermarkColor = option.key),
+      )).toList(),
     );
   }
 
@@ -1124,6 +1267,8 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           _adjustmentSlider('Brilho', _brightness, (value) => setState(() => _brightness = value)),
           _adjustmentSlider('Contraste', _contrast, (value) => setState(() => _contrast = value)),
           _adjustmentSlider('Saturação', _saturation, (value) => setState(() => _saturation = value)),
+          _adjustmentSlider('Temperatura', _temperature, (value) => setState(() => _temperature = value), min: -100, max: 100),
+          _adjustmentSlider('Matiz verde/magenta', _tint, (value) => setState(() => _tint = value), min: -100, max: 100),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
@@ -1131,6 +1276,8 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
                 _brightness = 1;
                 _contrast = 1;
                 _saturation = 1;
+                _temperature = 0;
+                _tint = 0;
               }),
               child: const Text('Repor ajustes'),
             ),
@@ -1140,17 +1287,29 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
     );
   }
 
-  Widget _adjustmentSlider(String label, double value, ValueChanged<double> onChanged) {
+  Widget _adjustmentSlider(
+    String label,
+    double value,
+    ValueChanged<double> onChanged, {
+    double min = 0,
+    double max = 2,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
             Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700))),
-            Text(value.toStringAsFixed(2)),
+            Text(value.toStringAsFixed(1)),
           ],
         ),
-        Slider(value: value, min: 0, max: 2, divisions: 40, onChanged: onChanged),
+        Slider(
+          value: value.clamp(min, max).toDouble(),
+          min: min,
+          max: max,
+          divisions: 40,
+          onChanged: onChanged,
+        ),
       ],
     );
   }
@@ -1219,6 +1378,10 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
       'saturate': 'Vivo',
       'blur': 'Desfoque',
       'sharpen': 'Nitidez',
+      'warm': 'Quente',
+      'cool': 'Frio',
+      'vintage': 'Vintage',
+      'fade': 'Desvanecido',
     };
     return _panel(
       context,
@@ -1297,6 +1460,22 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             ),
           ),
           const SizedBox(height: 8),
+          const Text('Tamanho do texto'),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final size in [24, 48])
+                ChoiceChip(
+                  label: Text(size == 24 ? 'Normal' : 'Grande'),
+                  selected: _watermarkFontSize == size,
+                  onSelected: (_) => setState(() => _watermarkFontSize = size),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text('Cor do texto'),
+          _watermarkColorChips(),
+          const SizedBox(height: 8),
           Text('Opacidade: ${(_watermarkOpacity * 100).round()}%'),
           Slider(
             value: _watermarkOpacity,
@@ -1336,6 +1515,13 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
       ),
     );
   }
+
+  (int, int, int) _textRgbFor(String key) => switch (key) {
+        'black' => (15, 23, 42),
+        'blue' => (37, 99, 235),
+        'violet' => (139, 92, 246),
+        _ => (255, 255, 255),
+      };
 
   Widget _borderControls(BuildContext context) {
     return _panel(
@@ -1417,8 +1603,16 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             }).toList(),
           ),
           const SizedBox(height: 8),
+          Text('Tolerância: $_replaceTolerance / 441'),
+          Slider(
+            value: _replaceTolerance.toDouble(),
+            min: 1,
+            max: 220,
+            divisions: 44,
+            onChanged: (value) => setState(() => _replaceTolerance = value.round()),
+          ),
           Text(
-            'A substituição usa uma tolerância fixa de cor; tons próximos também podem ser afetados.',
+            'A tolerância maior inclui mais tons semelhantes à cor escolhida.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -1495,9 +1689,10 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
   }
 
   Widget _multiImageControls(BuildContext context) {
+    final isCollage = widget.tool.id == ToolId.collage;
     return _panel(
       context,
-      widget.tool.id == ToolId.collage ? 'Composição da colagem' : 'Compressão em lote',
+      isCollage ? 'Composição da colagem' : 'Compressão em lote',
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1506,7 +1701,54 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
-          if (widget.tool.id == ToolId.batch) ...[
+          if (isCollage) ...[
+            const Text('Número de colunas'),
+            Wrap(
+              spacing: 7,
+              children: [1, 2, 3].map((columns) => ChoiceChip(
+                label: Text('$columns'),
+                selected: _collageColumns == columns,
+                onSelected: (_) => setState(() => _collageColumns = columns),
+              )).toList(),
+            ),
+            Text('Espaçamento: $_collageGap px'),
+            Slider(
+              value: _collageGap.toDouble(),
+              min: 0,
+              max: 48,
+              divisions: 12,
+              onChanged: (value) => setState(() => _collageGap = value.round()),
+            ),
+            const Text('Resolução do painel'),
+            Wrap(
+              spacing: 7,
+              children: [900, 1200, 1800, 2400].map((size) => ChoiceChip(
+                label: Text('$size px'),
+                selected: _collageCanvasSize == size,
+                onSelected: (_) => setState(() => _collageCanvasSize = size),
+              )).toList(),
+            ),
+            const SizedBox(height: 8),
+            const Text('Preenchimento da imagem'),
+            Wrap(
+              spacing: 7,
+              children: [
+                ChoiceChip(
+                  label: const Text('Mostrar inteira'),
+                  selected: _collageFit == 'contain',
+                  onSelected: (_) => setState(() => _collageFit = 'contain'),
+                ),
+                ChoiceChip(
+                  label: const Text('Preencher cartão'),
+                  selected: _collageFit == 'cover',
+                  onSelected: (_) => setState(() => _collageFit = 'cover'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text('Fundo da colagem'),
+            _collageBackgroundChips(),
+          ] else ...[
             _formatChips(['jpeg', 'webp']),
             const SizedBox(height: 10),
             Text('Qualidade: $_quality%'),
@@ -1517,15 +1759,101 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
               divisions: 18,
               onChanged: (value) => setState(() => _quality = value.round()),
             ),
-          ] else
-            const Text(
-              'Escolhe entre 2 e 9 imagens. O estúdio organiza-as automaticamente numa grelha.',
+            const Text('Limite do lado maior'),
+            Wrap(
+              spacing: 7,
+              children: [
+                (0, 'Original'),
+                (2560, '2.560 px'),
+                (1920, '1.920 px'),
+                (1280, '1.280 px'),
+              ].map((option) => ChoiceChip(
+                label: Text(option.$2),
+                selected: _maxDimension == option.$1,
+                onSelected: (_) => setState(() => _maxDimension = option.$1),
+              )).toList(),
             ),
+          ],
           TextButton.icon(
             onPressed: _loading || _processing ? null : _pickMultipleImages,
             icon: const Icon(Icons.add_photo_alternate_outlined),
             label: const Text('Escolher imagens'),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _splitControls(BuildContext context) {
+    return _panel(
+      context,
+      'Grelha de divisão',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Linhas'),
+          Wrap(
+            spacing: 8,
+            children: [2, 3, 4].map((value) => ChoiceChip(
+              label: Text('$value'),
+              selected: _splitRows == value,
+              onSelected: (_) => setState(() => _splitRows = value),
+            )).toList(),
+          ),
+          const SizedBox(height: 8),
+          const Text('Colunas'),
+          Wrap(
+            spacing: 8,
+            children: [2, 3, 4].map((value) => ChoiceChip(
+              label: Text('$value'),
+              selected: _splitColumns == value,
+              onSelected: (_) => setState(() => _splitColumns = value),
+            )).toList(),
+          ),
+          const SizedBox(height: 8),
+          Text('Serão criadas ${_splitRows * _splitColumns} imagens.'),
+        ],
+      ),
+    );
+  }
+
+  Widget _faceBlurControls(BuildContext context) {
+    return _panel(
+      context,
+      'Proteção de privacidade',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Intensidade do desfoque: $_faceBlurStrength'),
+          Slider(
+            value: _faceBlurStrength.toDouble(),
+            min: 4,
+            max: 40,
+            divisions: 18,
+            onChanged: (value) => setState(() => _faceBlurStrength = value.round()),
+          ),
+          const Text('Todos os rostos detetados serão desfocados antes de guardar uma cópia.'),
+        ],
+      ),
+    );
+  }
+
+  Widget _paletteControls(BuildContext context) {
+    return _panel(
+      context,
+      'Extração de paleta',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Número de cores: $_paletteColorCount'),
+          Slider(
+            value: _paletteColorCount.toDouble(),
+            min: 3,
+            max: 10,
+            divisions: 7,
+            onChanged: (value) => setState(() => _paletteColorCount = value.round()),
+          ),
+          const Text('Toca numa cor do resultado para copiar o código HEX.'),
         ],
       ),
     );

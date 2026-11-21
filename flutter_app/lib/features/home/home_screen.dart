@@ -310,9 +310,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final newTools = [
       (
         icon: Icons.auto_fix_high_rounded,
-        title: 'Remover fundo',
-        subtitle: 'PNG com transparência, processado no dispositivo.',
-        id: ToolId.removeBackground,
+        title: 'Melhoria automática',
+        subtitle: 'Corrige luz, contraste e saturação num toque.',
+        id: ToolId.autoEnhance,
         badge: 'NOVO',
       ),
       (

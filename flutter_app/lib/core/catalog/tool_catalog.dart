@@ -7,7 +7,8 @@ enum ToolId {
   compress,
   convert,
   enhance,
-  removeBackground,
+  autoEnhance,
+  colorGrade,
   addText,
   filters,
   collage,
@@ -88,16 +89,22 @@ abstract final class ToolCatalog {
       color: Color(0xFF9333EA),
     ),
     ToolDescriptor(
-      id: ToolId.removeBackground,
-      title: 'Remover fundo',
-      subtitle: 'Fundo transparente',
-      icon: Icons.person_remove_alt_1,
+      id: ToolId.autoEnhance,
+      title: 'Melhorar automaticamente',
+      subtitle: 'Correção inteligente de luz e cor',
+      icon: Icons.auto_awesome_rounded,
       color: Color(0xFF0891B2),
-      premium: true,
     ),
   ];
 
   static const List<ToolDescriptor> advanced = [
+    ToolDescriptor(
+      id: ToolId.colorGrade,
+      title: 'Temperatura e tonalidade',
+      subtitle: 'Ajustar tons quentes, frios e matiz',
+      icon: Icons.thermostat_rounded,
+      color: Color(0xFF0EA5E9),
+    ),
     ToolDescriptor(
       id: ToolId.addText,
       title: 'Adicionar texto',
