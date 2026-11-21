@@ -103,8 +103,14 @@ jobs:
           APKS=("$OUTPUT"/app-*-release.apk)
           test "${#APKS[@]}" -eq 3
           for APK in "${APKS[@]}"; do
+            case "$(basename "$APK")" in
+              app-armeabi-v7a-release.apk) EXPECTED_CODE=1046 ;;
+              app-arm64-v8a-release.apk) EXPECTED_CODE=2046 ;;
+              app-x86_64-release.apk) EXPECTED_CODE=4046 ;;
+              *) echo "Unknown ABI APK: $APK"; exit 1 ;;
+            esac
             "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$APK" > "$RUNNER_TEMP/$(basename "$APK").badging"
-            grep -F "package: name='com.nexauren.imagetools' versionCode='46' versionName='2.1.0'" "$RUNNER_TEMP/$(basename "$APK").badging"
+            grep -F "package: name='com.nexauren.imagetools' versionCode='$EXPECTED_CODE' versionName='2.1.0'" "$RUNNER_TEMP/$(basename "$APK").badging"
           done
 
       - name: Sign with the existing Image Tools production key
@@ -150,8 +156,14 @@ jobs:
             "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK" | tee "$SIGNATURE"
             grep -Eiq "certificate SHA-256 digest: 0a710d4e508bc3eefa1d36863ebe943fe1f011331d006195d0123dd951b679ea" "$SIGNATURE"
             "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 "$APK"
+            case "$(basename "$APK")" in
+              image-tools-armeabi-v7a-release.apk) EXPECTED_CODE=1046 ;;
+              image-tools-arm64-v8a-release.apk) EXPECTED_CODE=2046 ;;
+              image-tools-x86_64-release.apk) EXPECTED_CODE=4046 ;;
+              *) echo "Unknown signed ABI APK: $APK"; exit 1 ;;
+            esac
             "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$APK" > "$RUNNER_TEMP/$(basename "$APK").badging"
-            grep -F "package: name='com.nexauren.imagetools' versionCode='46' versionName='2.1.0'" "$RUNNER_TEMP/$(basename "$APK").badging"
+            grep -F "package: name='com.nexauren.imagetools' versionCode='$EXPECTED_CODE' versionName='2.1.0'" "$RUNNER_TEMP/$(basename "$APK").badging"
           done
 
       - name: Upload signed release APK
