@@ -11,17 +11,17 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-build-\${{ github.event.pull_request.number || github.ref }}
+  group: android-build-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      KEYSTORE_BASE64: \${{ secrets.KEYSTORE_BASE64 }}
-      KEYSTORE_PASSWORD: \${{ secrets.KEYSTORE_PASSWORD }}
-      KEY_ALIAS: \${{ secrets.KEY_ALIAS }}
-      KEY_PASSWORD: \${{ secrets.KEY_PASSWORD }}
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
     defaults:
       run:
         working-directory: flutter_app
