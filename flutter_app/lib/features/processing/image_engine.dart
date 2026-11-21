@@ -351,7 +351,7 @@ abstract final class ImageEngine {
         }
       }
       final average = samples == 0 ? 128.0 : luminanceSum / samples;
-      final brightness = (1 + (128 - average) / 520).clamp(0.82, 1.22);
+      final brightness = (1 + (128 - average) / 520).clamp(0.82, 1.22).toDouble();
       final result = img.adjustColor(
         source,
         brightness: brightness,
@@ -695,8 +695,8 @@ abstract final class ImageEngine {
     int maxDimension = 0,
   }) {
     return Isolate.run(() {
-      if (images.isEmpty || images.length > 60) {
-        throw const FormatException('Escolhe entre 1 e 60 imagens.');
+      if (images.isEmpty || images.length > 30) {
+        throw const FormatException('Escolhe entre 1 e 30 imagens para um processamento estável.');
       }
       if (format == ImageOutputFormat.png) {
         throw const FormatException('Para compressão em lote, escolhe JPEG ou WebP.');

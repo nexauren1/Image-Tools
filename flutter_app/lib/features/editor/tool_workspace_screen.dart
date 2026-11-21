@@ -144,8 +144,8 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
       if (widget.tool.id == ToolId.collage && files.length < 2) {
         throw const FormatException('Escolhe pelo menos duas imagens para criar uma colagem.');
       }
-      if (files.length > 60) {
-        throw const FormatException('O limite de processamento em lote é 60 imagens.');
+      if (files.length > 30) {
+        throw const FormatException('O limite de processamento em lote é 30 imagens para proteger a memória do dispositivo.');
       }
       final bytesList = <Uint8List>[];
       for (final file in files) {
@@ -788,12 +788,16 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
               label: Text(
                 _loading
                     ? 'A abrir a galeria…'
-                    : (widget.tool.id == ToolId.collage || widget.tool.id == ToolId.batch
+                    : (widget.tool.id == ToolId.collage ||
+                        widget.tool.id == ToolId.batch ||
+                        widget.tool.id == ToolId.imageToPdf
                         ? 'Selecionar várias imagens'
                         : 'Selecionar da galeria'),
               ),
             ),
-            if (widget.tool.id != ToolId.collage && widget.tool.id != ToolId.batch) ...[
+            if (widget.tool.id != ToolId.collage &&
+                widget.tool.id != ToolId.batch &&
+                widget.tool.id != ToolId.imageToPdf) ...[
               const SizedBox(height: 10),
               OutlinedButton.icon(
                 onPressed: _loading ? null : () => _pickImage(ImageSource.camera),
@@ -1010,7 +1014,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
       case ToolId.imageToPdf:
         return _messagePanel(
           'Imagem para PDF',
-          'Cria um documento PDF a partir da imagem selecionada. O ficheiro abre o menu de partilha do Android.',
+          'Cria um PDF de uma ou várias imagens. O ficheiro abre o menu de partilha do Android.',
         );
       case ToolId.base64:
         return _messagePanel(

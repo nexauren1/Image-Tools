@@ -227,6 +227,21 @@ void main() {
     }
   });
 
+  test('manual colour grading temperature and tint preserves dimensions', () async {
+    final output = await ImageEngine.enhance(
+      makeTestPng(),
+      brightness: 1,
+      contrast: 1,
+      saturation: 1,
+      temperature: 40,
+      tint: -25,
+    );
+    final decoded = img.decodePng(output);
+    expect(decoded, isNotNull);
+    expect(decoded!.width, 8);
+    expect(decoded.height, 6);
+  });
+
   test('rejects invalid crop bounds rather than exporting a partial image', () async {
     expect(
       () => ImageEngine.cropToPng(
