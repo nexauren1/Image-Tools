@@ -6,16 +6,10 @@ on:
   push:
     branches: ["main", "v*"]
   workflow_dispatch:
-    inputs:
-      release:
-        description: Create GitHub release after a successful signed build
-        required: false
-        default: "false"
 
 permissions:
-  contents: write
+  contents: read
 
-# Keep one validation build for the latest revision of each PR/branch.
 concurrency:
   group: android-build-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -28,60 +22,96 @@ jobs:
       KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
       KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
       KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+    defaults:
+      run:
+        working-directory: flutter_app
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: JDK 17
+      - name: JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
 
       - name: Install Android SDK packages
-        run: sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+        run: sdkmanager --channel=3 "platforms;android-36" "build-tools;36.0.0"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
 
-      - name: Test Worker legal pages
-        run: npm --prefix cloudflare-worker test
+      - name: Test Cloudflare Worker legal pages
+        run: npm --prefix ../cloudflare-worker test
 
       - name: Validate Cloudflare Worker syntax
-        run: node --check cloudflare-worker/src/index.js
+        run: node --check ../cloudflare-worker/src/index.js
+
+      - name: Setup Flutter stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.5.0"
 
-      - name: Compile and build Android release APK
-        run: gradle :app:assembleRelease --no-daemon --stacktrace
-
-      - name: Verify release metadata
+      - name: Install Firebase Android configuration
         run: |
           set -euo pipefail
-          APK="app/build/outputs/apk/release/app-release-unsigned.apk"
-          "$ANDROID_HOME/build-tools/37.0.0/aapt2" dump badging "$APK" > "$RUNNER_TEMP/apk-badging.txt"
-          grep -F "package: name='com.nexauren.imagetools' versionCode='41' versionName='1.19.0'" "$RUNNER_TEMP/apk-badging.txt"
+          test -f ../app/google-services.json
+          mkdir -p android/app
+          cp ../app/google-services.json android/app/google-services.json
 
-      - name: Sign aligned release APK
-        id: sign_apk
-        if: github.event_name != 'pull_request' && env.KEYSTORE_BASE64 != '' && env.KEYSTORE_PASSWORD != '' && env.KEY_ALIAS != '' && env.KEY_PASSWORD != ''
+      - name: Resolve Flutter packages
+        run: flutter pub get
+
+      - name: Generate Gradle wrapper
         run: |
           set -euo pipefail
+          printf 'flutter.sdk=%s\n' "$FLUTTER_ROOT" > android/local.properties
+          mkdir -p "$RUNNER_TEMP/gradle-wrapper"
+          printf "rootProject.name = 'wrapper-bootstrap'\n" > "$RUNNER_TEMP/gradle-wrapper/settings.gradle"
+          gradle -p "$RUNNER_TEMP/gradle-wrapper" wrapper --gradle-version 9.5.0 --distribution-type all
+          mkdir -p android/gradle/wrapper
+          cp "$RUNNER_TEMP/gradle-wrapper/gradlew" android/gradlew
+          cp "$RUNNER_TEMP/gradle-wrapper/gradlew.bat" android/gradlew.bat
+          cp "$RUNNER_TEMP/gradle-wrapper/gradle/wrapper/"* android/gradle/wrapper/
+          chmod +x android/gradlew
+
+      - name: Analyze Dart source
+        run: flutter analyze
+
+      - name: Run Flutter tests
+        run: flutter test
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Verify package metadata
+        run: |
+          set -euo pipefail
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$APK" > "$RUNNER_TEMP/apk-badging.txt"
+          grep -F "package: name='com.nexauren.imagetools' versionCode='45' versionName='2.0.0'" "$RUNNER_TEMP/apk-badging.txt"
+
+      - name: Sign with the existing Image Tools production key
+        if: env.KEYSTORE_BASE64 != '' && env.KEYSTORE_PASSWORD != '' && env.KEY_ALIAS != '' && env.KEY_PASSWORD != ''
+        run: |
+          set -euo pipefail
+          APK="build/app/outputs/flutter-apk/app-release.apk"
           mkdir -p "$RUNNER_TEMP/image-tools-signing"
           printf "%s" "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/image-tools-signing/release.jks"
-          UNSIGNED="app/build/outputs/apk/release/app-release-unsigned.apk"
-          ALIGNED="app/build/outputs/apk/release/app-release-aligned.apk"
-          SIGNED="app/build/outputs/apk/release/app-release.apk"
-          "$ANDROID_HOME/build-tools/37.0.0/zipalign" -P 16 -f 4 "$UNSIGNED" "$ALIGNED"
-          "$ANDROID_HOME/build-tools/37.0.0/apksigner" sign \
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -P 16 -f 4 "$APK" "$RUNNER_TEMP/image-tools-signing/aligned.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign \
             --ks "$RUNNER_TEMP/image-tools-signing/release.jks" \
             --ks-key-alias "$KEY_ALIAS" \
             --ks-pass env:KEYSTORE_PASSWORD \
@@ -90,38 +120,36 @@ jobs:
             --v2-signing-enabled true \
             --v3-signing-enabled true \
             --v4-signing-enabled false \
-            --out "$SIGNED" \
-            "$ALIGNED"
+            --out build/app/outputs/flutter-apk/image-tools-release.apk \
+            "$RUNNER_TEMP/image-tools-signing/aligned.apk"
 
-      - name: Verify signed APK
-        if: steps.sign_apk.outcome == 'success'
+      - name: Require production signing outside pull requests
+        if: github.event_name != 'pull_request' && (env.KEYSTORE_BASE64 == '' || env.KEYSTORE_PASSWORD == '' || env.KEY_ALIAS == '' || env.KEY_PASSWORD == '')
+        run: |
+          echo "Production signing secrets are required for main/release builds."
+          exit 1
+
+      - name: Verify production certificate and APK
+        if: env.KEYSTORE_BASE64 != '' && env.KEYSTORE_PASSWORD != '' && env.KEY_ALIAS != '' && env.KEY_PASSWORD != ''
         run: |
           set -euo pipefail
-          APK="app/build/outputs/apk/release/app-release.apk"
-          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --verbose --print-certs "$APK"
-          "$ANDROID_HOME/build-tools/37.0.0/zipalign" -c -P 16 -v 4 "$APK"
-          "$ANDROID_HOME/build-tools/37.0.0/aapt2" dump badging "$APK" > "$RUNNER_TEMP/signed-apk-badging.txt"
-          head -n 20 "$RUNNER_TEMP/signed-apk-badging.txt"
+          APK="build/app/outputs/flutter-apk/image-tools-release.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/image-tools-signature.txt"
+          grep -Eiq "certificate SHA-256 digest: 0a710d4e508bc3eefa1d36863ebe943fe1f011331d006195d0123dd951b679ea" "$RUNNER_TEMP/image-tools-signature.txt"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$APK" > "$RUNNER_TEMP/signed-apk-badging.txt"
+          grep -F "package: name='com.nexauren.imagetools' versionCode='45' versionName='2.0.0'" "$RUNNER_TEMP/signed-apk-badging.txt"
 
-      - name: Upload signed APK
-        if: steps.sign_apk.outcome == 'success'
+      - name: Upload signed release APK
+        if: env.KEYSTORE_BASE64 != '' && env.KEYSTORE_PASSWORD != '' && env.KEY_ALIAS != '' && env.KEY_PASSWORD != ''
         uses: actions/upload-artifact@v4
         with:
           name: image-tools-release-apk
-          path: app/build/outputs/apk/release/app-release.apk
+          path: flutter_app/build/app/outputs/flutter-apk/image-tools-release.apk
 
-      - name: Upload unsigned validation APK
-        if: steps.sign_apk.outcome == 'skipped'
+      - name: Upload unsigned PR validation APK
+        if: github.event_name == 'pull_request' && (env.KEYSTORE_BASE64 == '' || env.KEYSTORE_PASSWORD == '' || env.KEY_ALIAS == '' || env.KEY_PASSWORD == '')
         uses: actions/upload-artifact@v4
         with:
-          name: image-tools-unsigned-validation-apk
-          path: app/build/outputs/apk/release/app-release-unsigned.apk
-
-      - name: Release
-        if: (startsWith(github.ref, 'refs/heads/v') || (github.event_name == 'workflow_dispatch' && inputs.release == 'true')) && env.KEYSTORE_BASE64 != '' && env.KEYSTORE_PASSWORD != '' && env.KEY_ALIAS != '' && env.KEY_PASSWORD != ''
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: Image Tools ${{ github.ref_name }}
-          generate_release_notes: true
-          files: app/build/outputs/apk/release/app-release.apk
+          name: image-tools-unsigned-pr-validation-only
+          path: flutter_app/build/app/outputs/flutter-apk/app-release.apk

@@ -149,3 +149,15 @@ Added Image-to-Base64 and CSS color palette utilities, improved processing feedb
 
 
 Public privacy policy source: [PRIVACY.md](PRIVACY.md). Production privacy page: https://steep-pine-34fe.nexaurenstore.workers.dev/privacy. Worker legal-page tests run with `npm --prefix cloudflare-worker test`.
+
+
+## Flutter 2.0 production migration
+
+The Flutter application in the flutter_app directory is the production Android application. The root Android Build workflow runs on JDK 21, tests the Worker, runs Flutter static analysis and tests, builds the APK, signs it with the existing production keystore, and verifies the signing certificate before uploading the release artifact.
+
+Release identity:
+- Application ID: com.nexauren.imagetools
+- Version: 2.0.0 (version code 45)
+- Production certificate SHA-256: 0a710d4e508bc3eefa1d36863ebe943fe1f011331d006195d0123dd951b679ea
+
+Do not replace the production keystore. An APK is suitable as an update only when its application ID, signing certificate, and version code are compatible with the installed release.
