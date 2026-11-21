@@ -8,6 +8,9 @@
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"
         android:supportsRtl="true">
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr,face" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

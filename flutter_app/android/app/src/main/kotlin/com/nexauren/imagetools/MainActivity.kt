@@ -3,15 +3,22 @@ package com.nexauren.imagetools
 import android.content.ContentValues
 import android.os.Build
 import android.provider.MediaStore
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.face.FaceDetection
+import com.google.mlkit.vision.face.FaceDetectorOptions
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val exportChannel = "com.nexauren.imagetools/image_export"
+    private val intelligenceChannel = "com.nexauren.imagetools/image_intelligence"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, exportChannel)
             .setMethodCallHandler { call, result ->
                 if (call.method != "saveImage") {
@@ -37,8 +44,7 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
-                val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-                val uri = contentResolver.insert(collection, values)
+                val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
                 if (uri == null) {
                     result.error("CREATE_FAILED", "Android could not create the output image.", null)
                     return@setMethodCallHandler
@@ -60,5 +66,81 @@ class MainActivity : FlutterActivity() {
                     result.error("WRITE_FAILED", error.message ?: "Could not save the image.", null)
                 }
             }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, intelligenceChannel)
+            .setMethodCallHandler { call, result ->
+                val filePath = call.argument<String>("filePath")
+                if (filePath.isNullOrBlank()) {
+                    result.error("INVALID_IMAGE_PATH", "Select an image again and retry.", null)
+                    return@setMethodCallHandler
+                }
+
+                when (call.method) {
+                    "recognizeText" -> recognizeText(filePath, result)
+                    "detectFaces" -> detectFaces(filePath, result)
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    private fun recognizeText(filePath: String, flutterResult: MethodChannel.Result) {
+        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+        try {
+            val image = InputImage.fromFilePath(this, android.net.Uri.fromFile(java.io.File(filePath)))
+            recognizer.process(image)
+                .addOnSuccessListener { result ->
+                    flutterResult.success(result.text.trim())
+                }
+                .addOnFailureListener { error ->
+                    flutterResult.error(
+                        "OCR_MODEL_NOT_READY",
+                        error.message ?: "The OCR model is not ready. Connect to the internet and try again.",
+                        null
+                    )
+                }
+                .addOnCompleteListener {
+                    recognizer.close()
+                }
+        } catch (error: Exception) {
+            recognizer.close()
+            flutterResult.error("OCR_FAILED", error.message ?: "OCR could not process this image.", null)
+        }
+    }
+
+    private fun detectFaces(filePath: String, flutterResult: MethodChannel.Result) {
+        val options = FaceDetectorOptions.Builder()
+            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+            .enableTracking()
+            .build()
+        val detector = FaceDetection.getClient(options)
+        try {
+            val image = InputImage.fromFilePath(this, java.io.File(filePath).toUri())
+            detector.process(image)
+                .addOnSuccessListener { faces ->
+                    flutterResult.success(
+                        faces.map { face ->
+                            mapOf(
+                                "left" to face.boundingBox.left,
+                                "top" to face.boundingBox.top,
+                                "right" to face.boundingBox.right,
+                                "bottom" to face.boundingBox.bottom
+                            )
+                        }
+                    )
+                }
+                .addOnFailureListener { error ->
+                    flutterResult.error(
+                        "FACE_MODEL_NOT_READY",
+                        error.message ?: "The face-detection model is not ready. Connect to the internet and try again.",
+                        null
+                    )
+                }
+                .addOnCompleteListener {
+                    detector.close()
+                }
+        } catch (error: Exception) {
+            detector.close()
+            flutterResult.error("FACE_DETECTION_FAILED", error.message ?: "Face detection failed.", null)
+        }
     }
 }
