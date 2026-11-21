@@ -1300,7 +1300,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           ],
         ),
         Slider(
-          value: value.clamp(min, max),
+          value: value.clamp(min, max).toDouble(),
           min: min,
           max: max,
           divisions: 40,
@@ -1693,7 +1693,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '\${_selectedImages.length} imagem(ns) selecionada(s)',
+            '${_selectedImages.length} imagem(ns) selecionada(s)',
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
@@ -1807,7 +1807,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             )).toList(),
           ),
           const SizedBox(height: 8),
-          Text('Serão criadas \${_splitRows * _splitColumns} imagens.'),
+          Text('Serão criadas ${_splitRows * _splitColumns} imagens.'),
         ],
       ),
     );

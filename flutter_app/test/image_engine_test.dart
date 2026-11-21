@@ -166,6 +166,67 @@ void main() {
     expect(pixel.b.round(), 255);
   });
 
+  test('automatic enhancement preserves the source dimensions', () async {
+    final output = await ImageEngine.autoEnhance(makeTestPng());
+    final decoded = img.decodePng(output);
+    expect(decoded, isNotNull);
+    expect(decoded!.width, 8);
+    expect(decoded.height, 6);
+  });
+
+  test('compression can cap the longest edge', () async {
+    final output = await ImageEngine.compress(
+      makeTestPng(),
+      format: ImageOutputFormat.jpeg,
+      quality: 82,
+      maxDimension: 4,
+    );
+    final decoded = img.decodeImage(output);
+    expect(decoded, isNotNull);
+    expect(decoded!.width, 4);
+    expect(decoded.height, 3);
+  });
+
+  test('split grid respects custom row and column counts', () async {
+    final outputs = await ImageEngine.splitIntoGrid(
+      makeTestPng(),
+      rows: 2,
+      columns: 4,
+    );
+    expect(outputs, hasLength(8));
+    for (final output in outputs) {
+      expect(img.decodePng(output), isNotNull);
+    }
+  });
+
+  test('collage respects the selected number of columns', () async {
+    final output = await ImageEngine.createCollage(
+      [makeTestPng(), makeTestPng(), makeTestPng(), makeTestPng()],
+      canvasSize: 600,
+      gap: 10,
+      columns: 3,
+      background: 'white',
+      fitMode: 'cover',
+    );
+    final decoded = img.decodePng(output);
+    expect(decoded, isNotNull);
+    expect(decoded!.width, 600);
+  });
+
+  test('warm and cool filters preserve image dimensions', () async {
+    for (final filter in ['warm', 'cool', 'vintage', 'fade']) {
+      final output = await ImageEngine.applyFilter(
+        makeTestPng(),
+        filter: filter,
+        strength: 0.7,
+      );
+      final decoded = img.decodePng(output);
+      expect(decoded, isNotNull, reason: filter);
+      expect(decoded!.width, 8, reason: filter);
+      expect(decoded.height, 6, reason: filter);
+    }
+  });
+
   test('rejects invalid crop bounds rather than exporting a partial image', () async {
     expect(
       () => ImageEngine.cropToPng(

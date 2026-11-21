@@ -93,35 +93,44 @@ jobs:
       - name: Run Flutter tests
         run: flutter test
 
-      - name: Build release APK
-        run: flutter build apk --release
+      - name: Build split release APKs
+        run: flutter build apk --release --split-per-abi --tree-shake-icons --split-debug-info=build/symbols
 
-      - name: Verify package metadata
+      - name: Verify package metadata for all ABIs
         run: |
           set -euo pipefail
-          APK="build/app/outputs/flutter-apk/app-release.apk"
-          "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$APK" > "$RUNNER_TEMP/apk-badging.txt"
-          grep -F "package: name='com.nexauren.imagetools' versionCode='45' versionName='2.0.0'" "$RUNNER_TEMP/apk-badging.txt"
+          OUTPUT="build/app/outputs/flutter-apk"
+          APKS=("$OUTPUT"/app-*-release.apk)
+          test "${#APKS[@]}" -eq 3
+          for APK in "${APKS[@]}"; do
+            "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$APK" > "$RUNNER_TEMP/$(basename "$APK").badging"
+            grep -F "package: name='com.nexauren.imagetools' versionCode='46' versionName='2.1.0'" "$RUNNER_TEMP/$(basename "$APK").badging"
+          done
 
       - name: Sign with the existing Image Tools production key
         if: env.KEYSTORE_BASE64 != '' && env.KEYSTORE_PASSWORD != '' && env.KEY_ALIAS != '' && env.KEY_PASSWORD != ''
         run: |
           set -euo pipefail
-          APK="build/app/outputs/flutter-apk/app-release.apk"
+          OUTPUT="build/app/outputs/flutter-apk"
           mkdir -p "$RUNNER_TEMP/image-tools-signing"
           printf "%s" "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/image-tools-signing/release.jks"
-          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -P 16 -f 4 "$APK" "$RUNNER_TEMP/image-tools-signing/aligned.apk"
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign \
-            --ks "$RUNNER_TEMP/image-tools-signing/release.jks" \
-            --ks-key-alias "$KEY_ALIAS" \
-            --ks-pass env:KEYSTORE_PASSWORD \
-            --key-pass env:KEY_PASSWORD \
-            --v1-signing-enabled true \
-            --v2-signing-enabled true \
-            --v3-signing-enabled true \
-            --v4-signing-enabled false \
-            --out build/app/outputs/flutter-apk/image-tools-release.apk \
-            "$RUNNER_TEMP/image-tools-signing/aligned.apk"
+          for APK in "$OUTPUT"/app-*-release.apk; do
+            ABI_FILE="${APK##*/app-}"
+            ALIGNED="$RUNNER_TEMP/image-tools-signing/${ABI_FILE%.apk}-aligned.apk"
+            SIGNED="$OUTPUT/image-tools-${ABI_FILE}"
+            "$ANDROID_HOME/build-tools/36.0.0/zipalign" -P 16 -f 4 "$APK" "$ALIGNED"
+            "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign \
+              --ks "$RUNNER_TEMP/image-tools-signing/release.jks" \
+              --ks-key-alias "$KEY_ALIAS" \
+              --ks-pass env:KEYSTORE_PASSWORD \
+              --key-pass env:KEY_PASSWORD \
+              --v1-signing-enabled true \
+              --v2-signing-enabled true \
+              --v3-signing-enabled true \
+              --v4-signing-enabled false \
+              --out "$SIGNED" \
+              "$ALIGNED"
+          done
 
       - name: Require production signing outside pull requests
         if: github.event_name != 'pull_request' && (env.KEYSTORE_BASE64 == '' || env.KEYSTORE_PASSWORD == '' || env.KEY_ALIAS == '' || env.KEY_PASSWORD == '')
@@ -133,23 +142,28 @@ jobs:
         if: env.KEYSTORE_BASE64 != '' && env.KEYSTORE_PASSWORD != '' && env.KEY_ALIAS != '' && env.KEY_PASSWORD != ''
         run: |
           set -euo pipefail
-          APK="build/app/outputs/flutter-apk/image-tools-release.apk"
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/image-tools-signature.txt"
-          grep -Eiq "certificate SHA-256 digest: 0a710d4e508bc3eefa1d36863ebe943fe1f011331d006195d0123dd951b679ea" "$RUNNER_TEMP/image-tools-signature.txt"
-          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 "$APK"
-          "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$APK" > "$RUNNER_TEMP/signed-apk-badging.txt"
-          grep -F "package: name='com.nexauren.imagetools' versionCode='45' versionName='2.0.0'" "$RUNNER_TEMP/signed-apk-badging.txt"
+          OUTPUT="build/app/outputs/flutter-apk"
+          APKS=("$OUTPUT"/image-tools-*-release.apk)
+          test "${#APKS[@]}" -eq 3
+          for APK in "${APKS[@]}"; do
+            SIGNATURE="$RUNNER_TEMP/$(basename "$APK").signature"
+            "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK" | tee "$SIGNATURE"
+            grep -Eiq "certificate SHA-256 digest: 0a710d4e508bc3eefa1d36863ebe943fe1f011331d006195d0123dd951b679ea" "$SIGNATURE"
+            "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 "$APK"
+            "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$APK" > "$RUNNER_TEMP/$(basename "$APK").badging"
+            grep -F "package: name='com.nexauren.imagetools' versionCode='46' versionName='2.1.0'" "$RUNNER_TEMP/$(basename "$APK").badging"
+          done
 
       - name: Upload signed release APK
         if: env.KEYSTORE_BASE64 != '' && env.KEYSTORE_PASSWORD != '' && env.KEY_ALIAS != '' && env.KEY_PASSWORD != ''
         uses: actions/upload-artifact@v4
         with:
           name: image-tools-release-apk
-          path: flutter_app/build/app/outputs/flutter-apk/image-tools-release.apk
+          path: flutter_app/build/app/outputs/flutter-apk/image-tools-*-release.apk
 
       - name: Upload unsigned PR validation APK
         if: github.event_name == 'pull_request' && (env.KEYSTORE_BASE64 == '' || env.KEYSTORE_PASSWORD == '' || env.KEY_ALIAS == '' || env.KEY_PASSWORD == '')
         uses: actions/upload-artifact@v4
         with:
           name: image-tools-unsigned-pr-validation-only
-          path: flutter_app/build/app/outputs/flutter-apk/app-release.apk
+          path: flutter_app/build/app/outputs/flutter-apk/app-*-release.apk
