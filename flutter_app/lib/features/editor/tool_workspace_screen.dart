@@ -570,6 +570,27 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           label = 'Efeito mosaico aplicado';
           break;
 
+        case ToolId.sketch:
+          output = await ImageEngine.sketch(input, strength: _effectStrength);
+          extension = 'png';
+          mimeType = 'image/png';
+          label = 'Esboço a lápis criado';
+          break;
+
+        case ToolId.vignette:
+          output = await ImageEngine.vignette(input, strength: _effectStrength);
+          extension = 'png';
+          mimeType = 'image/png';
+          label = 'Vinheta aplicada';
+          break;
+
+        case ToolId.outline:
+          output = await ImageEngine.outline(input, strength: _effectStrength);
+          extension = 'png';
+          mimeType = 'image/png';
+          label = 'Contornos extraídos';
+          break;
+
         case ToolId.socialPresets:
           final size = _socialDimensions;
           output = await ImageEngine.fitSocialPreset(
@@ -861,6 +882,9 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         ToolId.roundCorners => 'Arredondar cantos e guardar',
         ToolId.replaceColor => 'Substituir cor e guardar',
         ToolId.pixelate => 'Pixelizar e guardar',
+        ToolId.sketch => 'Criar esboço e guardar',
+        ToolId.vignette => 'Aplicar vinheta e guardar',
+        ToolId.outline => 'Extrair contornos e guardar',
         ToolId.socialPresets => 'Preparar formato social e guardar',
         ToolId.blur => 'Aplicar desfoque e guardar',
         ToolId.sharpen => 'Melhorar nitidez e guardar',
@@ -975,6 +999,9 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         return _rotateControls(context);
       case ToolId.blur:
       case ToolId.sharpen:
+      case ToolId.sketch:
+      case ToolId.vignette:
+      case ToolId.outline:
         return _effectControls(context);
       case ToolId.addText:
       case ToolId.watermark:
@@ -1382,6 +1409,11 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
       'cool': 'Frio',
       'vintage': 'Vintage',
       'fade': 'Desvanecido',
+      'noir': 'Noir',
+      'cinematic': 'Cinematográfico',
+      'pastel': 'Pastel',
+      'solarize': 'Solarização',
+      'posterize': 'Posterizar',
     };
     return _panel(
       context,
@@ -1418,10 +1450,23 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
   }
 
   Widget _effectControls(BuildContext context) {
-    final isBlur = widget.tool.id == ToolId.blur;
+    final effectTitle = switch (widget.tool.id) {
+      ToolId.blur => 'Intensidade do desfoque',
+      ToolId.sharpen => 'Nível de nitidez',
+      ToolId.sketch => 'Intensidade do esboço',
+      ToolId.vignette => 'Intensidade da vinheta',
+      _ => 'Realce dos contornos',
+    };
+    final effectHelp = switch (widget.tool.id) {
+      ToolId.blur => 'Desfoca progressivamente para suavizar detalhes.',
+      ToolId.sharpen => 'Realça os contornos para destacar detalhes.',
+      ToolId.sketch => 'Controla a força do efeito de desenho a lápis.',
+      ToolId.vignette => 'Controla o escurecimento suave das margens.',
+      _ => 'Controla a definição das linhas extraídas da imagem.',
+    };
     return _panel(
       context,
-      isBlur ? 'Intensidade do desfoque' : 'Nível de nitidez',
+      effectTitle,
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1434,9 +1479,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             onChanged: (value) => setState(() => _effectStrength = value),
           ),
           Text(
-            isBlur
-                ? 'Usa um desfoque progressivo para suavizar detalhes.'
-                : 'Realça os contornos com um filtro de nitidez.',
+            effectHelp,
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
