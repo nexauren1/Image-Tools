@@ -1572,7 +1572,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
-          Text('Força do efeito: ' + (_splashStrength * 100).round().toString() + '%'),
+          Text('Força do efeito: ${(_splashStrength * 100).round()}%'),
           Slider(
             value: _splashStrength,
             min: 0,
@@ -1632,7 +1632,7 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             (value) => setState(() => _duotoneHighlightKey = value),
           ),
           const SizedBox(height: 12),
-          Text('Intensidade: ' + (_duotoneStrength * 100).round().toString() + '%'),
+          Text('Intensidade: ${(_duotoneStrength * 100).round()}%'),
           Slider(
             value: _duotoneStrength,
             min: 0,
