@@ -74,3 +74,9 @@ tasks.register("prepareImageToolsLauncherIcon") {
 tasks.named("preBuild").configure {
     dependsOn("prepareImageToolsLauncherIcon")
 }
+
+tasks.configureEach {
+    if (name.startsWith("merge") && name.endsWith("Resources")) {
+        dependsOn("prepareImageToolsLauncherIcon")
+    }
+}
