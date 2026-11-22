@@ -47,6 +47,58 @@ void main() {
     }
   });
 
+  test('color splash preserves the selected colour and desaturates other pixels', () async {
+    final source = img.Image(width: 2, height: 1);
+    source.setPixelRgb(0, 0, 240, 20, 30);
+    source.setPixelRgb(1, 0, 20, 60, 220);
+    final input = Uint8List.fromList(img.encodePng(source));
+
+    final output = await ImageEngine.colorSplash(
+      input,
+      targetRed: 230,
+      targetGreen: 45,
+      targetBlue: 65,
+      tolerance: 35,
+      strength: 1,
+    );
+    final decoded = img.decodePng(output)!;
+    final selected = decoded.getPixel(0, 0);
+    final desaturated = decoded.getPixel(1, 0);
+
+    expect(selected.r, greaterThan(selected.g));
+    expect(selected.r, greaterThan(selected.b));
+    expect((desaturated.r - desaturated.g).abs(), lessThanOrEqualTo(1));
+    expect((desaturated.g - desaturated.b).abs(), lessThanOrEqualTo(1));
+  });
+
+  test('duotone maps shadows and highlights to the selected colours', () async {
+    final source = img.Image(width: 2, height: 1);
+    source.setPixelRgb(0, 0, 0, 0, 0);
+    source.setPixelRgb(1, 0, 255, 255, 255);
+    final input = Uint8List.fromList(img.encodePng(source));
+
+    final output = await ImageEngine.duotone(
+      input,
+      shadowRed: 0,
+      shadowGreen: 0,
+      shadowBlue: 255,
+      highlightRed: 255,
+      highlightGreen: 128,
+      highlightBlue: 0,
+      strength: 1,
+    );
+    final decoded = img.decodePng(output)!;
+    final shadow = decoded.getPixel(0, 0);
+    final highlight = decoded.getPixel(1, 0);
+
+    expect(shadow.r, 0);
+    expect(shadow.g, 0);
+    expect(shadow.b, 255);
+    expect(highlight.r, 255);
+    expect(highlight.g, 128);
+    expect(highlight.b, 0);
+  });
+
   group('ImageEngine additional filter presets', () {
     for (final filter in [
       'noir',
