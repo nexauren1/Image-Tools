@@ -23,8 +23,8 @@ android {
         applicationId = "com.nexauren.imagetools"
         minSdk = 29
         targetSdk = 36
-        versionCode = 46
-        versionName = "2.1.0"
+        versionCode = 47
+        versionName = "2.2.0"
     }
 
     buildTypes {
@@ -48,4 +48,35 @@ dependencies {
 
 flutter {
     source = "../.."
+}
+
+ 
+// Materialize the exact supplied Image Tools artwork as the permanent Android
+// launcher bitmap before Android resource merging. The compact Base64 source is
+// version-controlled so clean CI builds reproduce the same icon every time.
+def imageToolsLauncherIconSource = file("launcher-icon/image_tools_icon.webp.base64")
+def imageToolsLauncherIconOutput = file("src/main/res/drawable-nodpi/ic_launcher_icon.webp")
+
+tasks.register("prepareImageToolsLauncherIcon") {
+    inputs.file(imageToolsLauncherIconSource)
+    outputs.file(imageToolsLauncherIconOutput)
+    doLast {
+        if (!imageToolsLauncherIconSource.isFile()) {
+            throw new GradleException("Image Tools launcher icon source is missing.")
+        }
+        imageToolsLauncherIconOutput.parentFile.mkdirs()
+        imageToolsLauncherIconOutput.bytes = java.util.Base64.getMimeDecoder().decode(
+            imageToolsLauncherIconSource.getText("UTF-8")
+        )
+    }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn("prepareImageToolsLauncherIcon")
+}
+
+tasks.configureEach {
+    if (name.startsWith("merge") && name.endsWith("Resources")) {
+        dependsOn("prepareImageToolsLauncherIcon")
+    }
 }
