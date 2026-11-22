@@ -1,69 +1,62 @@
 # Image Tools
 
-Image Tools is an all-in-one Android image studio. Its editing, conversion, export, and utility tools are delivered together in one application and one universal APK.
+Image Tools is a modern Android toolbox for everyday image jobs, with a local-first workflow and optional Premium features.
 
-## Current production release
+## Current release
 
-- Version: **2.3.0** (version code **48**)
-- Android package: `com.nexauren.imagetools`
+- Version: 1.19.0
+- Version code: 49
+- Package: `com.nexauren.imagetools`
 - Minimum Android: 10 (API 29)
 - Target Android: API 36
-- Production application source: `flutter_app/` (Flutter/Dart)
-- Processing: on-device for image operations
+- Main processing: on-device
 - Premium payments: PayPal through the Cloudflare Worker
 
-### One universal APK
 
-The production workflow builds **one universal APK**, not separate APK downloads for individual processor architectures. The same APK contains the Android runtime libraries for:
+## Version policy
 
-- ARMv7 (`armeabi-v7a`)
-- ARM64 (`arm64-v8a`)
-- x86_64
+The user-facing version name is kept at **1.19.0** for this restoration. The Android version code is **49** so the restored native build can update installations made with the previous build. Keep both values unchanged for ordinary source edits and test builds; increase the version code only when a real new store release must be published.
 
-Signed release output:
+## Tools
 
-`flutter_app/build/app/outputs/flutter-apk/image-tools-universal-release.apk`
-
-The workflow verifies the package name, version, all three ABI runtime libraries, APK alignment, and the existing production signing certificate before publishing the artifact. The Android application ID and production signing key are preserved so a compatible update can be installed over the existing listing.
-
-## Integrated toolbox
-
-The app brings its image tools together in one catalogue and one navigation system, with dedicated workspaces for individual operations.
-
-### Image editing
-- Crop with free selection and aspect-ratio presets
-- Resize with dimensions and aspect-ratio controls
+### Core tools
+- Resize with aspect-ratio lock
+- Compress with quality control
+- Convert JPEG / PNG / WEBP / WEBP Lossless
+- Preserve original encoded bytes when converting to the same format
+- Export edited images to lossless PNG by default
+- Compress with lossless WEBP or high-quality JPEG/WEBP
+- Crop presets: 1:1, 4:5, 16:9, 9:16
 - Rotate and mirror
-- Brightness, contrast, saturation, temperature, and tint
-- Automatic enhancement and filters
-- Text, watermark, and logo overlays
+- Grayscale, sepia and high-contrast filters
+- Watermark text
+- Image details
 
-### File and export tools
-- Compress and convert JPEG, PNG, and WebP
-- Preserve image dimensions unless the user changes them
-- Export image collections and batch operations
+### Additional tools
+- Brightness
+- Contrast
+- Saturation
+- Warmth
+- Negative / invert
+- Blur
+- Sharpen
+- Pixelate
+- Border
+- Rounded corners
+- Remove common embedded metadata by re-encoding
+- On-device background removal with transparent PNG export (Google Play services model download may be needed on first use)
 - Image to PDF
-- Image to Base64
-- Image information and EXIF metadata tools
+- Dominant color palette
+- Quick collage for 2–9 images
+- Image to Base64 data URL with TXT export
 
-### Creative and utility tools
-- Collage
-- Dominant colour palette
-- Social-network size presets
-- Face blur and OCR
-- Replace colour
-- Selective colour (Color Splash) and customizable Duotone
-- Standalone black-and-white, sepia, and negative effects
-- Borders and rounded corners
-- Blur, sharpen, pixelate, document scan, and image splitting
-
-A tool is considered release-ready only when its workspace and processing path are implemented and tested; a catalogue card alone is not proof of a finished feature.
+The expanded toolbox follows common patterns found in modern image utility apps—grouped tools, batch-oriented workflows, privacy/metadata controls, collage/stitching concepts and utility exports—while keeping the implementation lightweight and original.
 
 ## Privacy and legal pages
 
 The Cloudflare Worker serves public pages suitable for app-store listings:
 
-- Home: `/`
+- Home: `/\`
 - Privacy Policy: `/privacy`
 - Terms of Service: `/terms`
 - Support and account deletion: `/support`
@@ -88,17 +81,21 @@ Cancellation remains available through the secure payment backend endpoint:
 
 `POST /paypal/cancel-subscription`
 
+The Android application does not expose an in-app cancellation button in the release build.
+
 The PayPal client secret stays on the Cloudflare Worker. Do not put PayPal credentials in the APK or GitHub source.
 
 The worker supports PayPal live mode when `PAYPAL_ENVIRONMENT=live` is configured.
 
 ## Firebase
 
-The app uses Firebase Authentication for Google and email/password sign-in and Firestore for server-managed entitlement state. Client writes to entitlement documents are disabled in Firestore rules.
+The app uses Firebase Authentication for Google and email/password sign-in and Firestore for server-managed entitlement state.
+
+Client writes to the entitlement documents are disabled in Firestore rules.
 
 ## Build and release
 
-The **Android Build** GitHub Actions workflow runs Worker tests, Flutter static analysis and tests, then builds and signs one universal release APK.
+GitHub Actions builds the signed release APK on pushes to `main` and `v*`.
 
 Required GitHub Actions secrets for signed releases:
 
@@ -112,19 +109,9 @@ Optional build variables:
 - `WORKER_URL`
 - `GOOGLE_WEB_CLIENT_ID`
 
-The signed artifact is named `image-tools-universal-release-apk` and contains:
+The Android workflow produces:
 
-`image-tools-universal-release.apk`
-
-To build locally with Flutter:
-
-```bash
-cd flutter_app
-flutter pub get
-flutter build apk --release
-```
-
-Do not add `--split-per-abi` to the production build. That option creates separate architecture-specific APKs and is not the distribution format for this project.
+`app/build/outputs/apk/release/app-release.apk`
 
 ## Publishing checklist
 
@@ -133,35 +120,37 @@ Before submitting to a store:
 1. Confirm the Cloudflare Worker is deployed with the latest `cloudflare-worker/src/index.js`.
 2. Confirm PayPal is live and the production plan is active.
 3. Confirm the PayPal webhook points to `/paypal/webhook`.
-4. Download and test the single signed universal APK.
-5. Confirm the package ID, version code, and production signing certificate match the installed release.
-6. Test sign-in, Premium checkout, return/deep-link handling, entitlement refresh, and cancellation.
-7. Publish the Privacy Policy URL and provide the store listing assets.
+4. Build and test the signed release APK.
+5. Test sign-in, Premium checkout, return/deep-link handling, entitlement refresh and cancellation.
+6. Publish the Privacy Policy URL.
+7. Add the application icon, screenshots, short description and full description.
+8. Upload the signed APK to the selected store.
 
 ## Security
 
-Never commit PayPal client secrets, Firebase service-account private keys, release keystore files or passwords, or other production credentials.
+Never commit:
 
-The Flutter source in `flutter_app/` is the production app. The older Kotlin source in `app/src/` is retained in the repository as legacy code and is not built into the current release. The Firebase Android configuration at `app/google-services.json` is copied into the Flutter Android project by CI.
+- PayPal client secrets
+- Firebase service-account private keys
+- Release keystore files or passwords
+- Other production credentials
 
-## Release history
 
-### 2.3.0
-Added five dedicated image tools: black-and-white, sepia, negative, selective colour (Color Splash), and customizable Duotone. Color Splash preserves a selected colour family while desaturating other areas; Duotone maps shadows and highlights to separate user-selected colours. Both new effects process full-resolution images locally in background isolates. The supplied Image Tools artwork remains the version-controlled Android launcher icon source. Package identity and production signing certificate remain unchanged.
 
-### 2.2.0
-Replaced the Android launcher icon with the supplied Image Tools artwork. Added on-device pencil sketch, vignette and outline effects, plus Noir, Cinematic, Pastel, Solarize and Posterize filter presets. Package identity and production signing certificate remain unchanged.
-
-### 2.1.0
-Unified the production distribution into one universal APK containing ARMv7, ARM64, and x86_64 runtime libraries. The application ID and existing production signing certificate remain unchanged.
-
-### 1.19.0
+### Release 1.19.0
 Rebuilt the home screen around the Image Studio reference, added guest access, and improved visible progress during processing and export. PNG and WEBP Lossless are available for lossless output; compression starts in WEBP Lossless and uses a 95% default for lossy formats. Same-format conversion preserves the original encoded bytes. Added on-device ML Kit subject segmentation for transparent background removal; Google Play services may download the model on first use. The existing package ID is retained so this version updates the installed app.
 
-### 1.18.0
-Expanded quick collage from four to nine images, replaced the launcher identity with an adaptive Android icon, refreshed public privacy/terms/support pages, and introduced automated tests for the Worker legal pages.
+### Release 1.18.0
+Expanded quick collage from four to nine images with an automatic 2-column/3-column grid and uniform center-cropped tiles. Replaced the launcher identity with an adaptive Android icon, refreshed the public privacy/terms/support pages, added a private account-deletion contact path, and introduced automated tests for the Worker legal pages.
 
-### 1.17.0
-Reliability improvements: persist theme preference, handle Android system Back navigation, clean up authentication/network resources, guard image allocations, reduce batch-processing memory use, prevent partial export files, preserve GIF frame proportions, and validate pull requests before release.
+### Release 1.17.0
+App-wide reliability pass: persist the theme preference, handle Android system Back navigation, clean up authentication/network resources, guard image allocations, reduce batch-processing memory use, prevent partial export files, preserve GIF frame proportions, and validate pull requests before release.
 
-Public privacy policy source: [PRIVACY.md](PRIVACY.md). Worker legal-page tests run with `npm --prefix cloudflare-worker test`.
+### Release 1.16.0
+Full Image Studio redesign across the tool workspace, control cards, sliders, format selectors, status panels, export/share actions and tool-library cards. Updated light/dark palette, improved parameter discoverability and feedback, and fixed tool-specific control selection. Image-to-Base64 and CSS color palette remain available. Background removal retired. Notifications remain removed.
+
+### Release 1.15.0
+Added Image-to-Base64 and CSS color palette utilities, improved processing feedback and source-image previews, moved CPU-heavy image transformations off the UI thread, and removed background removal.
+
+
+Public privacy policy source: [PRIVACY.md](PRIVACY.md). Production privacy page: https://steep-pine-34fe.nexaurenstore.workers.dev/privacy. Worker legal-page tests run with `npm --prefix cloudflare-worker test`.
