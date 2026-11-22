@@ -26,7 +26,7 @@ void _expectPngKeepsDimensions(Uint8List output) {
   expect(decoded, isNotNull);
   expect(decoded!.width, 64);
   expect(decoded.height, 48);
-  expect(decoded.format, img.Format.png);
+  expect(output.take(8), orderedEquals([137, 80, 78, 71, 13, 10, 26, 10]));
 }
 
 void main() {
