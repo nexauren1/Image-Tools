@@ -226,7 +226,7 @@ abstract final class ImageEngine {
       final gray = img.grayscale(source);
       final inverted = img.invert(gray.clone());
       final amount = strength.clamp(0.0, 1.0);
-      final radius = (2 + amount * 7).round().clamp(2, 9);
+      final radius = (2 + amount * 7).round().clamp(2, 9).toInt();
       final softened = img.gaussianBlur(inverted, radius: radius);
       final output = img.Image(
         width: source.width,
@@ -479,14 +479,14 @@ abstract final class ImageEngine {
           result = solarized;
           break;
         case 'posterize':
-          final levels = (8 - amount * 5).round().clamp(2, 8);
+          final levels = (8 - amount * 5).round().clamp(2, 8).toInt();
           final step = 255.0 / (levels - 1);
           final posterized = source.clone();
           for (var y = 0; y < posterized.height; y++) {
             for (var x = 0; x < posterized.width; x++) {
               final pixel = source.getPixel(x, y);
               int quantize(num channel) =>
-                  ((channel / step).round() * step).round().clamp(0, 255);
+                  ((channel / step).round() * step).round().clamp(0, 255).toInt();
               posterized.setPixelRgba(
                 x,
                 y,
