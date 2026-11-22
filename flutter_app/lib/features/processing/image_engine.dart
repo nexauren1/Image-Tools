@@ -506,6 +506,118 @@ abstract final class ImageEngine {
     });
   }
 
+
+  static Future<Uint8List> colorSplash(
+    Uint8List originalBytes, {
+    required int targetRed,
+    required int targetGreen,
+    required int targetBlue,
+    int tolerance = 80,
+    double strength = 1,
+  }) {
+    return Isolate.run(() {
+      final decoded = img.decodeImage(originalBytes);
+      if (decoded == null) {
+        throw const FormatException('Não foi possível descodificar a imagem.');
+      }
+      final source = img.bakeOrientation(decoded);
+      if (source.width * source.height > maxPixels) {
+        throw const FormatException('A imagem excede o limite seguro de processamento.');
+      }
+
+      final output = source.clone();
+      final amount = strength.clamp(0.0, 1.0).toDouble();
+      final threshold = tolerance.clamp(1, 255).toDouble();
+      final selectedRed = targetRed.clamp(0, 255).toDouble();
+      final selectedGreen = targetGreen.clamp(0, 255).toDouble();
+      final selectedBlue = targetBlue.clamp(0, 255).toDouble();
+
+      for (var y = 0; y < source.height; y++) {
+        for (var x = 0; x < source.width; x++) {
+          final pixel = source.getPixel(x, y);
+          final red = pixel.r.toDouble();
+          final green = pixel.g.toDouble();
+          final blue = pixel.b.toDouble();
+          final dr = red - selectedRed;
+          final dg = green - selectedGreen;
+          final db = blue - selectedBlue;
+          final distance = math.sqrt((dr * dr + dg * dg + db * db) / 3.0);
+          final mask = ((threshold + 32.0 - distance) / 32.0)
+              .clamp(0.0, 1.0)
+              .toDouble();
+          final preserveColor = 1.0 - amount + amount * mask;
+          final luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+
+          output.setPixelRgba(
+            x,
+            y,
+            (luminance + (red - luminance) * preserveColor).round().clamp(0, 255),
+            (luminance + (green - luminance) * preserveColor).round().clamp(0, 255),
+            (luminance + (blue - luminance) * preserveColor).round().clamp(0, 255),
+            pixel.a.toInt(),
+          );
+        }
+      }
+      return Uint8List.fromList(img.encodePng(output, level: 6));
+    });
+  }
+
+  static Future<Uint8List> duotone(
+    Uint8List originalBytes, {
+    required int shadowRed,
+    required int shadowGreen,
+    required int shadowBlue,
+    required int highlightRed,
+    required int highlightGreen,
+    required int highlightBlue,
+    double strength = 1,
+  }) {
+    return Isolate.run(() {
+      final decoded = img.decodeImage(originalBytes);
+      if (decoded == null) {
+        throw const FormatException('Não foi possível descodificar a imagem.');
+      }
+      final source = img.bakeOrientation(decoded);
+      if (source.width * source.height > maxPixels) {
+        throw const FormatException('A imagem excede o limite seguro de processamento.');
+      }
+
+      final output = source.clone();
+      final amount = strength.clamp(0.0, 1.0).toDouble();
+      final sr = shadowRed.clamp(0, 255).toDouble();
+      final sg = shadowGreen.clamp(0, 255).toDouble();
+      final sb = shadowBlue.clamp(0, 255).toDouble();
+      final hr = highlightRed.clamp(0, 255).toDouble();
+      final hg = highlightGreen.clamp(0, 255).toDouble();
+      final hb = highlightBlue.clamp(0, 255).toDouble();
+
+      for (var y = 0; y < source.height; y++) {
+        for (var x = 0; x < source.width; x++) {
+          final pixel = source.getPixel(x, y);
+          final red = pixel.r.toDouble();
+          final green = pixel.g.toDouble();
+          final blue = pixel.b.toDouble();
+          final luminance = ((0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255.0)
+              .clamp(0.0, 1.0)
+              .toDouble();
+          final mappedRed = sr + (hr - sr) * luminance;
+          final mappedGreen = sg + (hg - sg) * luminance;
+          final mappedBlue = sb + (hb - sb) * luminance;
+
+          output.setPixelRgba(
+            x,
+            y,
+            (red * (1.0 - amount) + mappedRed * amount).round().clamp(0, 255),
+            (green * (1.0 - amount) + mappedGreen * amount).round().clamp(0, 255),
+            (blue * (1.0 - amount) + mappedBlue * amount).round().clamp(0, 255),
+            pixel.a.toInt(),
+          );
+        }
+      }
+      return Uint8List.fromList(img.encodePng(output, level: 6));
+    });
+  }
+
   static Future<Uint8List> enhance(
     Uint8List originalBytes, {
     required double brightness,
