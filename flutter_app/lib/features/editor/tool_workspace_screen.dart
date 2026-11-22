@@ -48,6 +48,12 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
   String _replacementColorKey = 'blue';
   int _cornerRadius = 48;
   int _replaceTolerance = 84;
+  String _splashColorKey = 'red';
+  int _splashTolerance = 80;
+  double _splashStrength = 1;
+  String _duotoneShadowKey = 'blue';
+  String _duotoneHighlightKey = 'orange';
+  double _duotoneStrength = 1;
   int _paletteColorCount = 8;
   int _splitRows = 3;
   int _splitColumns = 3;
@@ -455,6 +461,60 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
           extension = 'png';
           mimeType = 'image/png';
           label = 'Imagem melhorada';
+          break;
+
+        case ToolId.grayscale:
+          output = await ImageEngine.applyFilter(input, filter: 'grayscale', strength: 1);
+          extension = 'png';
+          mimeType = 'image/png';
+          label = 'Imagem convertida para preto e branco';
+          break;
+
+        case ToolId.sepia:
+          output = await ImageEngine.applyFilter(input, filter: 'sepia', strength: 1);
+          extension = 'png';
+          mimeType = 'image/png';
+          label = 'Efeito sépia aplicado';
+          break;
+
+        case ToolId.negative:
+          output = await ImageEngine.applyFilter(input, filter: 'negative', strength: 1);
+          extension = 'png';
+          mimeType = 'image/png';
+          label = 'Cores invertidas';
+          break;
+
+        case ToolId.colorSplash:
+          final color = _rgbFor(_splashColorKey);
+          output = await ImageEngine.colorSplash(
+            input,
+            targetRed: color.$1,
+            targetGreen: color.$2,
+            targetBlue: color.$3,
+            tolerance: _splashTolerance,
+            strength: _splashStrength,
+          );
+          extension = 'png';
+          mimeType = 'image/png';
+          label = 'Cor seletiva aplicada';
+          break;
+
+        case ToolId.duotone:
+          final shadows = _rgbFor(_duotoneShadowKey);
+          final highlights = _rgbFor(_duotoneHighlightKey);
+          output = await ImageEngine.duotone(
+            input,
+            shadowRed: shadows.$1,
+            shadowGreen: shadows.$2,
+            shadowBlue: shadows.$3,
+            highlightRed: highlights.$1,
+            highlightGreen: highlights.$2,
+            highlightBlue: highlights.$3,
+            strength: _duotoneStrength,
+          );
+          extension = 'png';
+          mimeType = 'image/png';
+          label = 'Duotone aplicado';
           break;
 
         case ToolId.filters:
@@ -875,6 +935,11 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         ToolId.autoEnhance => 'Melhorar automaticamente',
 
         ToolId.filters => 'Aplicar efeito e guardar',
+        ToolId.grayscale => 'Converter para preto e branco',
+        ToolId.sepia => 'Aplicar efeito sépia',
+        ToolId.negative => 'Inverter cores',
+        ToolId.colorSplash => 'Aplicar cor seletiva',
+        ToolId.duotone => 'Aplicar duotone',
         ToolId.rotate => 'Rodar e guardar',
         ToolId.addText => 'Adicionar texto e guardar',
         ToolId.watermark => 'Aplicar marca de água e guardar',
@@ -995,6 +1060,25 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
         return _enhanceControls(context);
       case ToolId.filters:
         return _filterControls(context);
+      case ToolId.grayscale:
+        return _messagePanel(
+          'Preto e branco',
+          'Converte a imagem para tons de cinzento, mantendo a resolução original.',
+        );
+      case ToolId.sepia:
+        return _messagePanel(
+          'Efeito sépia',
+          'Aplica uma tonalidade castanha clássica sem alterar as dimensões da imagem.',
+        );
+      case ToolId.negative:
+        return _messagePanel(
+          'Negativo',
+          'Inverte os canais de cor para criar um efeito negativo fotográfico.',
+        );
+      case ToolId.colorSplash:
+        return _colorSplashControls(context);
+      case ToolId.duotone:
+        return _duotoneControls(context);
       case ToolId.rotate:
         return _rotateControls(context);
       case ToolId.blur:
@@ -1443,6 +1527,118 @@ class _ToolWorkspaceScreenState extends State<ToolWorkspaceScreen> {
             max: 1,
             divisions: 20,
             onChanged: (value) => setState(() => _filterStrength = value),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Widget _colorSplashControls(BuildContext context) {
+    const colors = ['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'violet'];
+    return _panel(
+      context,
+      'Cor a preservar',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: colors.map((key) {
+              final color = _rgbFor(key);
+              return ChoiceChip(
+                label: Text(key.toUpperCase()),
+                selected: _splashColorKey == key,
+                avatar: CircleAvatar(
+                  backgroundColor: Color.fromARGB(255, color.$1, color.$2, color.$3),
+                  radius: 7,
+                ),
+                onSelected: (_) => setState(() => _splashColorKey = key),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+          Text('Tolerância: $_splashTolerance'),
+          Slider(
+            value: _splashTolerance.toDouble(),
+            min: 15,
+            max: 180,
+            divisions: 33,
+            onChanged: (value) => setState(() => _splashTolerance = value.round()),
+          ),
+          Text(
+            'Controla a quantidade de tons semelhantes que mantêm a cor.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          Text('Força do efeito: ' + (_splashStrength * 100).round().toString() + '%'),
+          Slider(
+            value: _splashStrength,
+            min: 0,
+            max: 1,
+            divisions: 20,
+            onChanged: (value) => setState(() => _splashStrength = value),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _duotoneControls(BuildContext context) {
+    const colors = ['black', 'blue', 'violet', 'cyan', 'red', 'orange', 'yellow', 'white'];
+
+    Widget colorSelector(String title, String selected, ValueChanged<String> onSelected) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 7),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: colors.map((key) {
+              final color = _rgbFor(key);
+              return ChoiceChip(
+                label: Text(key.toUpperCase()),
+                selected: selected == key,
+                avatar: CircleAvatar(
+                  backgroundColor: Color.fromARGB(255, color.$1, color.$2, color.$3),
+                  radius: 7,
+                ),
+                onSelected: (_) => onSelected(key),
+              );
+            }).toList(),
+          ),
+        ],
+      );
+    }
+
+    return _panel(
+      context,
+      'Mapa de duas cores',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          colorSelector(
+            'Cor das sombras',
+            _duotoneShadowKey,
+            (value) => setState(() => _duotoneShadowKey = value),
+          ),
+          const SizedBox(height: 14),
+          colorSelector(
+            'Cor das luzes',
+            _duotoneHighlightKey,
+            (value) => setState(() => _duotoneHighlightKey = value),
+          ),
+          const SizedBox(height: 12),
+          Text('Intensidade: ' + (_duotoneStrength * 100).round().toString() + '%'),
+          Slider(
+            value: _duotoneStrength,
+            min: 0,
+            max: 1,
+            divisions: 20,
+            onChanged: (value) => setState(() => _duotoneStrength = value),
           ),
         ],
       ),
