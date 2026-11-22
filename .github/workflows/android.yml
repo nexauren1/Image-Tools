@@ -103,7 +103,7 @@ jobs:
           APK="$OUTPUT/app-release.apk"
           test -f "$APK"
           "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$APK" > "$RUNNER_TEMP/image-tools-universal.badging"
-          grep -F "package: name='com.nexauren.imagetools' versionCode='47' versionName='2.2.0'" "$RUNNER_TEMP/image-tools-universal.badging"
+          grep -F "package: name='com.nexauren.imagetools' versionCode='48' versionName='2.3.0'" "$RUNNER_TEMP/image-tools-universal.badging"
           for ABI in armeabi-v7a arm64-v8a x86_64; do
             if ! unzip -Z1 "$APK" | grep -Fqx "lib/$ABI/libflutter.so"; then
               echo "Universal APK is missing the Flutter runtime for ABI $ABI"
@@ -152,7 +152,7 @@ jobs:
           grep -Eiq "certificate SHA-256 digest: 0a710d4e508bc3eefa1d36863ebe943fe1f011331d006195d0123dd951b679ea" "$SIGNATURE"
           "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 "$APK"
           "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$APK" > "$RUNNER_TEMP/image-tools-universal-signed.badging"
-          grep -F "package: name='com.nexauren.imagetools' versionCode='47' versionName='2.2.0'" "$RUNNER_TEMP/image-tools-universal-signed.badging"
+          grep -F "package: name='com.nexauren.imagetools' versionCode='48' versionName='2.3.0'" "$RUNNER_TEMP/image-tools-universal-signed.badging"
           for ABI in armeabi-v7a arm64-v8a x86_64; do
             if ! unzip -Z1 "$APK" | grep -Fqx "lib/$ABI/libflutter.so"; then
               echo "Signed universal APK is missing the Flutter runtime for ABI $ABI"
