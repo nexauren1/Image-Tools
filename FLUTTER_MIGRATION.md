@@ -5,7 +5,7 @@ The Flutter application in `flutter_app/` is the production Android application.
 ## Non-negotiable release identity
 
 - Android application ID: `com.nexauren.imagetools`
-- Current version: `2.1.0+46`
+- Current version: `2.3.0+48`
 - Minimum Android: 10 (API 29)
 - Existing production signing key: reuse GitHub Actions secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD`
 - Production source: `flutter_app/`
