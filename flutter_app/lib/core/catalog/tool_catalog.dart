@@ -30,6 +30,9 @@ enum ToolId {
   pixelate,
   documentScan,
   splitImage,
+  sketch,
+  vignette,
+  outline,
 }
 
 class ToolDescriptor {
@@ -261,6 +264,27 @@ abstract final class ToolCatalog {
       title: 'Dividir imagem',
       subtitle: 'Criar segmentos',
       icon: Icons.call_split,
+      color: Color(0xFF64748B),
+    ),
+    ToolDescriptor(
+      id: ToolId.sketch,
+      title: 'Esboço a lápis',
+      subtitle: 'Transformar fotografia em desenho',
+      icon: Icons.brush_rounded,
+      color: Color(0xFF64748B),
+    ),
+    ToolDescriptor(
+      id: ToolId.vignette,
+      title: 'Vinheta',
+      subtitle: 'Escurecer suavemente as margens',
+      icon: Icons.lens_blur_rounded,
+      color: Color(0xFF64748B),
+    ),
+    ToolDescriptor(
+      id: ToolId.outline,
+      title: 'Contornos',
+      subtitle: 'Destacar linhas e formas',
+      icon: Icons.filter_center_focus_rounded,
       color: Color(0xFF64748B),
     ),
   ];
