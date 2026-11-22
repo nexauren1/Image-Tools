@@ -4,7 +4,7 @@ Image Tools is an all-in-one Android image studio. Its editing, conversion, expo
 
 ## Current production release
 
-- Version: **2.2.0** (version code **47**)
+- Version: **2.3.0** (version code **48**)
 - Android package: `com.nexauren.imagetools`
 - Minimum Android: 10 (API 29)
 - Target Android: API 36
@@ -52,6 +52,8 @@ The app brings its image tools together in one catalogue and one navigation syst
 - Social-network size presets
 - Face blur and OCR
 - Replace colour
+- Selective colour (Color Splash) and customizable Duotone
+- Standalone black-and-white, sepia, and negative effects
 - Borders and rounded corners
 - Blur, sharpen, pixelate, document scan, and image splitting
 
@@ -143,6 +145,9 @@ Never commit PayPal client secrets, Firebase service-account private keys, relea
 The Flutter source in `flutter_app/` is the production app. The older Kotlin source in `app/src/` is retained in the repository as legacy code and is not built into the current release. The Firebase Android configuration at `app/google-services.json` is copied into the Flutter Android project by CI.
 
 ## Release history
+
+### 2.3.0
+Added five dedicated image tools: black-and-white, sepia, negative, selective colour (Color Splash), and customizable Duotone. Color Splash preserves a selected colour family while desaturating other areas; Duotone maps shadows and highlights to separate user-selected colours. Both new effects process full-resolution images locally in background isolates. The supplied Image Tools artwork remains the version-controlled Android launcher icon source. Package identity and production signing certificate remain unchanged.
 
 ### 2.2.0
 Replaced the Android launcher icon with the supplied Image Tools artwork. Added on-device pencil sketch, vignette and outline effects, plus Noir, Cinematic, Pastel, Solarize and Posterize filter presets. Package identity and production signing certificate remain unchanged.
