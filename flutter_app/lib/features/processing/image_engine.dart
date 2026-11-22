@@ -209,6 +209,149 @@ abstract final class ImageEngine {
     });
   }
 
+  static Future<Uint8List> sketch(
+    Uint8List originalBytes, {
+    double strength = 0.7,
+  }) {
+    return Isolate.run(() {
+      final decoded = img.decodeImage(originalBytes);
+      if (decoded == null) {
+        throw const FormatException('Não foi possível descodificar a imagem.');
+      }
+      final source = img.bakeOrientation(decoded);
+      if (source.width * source.height > maxPixels) {
+        throw const FormatException('A imagem excede o limite seguro de processamento.');
+      }
+
+      final gray = img.grayscale(source);
+      final inverted = img.invert(gray.clone());
+      final amount = strength.clamp(0.0, 1.0);
+      final radius = (2 + amount * 7).round().clamp(2, 9);
+      final softened = img.gaussianBlur(inverted, radius: radius);
+      final output = img.Image(
+        width: source.width,
+        height: source.height,
+        numChannels: 4,
+      );
+
+      for (var y = 0; y < source.height; y++) {
+        for (var x = 0; x < source.width; x++) {
+          final basePixel = gray.getPixel(x, y);
+          final blurPixel = softened.getPixel(x, y);
+          final base = basePixel.r.toDouble();
+          final mask = blurPixel.r.toDouble();
+          final divisor = math.max(1.0, 255.0 - mask);
+          final pencil = (base * 255.0 / divisor).clamp(0.0, 255.0);
+          final value = (base * (1.0 - amount) + pencil * amount)
+              .round()
+              .clamp(0, 255);
+          output.setPixelRgba(
+            x,
+            y,
+            value,
+            value,
+            value,
+            basePixel.a.toInt(),
+          );
+        }
+      }
+      return Uint8List.fromList(img.encodePng(output, level: 6));
+    });
+  }
+
+  static Future<Uint8List> vignette(
+    Uint8List originalBytes, {
+    double strength = 0.65,
+  }) {
+    return Isolate.run(() {
+      final decoded = img.decodeImage(originalBytes);
+      if (decoded == null) {
+        throw const FormatException('Não foi possível descodificar a imagem.');
+      }
+      final source = img.bakeOrientation(decoded);
+      if (source.width * source.height > maxPixels) {
+        throw const FormatException('A imagem excede o limite seguro de processamento.');
+      }
+
+      final output = source.clone();
+      final amount = strength.clamp(0.0, 1.0);
+      final centerX = (source.width - 1) / 2.0;
+      final centerY = (source.height - 1) / 2.0;
+      final scaleX = math.max(1.0, source.width / 2.0);
+      final scaleY = math.max(1.0, source.height / 2.0);
+      final cornerDistance = math.sqrt(2.0);
+
+      for (var y = 0; y < source.height; y++) {
+        for (var x = 0; x < source.width; x++) {
+          final dx = (x - centerX) / scaleX;
+          final dy = (y - centerY) / scaleY;
+          final distance = (math.sqrt(dx * dx + dy * dy) / cornerDistance)
+              .clamp(0.0, 1.0);
+          final edge = ((distance - 0.28) / 0.72).clamp(0.0, 1.0);
+          final smooth = edge * edge * (3.0 - 2.0 * edge);
+          final factor = 1.0 - amount * smooth * 0.78;
+          final pixel = source.getPixel(x, y);
+          output.setPixelRgba(
+            x,
+            y,
+            (pixel.r * factor).round().clamp(0, 255),
+            (pixel.g * factor).round().clamp(0, 255),
+            (pixel.b * factor).round().clamp(0, 255),
+            pixel.a.toInt(),
+          );
+        }
+      }
+      return Uint8List.fromList(img.encodePng(output, level: 6));
+    });
+  }
+
+  static Future<Uint8List> outline(
+    Uint8List originalBytes, {
+    double strength = 0.7,
+  }) {
+    return Isolate.run(() {
+      final decoded = img.decodeImage(originalBytes);
+      if (decoded == null) {
+        throw const FormatException('Não foi possível descodificar a imagem.');
+      }
+      final source = img.bakeOrientation(decoded);
+      if (source.width * source.height > maxPixels) {
+        throw const FormatException('A imagem excede o limite seguro de processamento.');
+      }
+
+      final gray = img.grayscale(source);
+      final output = img.Image(
+        width: source.width,
+        height: source.height,
+        numChannels: 4,
+      );
+      final threshold = (245.0 - strength.clamp(0.0, 1.0) * 190.0)
+          .clamp(35.0, 245.0);
+
+      double luminance(int x, int y) {
+        final safeX = x.clamp(0, source.width - 1).toInt();
+        final safeY = y.clamp(0, source.height - 1).toInt();
+        return gray.getPixel(safeX, safeY).r.toDouble();
+      }
+
+      for (var y = 0; y < source.height; y++) {
+        for (var x = 0; x < source.width; x++) {
+          final gx = -luminance(x - 1, y - 1) + luminance(x + 1, y - 1)
+              - 2.0 * luminance(x - 1, y) + 2.0 * luminance(x + 1, y)
+              - luminance(x - 1, y + 1) + luminance(x + 1, y + 1);
+          final gy = -luminance(x - 1, y - 1) - 2.0 * luminance(x, y - 1)
+              - luminance(x + 1, y - 1) + luminance(x - 1, y + 1)
+              + 2.0 * luminance(x, y + 1) + luminance(x + 1, y + 1);
+          final magnitude = math.sqrt(gx * gx + gy * gy);
+          final shade = magnitude >= threshold ? 18 : 255;
+          final alpha = source.getPixel(x, y).a.toInt();
+          output.setPixelRgba(x, y, shade, shade, shade, alpha);
+        }
+      }
+      return Uint8List.fromList(img.encodePng(output, level: 6));
+    });
+  }
+
   static Future<Uint8List> applyFilter(
     Uint8List originalBytes, {
     required String filter,
@@ -274,6 +417,87 @@ abstract final class ImageEngine {
           break;
         case 'fade':
           result = img.adjustColor(source, contrast: 1 - amount * 0.22, saturation: 1 - amount * 0.18, brightness: 1 + amount * 0.06);
+          break;
+        case 'noir':
+          result = img.adjustColor(
+            img.grayscale(source),
+            contrast: 1.08 + amount * 0.45,
+            brightness: 0.98,
+          );
+          break;
+        case 'pastel':
+          result = img.adjustColor(
+            source,
+            saturation: 1 - amount * 0.48,
+            brightness: 1 + amount * 0.10,
+            contrast: 1 - amount * 0.10,
+          );
+          break;
+        case 'cinematic':
+          final cinematic = img.adjustColor(
+            source,
+            contrast: 1 + amount * 0.20,
+            saturation: 1 - amount * 0.06,
+          );
+          for (var y = 0; y < cinematic.height; y++) {
+            for (var x = 0; x < cinematic.width; x++) {
+              final pixel = cinematic.getPixel(x, y);
+              final luma = 0.2126 * pixel.r + 0.7152 * pixel.g + 0.0722 * pixel.b;
+              final highlight = ((luma - 100.0) / 155.0).clamp(0.0, 1.0);
+              final shadow = 1.0 - highlight;
+              cinematic.setPixelRgba(
+                x,
+                y,
+                (pixel.r + amount * (18.0 * highlight - 5.0 * shadow)).round().clamp(0, 255),
+                (pixel.g + amount * (5.0 * highlight + 7.0 * shadow)).round().clamp(0, 255),
+                (pixel.b + amount * (-10.0 * highlight + 18.0 * shadow)).round().clamp(0, 255),
+                pixel.a.toInt(),
+              );
+            }
+          }
+          result = cinematic;
+          break;
+        case 'solarize':
+          final solarized = source.clone();
+          final threshold = 255.0 - amount * 150.0;
+          for (var y = 0; y < solarized.height; y++) {
+            for (var x = 0; x < solarized.width; x++) {
+              final pixel = source.getPixel(x, y);
+              final luma = 0.2126 * pixel.r + 0.7152 * pixel.g + 0.0722 * pixel.b;
+              if (luma > threshold) {
+                solarized.setPixelRgba(
+                  x,
+                  y,
+                  (255 - pixel.r).round().clamp(0, 255),
+                  (255 - pixel.g).round().clamp(0, 255),
+                  (255 - pixel.b).round().clamp(0, 255),
+                  pixel.a.toInt(),
+                );
+              }
+            }
+          }
+          result = solarized;
+          break;
+        case 'posterize':
+          final levels = (8 - amount * 5).round().clamp(2, 8);
+          final step = 255.0 / (levels - 1);
+          final posterized = source.clone();
+          for (var y = 0; y < posterized.height; y++) {
+            for (var x = 0; x < posterized.width; x++) {
+              final pixel = source.getPixel(x, y);
+              int quantize(num channel) =>
+                  ((channel / step).round() * step).round().clamp(0, 255);
+              posterized.setPixelRgba(
+                x,
+                y,
+                quantize(pixel.r),
+                quantize(pixel.g),
+                quantize(pixel.b),
+                pixel.a.toInt(),
+              );
+            }
+          }
+          result = posterized;
           break;
         default:
           throw ArgumentError.value(filter, 'filter', 'Filtro não suportado.');
