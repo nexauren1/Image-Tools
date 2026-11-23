@@ -161,14 +161,21 @@ jobs:
           done
 
 
+      - name: Upload signed universal APK
+        if: env.KEYSTORE_BASE64 != '' && env.KEYSTORE_PASSWORD != '' && env.KEY_ALIAS != '' && env.KEY_PASSWORD != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-tools-universal-release-apk
+          path: flutter_app/build/app/outputs/flutter-apk/image-tools-universal-release.apk
+
       - name: Install signed APK on Android 13 emulator
         if: env.KEYSTORE_BASE64 != '' && env.KEYSTORE_PASSWORD != '' && env.KEY_ALIAS != '' && env.KEY_PASSWORD != ''
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 33
           arch: x86_64
-          target: google_apis
-          profile: pixel_2
+          target: aosp_atd
+          emulator-boot-timeout: 300
           disable-animations: true
           script: |
             set -euo pipefail
@@ -176,13 +183,6 @@ jobs:
             adb install --no-streaming "$APK"
             adb shell pm path com.nexauren.imagetools
             adb shell dumpsys package com.nexauren.imagetools | grep -F "versionName=1.19.0"
-
-      - name: Upload signed universal APK
-        if: env.KEYSTORE_BASE64 != '' && env.KEYSTORE_PASSWORD != '' && env.KEY_ALIAS != '' && env.KEY_PASSWORD != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: image-tools-universal-release-apk
-          path: flutter_app/build/app/outputs/flutter-apk/image-tools-universal-release.apk
 
       - name: Upload unsigned PR validation APK
         if: github.event_name == 'pull_request' && (env.KEYSTORE_BASE64 == '' || env.KEYSTORE_PASSWORD == '' || env.KEY_ALIAS == '' || env.KEY_PASSWORD == '')
