@@ -1,0 +1,82 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+    id "com.google.gms.google-services"
+}
+
+android {
+    namespace = "com.nexauren.imagetools"
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_17.toString()
+    }
+
+    defaultConfig {
+        applicationId = "com.nexauren.imagetools"
+        minSdk = 29
+        targetSdk = 36
+        versionCode = 49
+        versionName = "1.19.0"
+    }
+
+    buildTypes {
+        release {
+            // CI signs the final aligned APK with the same production keystore
+            // used by the already-published Android application.
+            signingConfig = null
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    // Thin ML Kit clients: models are provided by Google Play services,
+    // instead of bundling OCR and face-detector native models in every APK.
+    implementation "com.google.android.gms:play-services-mlkit-text-recognition:19.0.1"
+    implementation "com.google.android.gms:play-services-mlkit-face-detection:17.1.0"
+}
+
+flutter {
+    source = "../.."
+}
+
+ 
+// Materialize the exact supplied Image Tools artwork as the permanent Android
+// launcher bitmap before Android resource merging. The compact Base64 source is
+// version-controlled so clean CI builds reproduce the same icon every time.
+def imageToolsLauncherIconSource = file("launcher-icon/image_tools_icon.webp.base64")
+def imageToolsLauncherIconOutput = file("src/main/res/drawable-nodpi/ic_launcher_icon.webp")
+
+tasks.register("prepareImageToolsLauncherIcon") {
+    inputs.file(imageToolsLauncherIconSource)
+    outputs.file(imageToolsLauncherIconOutput)
+    doLast {
+        if (!imageToolsLauncherIconSource.isFile()) {
+            throw new GradleException("Image Tools launcher icon source is missing.")
+        }
+        imageToolsLauncherIconOutput.parentFile.mkdirs()
+        imageToolsLauncherIconOutput.bytes = java.util.Base64.getMimeDecoder().decode(
+            imageToolsLauncherIconSource.getText("UTF-8")
+        )
+    }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn("prepareImageToolsLauncherIcon")
+}
+
+tasks.configureEach {
+    if (name.startsWith("merge") && name.endsWith("Resources")) {
+        dependsOn("prepareImageToolsLauncherIcon")
+    }
+}

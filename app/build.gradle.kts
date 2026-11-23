@@ -13,7 +13,7 @@ android {
         applicationId = "com.nexauren.imagetools"
         minSdk = 29
         targetSdk = 36
-        versionCode = 49
+        versionCode = 41
         versionName = "1.19.0"
         vectorDrawables { useSupportLibrary = true }
 
