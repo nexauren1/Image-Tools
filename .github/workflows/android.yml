@@ -171,15 +171,30 @@ jobs:
       - name: Install signed APK on Android 13 emulator
         if: env.KEYSTORE_BASE64 != '' && env.KEYSTORE_PASSWORD != '' && env.KEY_ALIAS != '' && env.KEY_PASSWORD != ''
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          # GitHub-hosted Linux runners can lack KVM; explicitly allow the
+          # emulator's TCG software CPU backend instead of launching with
+          # -accel off (which the Android Emulator rejects).
+          ANDROID_I_WANT_MY_TCG: "yes"
         with:
           api-level: 33
           arch: x86_64
           target: aosp_atd
-          emulator-boot-timeout: 300
+          emulator-boot-timeout: 600
           disable-animations: true
           script: |
             set -euo pipefail
             APK="$GITHUB_WORKSPACE/flutter_app/build/app/outputs/flutter-apk/image-tools-universal-release.apk"
+            adb wait-for-device
+            BOOTED=""
+            for attempt in $(seq 1 120); do
+              BOOTED="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+              if [ "$BOOTED" = "1" ]; then
+                break
+              fi
+              sleep 2
+            done
+            test "$BOOTED" = "1"
             adb install --no-streaming "$APK"
             adb shell pm path com.nexauren.imagetools
             adb shell dumpsys package com.nexauren.imagetools | grep -F "versionName=1.19.0"
